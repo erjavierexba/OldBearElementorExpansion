@@ -95,13 +95,17 @@
 	var store = { items: null, error: '', pending: null, listeners: [] };
 	function emit() { store.listeners.slice().forEach(function (listener) { listener(); }); }
 	function refresh() {
+		var changed = true;
 		store.pending = api('/templates').then(function (items) {
-			store.items = items || [];
+			items = items || [];
+			// Same data: nothing on screen is redrawn.
+			if (store.items && !store.error && JSON.stringify(items) === JSON.stringify(store.items)) { changed = false; return; }
+			store.items = items;
 			store.error = '';
 		}).catch(function (error) {
 			store.error = error.message;
 			store.items = store.items || [];
-		}).then(function () { store.pending = null; emit(); });
+		}).then(function () { store.pending = null; if (changed) { emit(); } });
 		return store.pending;
 	}
 	function useTemplates() {
@@ -109,7 +113,6 @@
 		R.useEffect(function () {
 			var listener = function () { state[1](function (n) { return n + 1; }); };
 			store.listeners.push(listener);
-			// Each screen loads fresh data (the editor keeps the app frame between openings).
 			if (!store.pending) { refresh(); }
 			return function () { store.listeners = store.listeners.filter(function (l) { return l !== listener; }); };
 		}, []);
@@ -165,7 +168,7 @@
 	function PageHeader(props) {
 		return h(ui.Grid, { container: true, className: 'page-header obx-site-editor__header', justify: 'space-between', alignItems: 'start' },
 			h(ui.Grid, { item: true, sm: 8 },
-				h(ui.Heading, { variant: 'h1' }, props.title),
+				h('h1', { className: 'eps-h1' }, props.title),
 				props.text ? h(ui.Text, null, props.text) : null),
 			props.action ? h(ui.Grid, { item: true, container: true, justify: 'end', sm: 4 }, props.action) : null);
 	}
@@ -266,7 +269,7 @@
 		return h(R.Fragment, null,
 			h(ui.Card, { className: 'e-site-part obx-template' + (item.active ? ' obx-template--active' : '') },
 				h(ui.CardHeader, null,
-					h(ui.Heading, { tag: 'h1', variant: 'text-sm', className: 'eps-card__headline', title: item.title }, item.title),
+					h('h1', { className: 'eps-card__headline eps-text-sm', title: item.title }, item.title),
 					status ? h('span', { className: 'obx-template__status' }, status) : null,
 					h(Dots, { items: [
 						{ text: 'Editar', icon: 'eicon-edit', onClick: function () { goTop(item.urls.edit); } },
@@ -336,72 +339,94 @@
 		return h(ui.CssGrid, { className: 'e-site-editor__site-parts obx-site-editor__grid', colMinWidth: 220, spacing: 25 }, props.children);
 	}
 
-	function AllParts() {
-		var data = useTemplates();
-		var body;
-		if (data.items === null) { body = h(Loading); }
-		else if (!data.items.length) {
-			body = h(R.Fragment, null,
+	function Errors(props) {
+		return props.error ? h(ui.Notice, { color: 'danger', label: 'Error', className: 'obx-site-editor__notice' }, props.error) : null;
+	}
+
+	function AllParts(props) {
+		var data = props.data;
+		if (data.items === null) { return h(Loading); }
+		if (!data.items.length) {
+			return h(R.Fragment, null,
 				h(PageHeader, { title: 'Empieza a personalizar cada parte de tu sitio', text: 'Diseña con Elementor la cabecera, el pie, las entradas, los archivos, la página 404 y más. Pasa el ratón por una parte y pulsa «Añadir nueva» para empezar.' }),
 				h('hr', { className: 'eps-separator' }),
 				h(se.SiteParts, { hoverElement: AddHover }));
-		} else {
-			body = h(R.Fragment, null,
-				h(PageHeader, { title: 'Todas las partes', text: 'Cada plantilla se muestra en las partes del sitio que indiquen sus condiciones.' }),
-				h('hr', { className: 'eps-separator' }),
-				h(Grid, null, data.items.map(function (item) { return h(TemplateCard, { item: item, key: item.id }); })));
 		}
-		return h(Screen, null, data.error ? h(ui.Notice, { color: 'danger', label: 'Error', className: 'obx-site-editor__notice' }, data.error) : null, body);
+		return h(R.Fragment, null,
+			h(PageHeader, { title: 'Todas las partes', text: 'Cada plantilla se muestra en las partes del sitio que indiquen sus condiciones.' }),
+			h('hr', { className: 'eps-separator' }),
+			h(Grid, null, data.items.map(function (item) { return h(TemplateCard, { item: item, key: item.id }); })));
 	}
 
 	function PartTemplates(props) {
-		var data = useTemplates();
-		var part = props.type;
-		var title = partTitle(part);
-		var items = (data.items || []).filter(function (item) { return item.part === part; });
-		var body = data.items === null ? h(Loading) : h(R.Fragment, null,
-			h(PageHeader, { title: title, action: h(ui.AddNewButton, { text: 'Añadir nueva', size: 'sm', onClick: function () { goTop(cfg.create[part]); } }) }),
+		var data = props.data;
+		var part = props.part;
+		if (data.items === null) { return h(Loading); }
+		var items = data.items.filter(function (item) { return item.part === part; });
+		return h(R.Fragment, null,
+			h(PageHeader, { title: partTitle(part), action: h(ui.AddNewButton, { text: 'Añadir nueva', size: 'sm', onClick: function () { goTop(cfg.create[part]); } }) }),
 			h('hr', { className: 'eps-separator' }),
 			h(Grid, null, [h(AddCard, { part: part, key: 'add' })].concat(items.map(function (item) { return h(TemplateCard, { item: item, key: item.id }); }))));
-		return h(Screen, null, data.error ? h(ui.Notice, { color: 'danger', label: 'Error', className: 'obx-site-editor__notice' }, data.error) : null, body);
 	}
 
 	function Conditions(props) {
-		var data = useTemplates();
-		var item = (data.items || []).filter(function (i) { return String(i.id) === String(props.id); })[0];
-		if (data.items === null) { return h(Screen, null, h(Loading)); }
+		var data = props.data;
+		if (data.items === null) { return h(Loading); }
+		var item = data.items.filter(function (i) { return String(i.id) === String(props.id); })[0];
 		if (!item) { return h(Redirect, { to: ROOT, navigate: props.navigate }); }
 		var close = function () {
 			// Opened by the editor after publishing: back to the editor.
 			if (inEditor()) { window.top.$e.run('app/close'); return; }
 			go(props, ROOT + '/' + item.part);
 		};
-		return h(Screen, null, h(PageHeader, { title: item.title }), h(ConditionsModal, { item: item, onClose: close }));
+		return h(R.Fragment, null, h(PageHeader, { title: item.title }), h(ConditionsModal, { item: item, onClose: close }));
 	}
 
 	/* ---------- Routes ---------- */
 
+	/**
+	 * One route for every Theme Builder screen: Elementor's layout (and its site parts loader) stays mounted
+	 * while moving between parts, so the screen never blanks out.
+	 */
+	var fallback = null;
+	function SiteEditor(props) {
+		var path = String(props['*'] || '').replace(/^\/+|\/+$/g, '');
+		var data = useTemplates();
+		var first = R.useRef(true);
+		R.useEffect(function () {
+			// Fresh data when changing screen (the editor keeps the app frame between openings); no loader, the list stays.
+			if (first.current) { first.current = false; return; }
+			if (!store.pending) { refresh(); }
+		}, [path]);
+		if (path === '' || path === 'promotion') { return h(Redirect, { to: ROOT, navigate: props.navigate }); }
+		var parts = path.split('/');
+		var body;
+		if (parts[0] === 'templates' && parts.length === 1) { body = h(AllParts, { data: data }); }
+		else if (parts[0] === 'templates' && parts.length === 2) { body = h(PartTemplates, { data: data, part: parts[1] }); }
+		else if (parts[0] === 'conditions' && parts.length === 2) { body = h(Conditions, { data: data, id: parts[1], navigate: props.navigate }); }
+		else { return fallback ? h(fallback, props) : h(Redirect, { to: ROOT, navigate: props.navigate }); }
+		return h(Screen, null, h(Errors, { error: data.error }), body);
+	}
+
 	function toRoot(props) { return h(Redirect, { to: ROOT, navigate: props.navigate }); }
 
 	var addRoute = router.addRoute.bind(router);
-	var added = false;
-	function ours() {
-		if (added) { return; }
-		added = true;
-		addRoute({ path: '/site-editor', component: toRoot });
-		addRoute({ path: ROOT, component: AllParts });
-		addRoute({ path: ROOT + '/:type', component: PartTemplates });
-		addRoute({ path: '/site-editor/conditions/:id', component: Conditions });
-	}
 	router.addRoute = function (route) {
 		if (route && route.path === '/site-editor/promotion') {
 			// Elementor's site editor module has just cached its site parts: complete them.
 			prepareTypes();
-			ours();
 			return addRoute(Object.assign({}, route, { component: toRoot }));
+		}
+		if (route && route.path === '/site-editor/*') {
+			// Ours already answers this path; Elementor's «not found» stays for unknown screens.
+			fallback = route.component;
+			return undefined;
 		}
 		return addRoute(route);
 	};
-	// Route order does not matter (the router ranks paths), so ours are in place even if Elementor stops registering the promotion.
-	ours();
+	// The router ranks paths, so registering first is fine.
+	addRoute({ path: '/site-editor/*', component: SiteEditor });
+
+	// Thumbnails ready before the first card shows.
+	Object.keys(PARTS).forEach(function (part) { var image = new window.Image(); image.src = thumbnail(part); });
 })();
