@@ -69,7 +69,7 @@ Sin Elementor Pro, los widgets se registran **con los mismos nombres internos qu
 
 Las plantillas guardadas con versiones anteriores, que usan los nombres `obx-*`, se siguen mostrando igual. Esos nombres ya no aparecen en el panel para no duplicar widgets. Con Elementor Pro activo ocurre lo contrario: Pro conserva sus widgets y los de OldBear aparecen con sus nombres `obx-*` en las categorías Sitio, Entrada individual y Archivo.
 
-No pretende clonar todo el catálogo comercial. Quedan fuera Mega menú, Reseñas, Portafolio, Lottie, Hotspot, Off-canvas, Lista de vídeos, botones de PayPal/Stripe y widgets de Facebook. Las piezas necesarias para los kits estudiados —incluidos Loop Builder y WooCommerce— sí están cubiertas.
+El objetivo es la paridad completa con Elementor Pro; lo que falta y el plan están en [docs/PARIDAD-PRO.md](docs/PARIDAD-PRO.md). Hasta ahora quedaban fuera Mega menú, Reseñas, Portafolio, Lottie, Hotspot, Off-canvas, Lista de vídeos, botones de PayPal/Stripe y widgets de Facebook. Las piezas necesarias para los kits estudiados —incluidos Loop Builder y WooCommerce— sí están cubiertas.
 
 ### Loop Builder
 
@@ -174,6 +174,7 @@ includes/widgets/                  Widgets (base con doble nombre obx-*/Pro, tem
 templates/                         header.php, footer.php y location.php que imprime el plugin
 assets/                            CSS y JS propios (sin dependencias; los carruseles usan scroll-snap)
 dev/seed.php · tests/              Demo de desarrollo y pruebas de integración (wp eval-file)
+dev/inventory.php · dev/parity-*   Medición de paridad con Elementor Pro (ver docs/PARIDAD-PRO.md)
 ```
 
 ## Licencia
