@@ -25,9 +25,20 @@ try{
     foreach([Dashboard::FONT,Dashboard::ICON,Dashboard::CODE] as $post_type){$assert(post_type_exists($post_type),"Falta la herramienta administrativa {$post_type}.");}
     $provider=new class{public array $items=[];public function register_menu($item):void{$this->items[]=$item;}};
     Dashboard::editor_menu($provider);$labels=array_map(static fn($item)=>$item->get_label(),$provider->items);
-    foreach(['Elementos personalizados','Fuentes','Iconos','Código','Theme Builder','Popups'] as $label){$assert(in_array($label,$labels,true),"Falta {$label} en el menú de Elementor.");}
-    ob_start();Dashboard::render_dashboard();$dashboard_html=ob_get_clean();
-    foreach(['Theme Builder','Popups','Envíos','Fuentes','Iconos','Código','Administrador de roles'] as $label){$assert(str_contains($dashboard_html,$label),"Falta {$label} en el panel de inicio de WordPress.");}
+    foreach(['Elementos personalizados','Fuentes','Iconos','Código','Popups'] as $label){$assert(in_array($label,$labels,true),"Falta {$label} en el menú de Elementor.");}
+    $assert(!in_array('Theme Builder',$labels,true),'El Theme Builder ya lo lista Elementor: no debe salir dos veces.');
+    // Pro parity: Elementor's own screens behave as on a site with Pro.
+    $Parity=\OldBearExpansion\Admin\Pro_Parity::class;
+    $request=new WP_REST_Request('GET','/elementor-one/v1/plugins');
+    $listed=$Parity::one_plugins(new WP_REST_Response([['slug'=>'elementor','status'=>'active']]),rest_get_server(),$request)->get_data();
+    $assert(in_array('elementor-pro',array_column($listed,'slug'),true),'Elementor One debe ver las herramientas Pro como disponibles.');
+    $home=$Parity::homescreen(['sidebar_promotion_variants'=>[['x'=>1]],'get_started'=>[['license'=>['free']],['license'=>['pro']]]]);
+    $assert(!isset($home['sidebar_promotion_variants'])&&count($home['get_started'])===1&&$home['get_started'][0]['license'][0]==='pro','La pantalla de inicio debe mostrar el contenido de Pro sin la promoción lateral.');
+    $actions=$Parity::footer_actions(['ai'=>[],'go-pro'=>[]]);
+    $assert(!isset($actions['go-pro'])&&isset($actions['ai']),'El widget del escritorio no debe ofrecer «Upgrade».');
+    global $wp_filter;$promo_hooks=0;
+    foreach($wp_filter as $hook=>$handlers){foreach($handlers->callbacks as $callbacks){foreach($callbacks as $cb){$fn=$cb['function'];$obj=is_array($fn)?($fn[0]??null):($fn instanceof Closure?(new ReflectionFunction($fn))->getClosureThis():null);if(is_object($obj)&&str_starts_with(get_class($obj),'Elementor\\Modules\\Promotions\\')){$promo_hooks++;}}}}
+    $assert(!\OldBearExpansion\Clean\Clean_Mode::enabled()||$promo_hooks===0,"Quedan {$promo_hooks} ganchos de promociones de Elementor (banner de ofertas).");
     $remote=\OldBearExpansion\Clean\Clean_Mode::remote_info(['pro_widgets'=>['locked'],'admin_notice'=>['title'=>'Oferta']]);
     $assert($remote['pro_widgets']===[]&&!isset($remote['admin_notice']),'El modo limpio debe retirar la publicidad remota del escritorio.');
     $safe_svg=Dashboard::sanitize_svg('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script><path d="M0 0"/></svg>');

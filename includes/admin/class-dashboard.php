@@ -1,8 +1,6 @@
 <?php
 namespace OldBearExpansion\Admin;
 
-use OldBearExpansion\Popups\Popups;
-use OldBearExpansion\ThemeBuilder\Admin as Theme_Admin;
 use const OldBearExpansion\DIR;
 use const OldBearExpansion\VERSION;
 
@@ -20,7 +18,6 @@ final class Dashboard {
         add_action('post_edit_form_tag', [self::class, 'form_encoding']);
         add_action('save_post', [self::class, 'save'], 10, 2);
         add_action('elementor/editor-one/menu/register', [self::class, 'editor_menu'], 30);
-        add_action('wp_dashboard_setup', [self::class, 'dashboard_widget'], 100);
         add_action('elementor/role/restrictions/controls', [self::class, 'role_control'], 5, 2);
 
         add_filter('elementor/fonts/groups', [self::class, 'font_groups']);
@@ -69,63 +66,7 @@ final class Dashboard {
         $provider->register_menu(new Menu_Child('edit.php?post_type=' . self::FONT, 'Fuentes', admin_url('edit.php?post_type=' . self::FONT), $custom, 10));
         $provider->register_menu(new Menu_Child('edit.php?post_type=' . self::ICON, 'Iconos', admin_url('edit.php?post_type=' . self::ICON), $custom, 20));
         $provider->register_menu(new Menu_Child('edit.php?post_type=' . self::CODE, 'Código', admin_url('edit.php?post_type=' . self::CODE), $custom, 30));
-        $provider->register_menu(new Menu_Child('obx-theme-builder', 'Theme Builder', Theme_Admin::url(), $templates, 20, 'edit_posts'));
         $provider->register_menu(new Menu_Child('obx-popups', 'Popups', admin_url('edit.php?post_type=elementor_library&page=obx-popups'), $templates, 50, 'edit_posts'));
-    }
-
-    /** Replace Elementor's promotional dashboard card with useful site-management shortcuts. */
-    public static function dashboard_widget(): void {
-        remove_meta_box('e-dashboard-overview', 'dashboard', 'normal');
-        wp_add_dashboard_widget('obx-dashboard-overview', 'OldBear Expansion · Elementor', [self::class, 'render_dashboard']);
-
-        // Keep the OldBear panel at the top of the main dashboard column.
-        global $wp_meta_boxes;
-        $core = &$wp_meta_boxes['dashboard']['normal']['core'];
-        if (is_array($core) && isset($core['obx-dashboard-overview'])) {
-            $widget = $core['obx-dashboard-overview'];
-            unset($core['obx-dashboard-overview']);
-            $core = ['obx-dashboard-overview' => $widget] + $core;
-        }
-    }
-
-    public static function render_dashboard(): void {
-        $create_url = admin_url('post-new.php?post_type=page');
-        if (class_exists('\Elementor\Plugin') && isset(\Elementor\Plugin::$instance->documents) && method_exists(\Elementor\Plugin::$instance->documents, 'get_create_new_post_url')) {
-            $elementor_url = \Elementor\Plugin::$instance->documents->get_create_new_post_url('page');
-            if (is_string($elementor_url) && $elementor_url !== '') { $create_url = $elementor_url; }
-        }
-
-        $links = [
-            ['Theme Builder', Theme_Admin::url(), 'Cabecera, pie, entradas y archivos'],
-            ['Popups', admin_url('edit.php?post_type=elementor_library&page=obx-popups'), 'Ventanas emergentes y condiciones'],
-            ['Envíos', admin_url('edit.php?post_type=obx_submission'), 'Respuestas de formularios'],
-            ['Fuentes', admin_url('edit.php?post_type=' . self::FONT), 'Tipografías personalizadas'],
-            ['Iconos', admin_url('edit.php?post_type=' . self::ICON), 'Biblioteca SVG propia'],
-            ['Código', admin_url('edit.php?post_type=' . self::CODE), 'CSS, HTML y JavaScript'],
-            ['Administrador de roles', admin_url('admin.php?page=elementor-role-manager'), 'Permisos del editor'],
-            ['Plantillas', admin_url('edit.php?post_type=elementor_library'), 'Biblioteca de Elementor'],
-        ];
-
-        echo '<style>#obx-dashboard-overview .inside{margin:0;padding:0}.obx-dashboard-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;background:#f5f3ff;border-bottom:1px solid #ddd6fe}.obx-dashboard-head p{margin:3px 0 0;color:#50575e}.obx-dashboard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:#e2e4e7}.obx-dashboard-link{display:block;padding:14px 16px;background:#fff;text-decoration:none}.obx-dashboard-link strong{display:block;color:#1d2327;font-size:14px}.obx-dashboard-link span{display:block;color:#646970;margin-top:4px}.obx-dashboard-recent{padding:14px 20px;border-top:1px solid #e2e4e7}.obx-dashboard-recent h3{margin:0 0 9px}.obx-dashboard-recent ul{margin:0}.obx-dashboard-recent li{margin:0 0 7px}@media(max-width:782px){.obx-dashboard-head{align-items:flex-start;flex-direction:column}.obx-dashboard-grid{grid-template-columns:1fr}}</style>';
-        echo '<div class="obx-dashboard-head"><div><strong>Elementor ' . esc_html(defined('ELEMENTOR_VERSION') ? ELEMENTOR_VERSION : '') . ' + OldBear ' . esc_html(VERSION) . '</strong><p>Herramientas de diseño y contenido, sin promociones.</p></div><a class="button button-primary" href="' . esc_url($create_url) . '">Crear página con Elementor</a></div>';
-        echo '<div class="obx-dashboard-grid">';
-        foreach ($links as [$label, $url, $description]) {
-            echo '<a class="obx-dashboard-link" href="' . esc_url($url) . '"><strong>' . esc_html($label) . '</strong><span>' . esc_html($description) . '</span></a>';
-        }
-        echo '</div>';
-
-        $recent = get_posts(['post_type'=>'any','post_status'=>['publish','draft','pending','private'],'posts_per_page'=>5,'orderby'=>'modified','order'=>'DESC','meta_key'=>'_elementor_edit_mode','meta_value'=>'builder']);
-        echo '<div class="obx-dashboard-recent"><h3>Editado recientemente con Elementor</h3>';
-        if (!$recent) { echo '<p>Todavía no hay contenido reciente.</p>'; }
-        else {
-            echo '<ul>';
-            foreach ($recent as $post) {
-                $url = admin_url('post.php?post=' . $post->ID . '&action=elementor');
-                echo '<li><a href="' . esc_url($url) . '">' . esc_html(get_the_title($post) ?: '(Sin título)') . '</a> <span class="description">· ' . esc_html(get_post_type_object($post->post_type)->labels->singular_name ?? $post->post_type) . '</span></li>';
-            }
-            echo '</ul>';
-        }
-        echo '</div>';
     }
 
     public static function meta_boxes(): void {

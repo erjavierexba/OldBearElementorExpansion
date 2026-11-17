@@ -20,6 +20,7 @@
 | 6b | CSS y atributos personalizados, sticky, efectos, diapositivas y carrusel de medios | ✅ v0.5.0 |
 | 8 | Widgets de producto, archivo, carrito, compra y cuenta de WooCommerce | ✅ v0.5.0 |
 | 9 | Dashboard Pro: fuentes, iconos, código personalizado y edición de solo contenido por rol | ✅ v0.6.0 |
+| 10 | Pantallas de Elementor como con Pro: escritorio, Inicio, Quick Start, barra superior y enlaces de las herramientas Pro | ✅ v0.6.1 |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 
@@ -82,12 +83,20 @@ Los controles nativos con soporte dinámico pueden usar datos de entrada, archiv
 
 El menú moderno de Elementor incluye equivalentes funcionales de sus herramientas locales de Pro:
 
-- **Editor → Plantillas**: Theme Builder, plantillas guardadas y Popups.
+- **Editor → Plantillas**: Maquetador de temas (el Theme Builder de este plugin), plantillas guardadas y Popups.
 - **Editor → Envíos**: registros de formularios con detalle, estado y metadatos.
 - **Editor → Administrador de roles**: sin acceso, edición completa o edición de solo contenido.
 - **Editor → Elementos personalizados → Fuentes**: carga WOFF2, WOFF, TTF y OTF, con peso y estilo; las familias aparecen en los controles de Tipografía.
 - **Editor → Elementos personalizados → Iconos**: carga SVG saneado y biblioteca propia dentro del selector de iconos.
 - **Editor → Elementos personalizados → Código**: HTML, CSS o JavaScript en `head`, inicio o final de `body`, con prioridad y condiciones de visualización.
+
+Con el modo limpio, las pantallas propias de Elementor se ven como en un sitio con Pro:
+
+- **Escritorio**: la tarjeta «Elementor Overview» de siempre, con la versión de OldBear Expansion bajo la de Elementor y sin el enlace «Upgrade».
+- **Elementor → Inicio / Quick Start**: sin el botón «Upgrade» de la barra superior; las tarjetas de Theme Builder, Popups, Envíos, Fuentes, Iconos, Código y Roles muestran «Abrir» en lugar de «Hacerse Pro»; Quick Start muestra el contenido para usuarios de Pro, sin el anuncio lateral de ofertas.
+- **Enlaces de Pro**: las direcciones a las que apunta Elementor (`admin.php?page=e-popups`, `e-form-submissions`, `e-custom-fonts`, `e-custom-icons`, `e-custom-code`, `elementor-theme-builder`, `elementor-app#/site-editor`) abren las pantallas de este plugin. Fuentes, iconos y código usan los tipos de contenido de Pro (`elementor_font`, `elementor_icons`, `elementor_snippet`).
+
+Para eso, la interfaz «Elementor One» recibe `elementor-pro` como herramienta instalada en su lista de plugins (solo esa lectura; instalar o activar no cambia). No se simula ninguna licencia.
 
 Licencia, soporte, plantillas en la nube y los plugins independientes de Elementor (accesibilidad, correo e imágenes) son servicios externos, no funciones locales del dashboard, y no se simulan.
 
@@ -123,11 +132,12 @@ En el editor, las plantillas de entrada y archivo se previsualizan con contenido
 
 Activado por defecto (**Ajustes → OldBear Expansion**). Oculta los anuncios de Elementor Pro sin desactivar ninguna función gratuita:
 
-- widgets bloqueados «Pro» del panel, avisos del navegador y del panel, y la barra «Actualizar ahora» del editor;
+- widgets bloqueados «Pro» del panel, avisos del navegador y del panel, la barra «Actualizar ahora» del editor y la barra fija de ofertas del panel de edición;
+- el banner de ofertas del escritorio (p. ej. Black Friday), la promoción lateral de Quick Start y el botón «Upgrade» de la barra de Elementor;
 - secciones de solo promoción en Avanzado y en los ajustes de página (CSS personalizado, atributos, condiciones de visualización, efectos de scroll y ratón, sticky);
 - entradas de menú de Pro («Ventanas emergentes», «Elementos personalizados», «Actualizar», «Mejorar plan») y el enlace «Obtener Elementor Pro» en Plugins.
 
-La entrada **Maquetador de temas** de Elementor abre el Theme Builder de este plugin. Se desengancha el módulo de promociones de Elementor quitando solo los ganchos de esa instancia; el filtro `obx/clean_mode` permite desactivarlo por código.
+La entrada **Maquetador de temas** de Elementor abre el Theme Builder de este plugin. Se desengancha el módulo de promociones de Elementor quitando solo los ganchos de ese módulo y de los objetos que crea (banner de conversión, avisos de temporada); el filtro `obx/clean_mode` permite desactivarlo por código.
 
 ## Desarrollo
 

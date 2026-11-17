@@ -23,6 +23,8 @@ final class Clean_Mode {
         add_action('admin_init', [self::class, 'register_setting']);
         add_action('admin_menu', [self::class, 'settings_page']);
         if (!self::enabled()) { return; }
+        require_once \OldBearExpansion\DIR . '/includes/admin/class-pro-parity.php';
+        \OldBearExpansion\Admin\Pro_Parity::boot();
         // Elementor builds its modules on init:0. Unhook its promotions module right after.
         add_action('init', [self::class, 'unhook_promotions'], 1);
         add_filter('elementor/editor/localize_settings', [self::class, 'editor_config'], 999);
@@ -63,7 +65,10 @@ final class Clean_Mode {
         remove_submenu_page('elementor', 'go_elementor_pro');
     }
 
-    /** Removes every hook registered by Elementor's promotions module instance. */
+    /**
+     * Removes every hook registered by Elementor's promotions module and by the objects it creates
+     * (conversion banner, sale pointers, locked widgets…), as Elementor does when Pro is active.
+     */
     public static function unhook_promotions(): int {
         $module = Elementor::$instance->modules_manager->get_modules('promotions');
         if (!$module) { return 0; }
@@ -83,11 +88,14 @@ final class Clean_Mode {
     }
 
     private static function belongs_to($function, object $owner): bool {
-        if (is_array($function)) { return ($function[0] ?? null) === $owner; }
-        if ($function instanceof \Closure) {
-            try { return (new \ReflectionFunction($function))->getClosureThis() === $owner; } catch (\ReflectionException) { return false; }
+        $object = null;
+        if (is_array($function)) { $object = $function[0] ?? null; }
+        elseif ($function instanceof \Closure) {
+            try { $object = (new \ReflectionFunction($function))->getClosureThis(); } catch (\ReflectionException) { return false; }
         }
-        return false;
+        if ($object === $owner) { return true; }
+        $class = is_object($object) ? get_class($object) : (is_string($object) ? $object : '');
+        return $class !== '' && str_starts_with(ltrim($class, '\\'), 'Elementor\\Modules\\Promotions\\');
     }
 
     public static function editor_config(array $config): array {
@@ -125,7 +133,7 @@ final class Clean_Mode {
     public static function editor_styles(): void {
         wp_register_style('obx-clean', false, [], \OldBearExpansion\VERSION);
         wp_enqueue_style('obx-clean');
-        wp_add_inline_style('obx-clean', '#elementor-navigator__footer__promotion,#elementor-panel-get-pro-elements,#elementor-panel-get-pro-elements-sticky,.elementor-panel-heading-promotion,.e-link-promotion,.elementor-nerd-box,.elementor-control-type-promotion_control,#elementor-notice-bar,.elementor-panel-category-items .elementor-element--promotion,.elementor-element-wrapper.elementor-element--promotion{display:none!important}.elementor-navigator-list__promotion{padding-bottom:0!important}');
+        wp_add_inline_style('obx-clean', '#elementor-navigator__footer__promotion,#elementor-panel-get-pro-elements,#elementor-panel-get-pro-elements-sticky,.elementor-panel-heading-promotion,.e-link-promotion,.elementor-nerd-box,.elementor-control-type-promotion_control,#elementor-notice-bar,.elementor-panel-editor-sticky-promotion,.elementor-tags-list__teaser,.elementor-panel-category-items .elementor-element--promotion,.elementor-element-wrapper.elementor-element--promotion{display:none!important}.elementor-navigator-list__promotion{padding-bottom:0!important}');
     }
 
     public static function admin_styles(): void {
