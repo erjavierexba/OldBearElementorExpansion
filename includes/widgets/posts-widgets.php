@@ -11,11 +11,90 @@ use OldBearExpansion\Context;
 
 if (!defined('ABSPATH')) { exit; }
 
+/** Pagination controls and markup shared by post grids and loop grids (Elementor Pro's keys). */
+trait Paginates {
+    protected function pagination_controls(bool $nothing_found = true): void {
+        $this->start_controls_section('section_pagination', ['label'=>'Paginación']);
+        $this->add_control('pagination_type', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Ninguna','numbers'=>'Números','prev_next'=>'Anterior/Siguiente','numbers_and_prev_next'=>'Números + Anterior/Siguiente','load_more_on_click'=>'Botón «Cargar más»','load_more_infinite_scroll'=>'Desplazamiento infinito']]);
+        $numbers = ['pagination_type'=>['numbers','numbers_and_prev_next','prev_next']];
+        $this->add_control('pagination_page_limit', ['label'=>'Límite de páginas','type'=>Controls_Manager::NUMBER,'default'=>'5','condition'=>['pagination_type!'=>'']]);
+        $this->add_control('pagination_numbers_shorten', ['label'=>'Acortar','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','condition'=>['pagination_type'=>['numbers','numbers_and_prev_next']]]);
+        $this->add_control('pagination_prev_label', ['label'=>'Texto «Anterior»','type'=>Controls_Manager::TEXT,'default'=>'&laquo; Anterior','condition'=>['pagination_type'=>['prev_next','numbers_and_prev_next']]]);
+        $this->add_control('pagination_next_label', ['label'=>'Texto «Siguiente»','type'=>Controls_Manager::TEXT,'default'=>'Siguiente &raquo;','condition'=>['pagination_type'=>['prev_next','numbers_and_prev_next']]]);
+        $this->add_control('pagination_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::align_options(),'selectors'=>['{{WRAPPER}} .obx-pagination'=>'text-align: {{VALUE}}; justify-content: {{VALUE}};'],'condition'=>$numbers]);
+        $this->add_control('text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'Cargar más','condition'=>['pagination_type'=>'load_more_on_click']]);
+        $this->add_control('load_more_no_posts_custom_message', ['label'=>'Mensaje al terminar','type'=>Controls_Manager::TEXT,'default'=>'No hay más entradas','label_block'=>true,'condition'=>['pagination_type'=>['load_more_on_click','load_more_infinite_scroll']]]);
+        $this->end_controls_section();
+        if (!$nothing_found) { return; }
+
+        $this->start_controls_section('section_nothing_found', ['label'=>'Sin resultados']);
+        $this->add_control('nothing_found_message', ['label'=>'Mensaje','type'=>Controls_Manager::TEXTAREA,'default'=>static::SKIN_PREFIX ? 'Parece que no encontramos lo que buscas.' : '']);
+        $this->end_controls_section();
+    }
+
+    protected function pagination_style(): void {
+        $this->start_controls_section('section_pagination_style', ['label'=>'Paginación','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['pagination_type!'=>'']]);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'pagination_typography','selector'=>'{{WRAPPER}} .obx-pagination']);
+        $this->add_control('pagination_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers:not(.dots)'=>'color: {{VALUE}};']]);
+        $this->add_control('pagination_hover_color', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination a.page-numbers:hover'=>'color: {{VALUE}};']]);
+        $this->add_control('pagination_active_color', ['label'=>'Color activo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers.current'=>'color: {{VALUE}};']]);
+        $this->add_responsive_control('pagination_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'default'=>['size'=>10],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination'=>'gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('pagination_spacing_top', ['label'=>'Distancia','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination, {{WRAPPER}} .obx-load-more'=>'margin-top: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('load_more_color', ['label'=>'Color del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click'],'separator'=>'before']);
+        $this->add_control('load_more_background_color', ['label'=>'Fondo del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'background-color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click']]);
+        $this->end_controls_section();
+    }
+
+    protected function current_page(): int {
+        $arg = $this->page_arg();
+        if ($arg !== null) { return max(1, absint($_GET[$arg] ?? 1)); } // phpcs:ignore WordPress.Security.NonceVerification -- read-only page number.
+        return max(1, (int) get_query_var('paged'), (int) get_query_var('page'));
+    }
+
+    protected function pagination(array $s, \WP_Query $query): void {
+        $type = (string) ($s['pagination_type'] ?? '');
+        $limit = absint($s['pagination_page_limit'] ?? 5);
+        $total = (int) $query->max_num_pages;
+        if ($limit) { $total = min($total, $limit); }
+        if ($type === '' || $total < 2) { return; }
+        $current = min($this->current_page(), $total);
+        $arg = $this->page_arg();
+        $base = str_replace('999999999', '%#%', $arg !== null ? add_query_arg($arg, 999999999) : get_pagenum_link(999999999, false));
+        $format = '';
+        $link = static fn(int $page) => str_replace('%#%', (string) $page, $base);
+
+        if (str_starts_with($type, 'load_more')) {
+            if ($current >= $total) { return; }
+            $infinite = $type === 'load_more_infinite_scroll';
+            echo '<div class="obx-load-more" data-next="' . esc_attr($link($current + 1)) . '" data-page="' . esc_attr((string) $current) . '" data-max="' . esc_attr((string) $total) . '" data-mode="' . ($infinite ? 'scroll' : 'click') . '" data-done="' . esc_attr((string) ($s['load_more_no_posts_custom_message'] ?? '')) . '">';
+            echo $infinite ? '<span class="obx-load-more__spinner" aria-hidden="true"></span>' : '<button type="button" class="obx-load-more__button elementor-button">' . esc_html(($s['text'] ?? '') ?: 'Cargar más') . '</button>';
+            echo '<p class="obx-load-more__message" role="status" hidden></p></div>';
+            return;
+        }
+        $prev = wp_kses_post((string) ($s['pagination_prev_label'] ?? ''));
+        $next = wp_kses_post((string) ($s['pagination_next_label'] ?? ''));
+        $parts = [];
+        if ($type !== 'numbers') {
+            $parts[] = $current > 1 ? '<a class="page-numbers prev" href="' . esc_url($link($current - 1)) . '">' . $prev . '</a>' : '<span class="page-numbers prev" aria-disabled="true">' . $prev . '</span>';
+        }
+        if ($type !== 'prev_next') {
+            $shorten = ($s['pagination_numbers_shorten'] ?? '') === 'yes';
+            $numbers = paginate_links(['base'=>$base,'format'=>$format,'total'=>$total,'current'=>$current,'show_all'=>!$shorten,'end_size'=>1,'mid_size'=>1,'prev_next'=>false,'type'=>'array']);
+            $parts = array_merge($parts, (array) $numbers);
+        }
+        if ($type !== 'numbers') {
+            $parts[] = $current < $total ? '<a class="page-numbers next" href="' . esc_url($link($current + 1)) . '">' . $next . '</a>' : '<span class="page-numbers next" aria-disabled="true">' . $next . '</span>';
+        }
+        echo '<nav class="obx-pagination" aria-label="Paginación">' . implode('', $parts) . '</nav>'; // Escaped above.
+    }
+}
+
 /**
  * Post grids with Elementor Pro's data layout: a `_skin` setting (classic, cards, full_content)
  * and every layout/style key prefixed with the skin id ("classic_columns", "archive_cards_title_color").
  */
 abstract class Posts_Base extends Base {
+    use Paginates;
     /** Prefix of the skin ids: '' for the Posts widget, 'archive_' for Archive Posts. */
     protected const SKIN_PREFIX = '';
     public const SKINS = ['classic'=>'Clásico','cards'=>'Tarjetas','full_content'=>'Contenido completo'];
@@ -179,42 +258,8 @@ abstract class Posts_Base extends Base {
         $this->end_controls_section();
     }
 
-    private function pagination_controls(): void {
-        $this->start_controls_section('section_pagination', ['label'=>'Paginación']);
-        $this->add_control('pagination_type', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Ninguna','numbers'=>'Números','prev_next'=>'Anterior/Siguiente','numbers_and_prev_next'=>'Números + Anterior/Siguiente','load_more_on_click'=>'Botón «Cargar más»','load_more_infinite_scroll'=>'Desplazamiento infinito']]);
-        $numbers = ['pagination_type'=>['numbers','numbers_and_prev_next','prev_next']];
-        $this->add_control('pagination_page_limit', ['label'=>'Límite de páginas','type'=>Controls_Manager::NUMBER,'default'=>'5','condition'=>['pagination_type!'=>'']]);
-        $this->add_control('pagination_numbers_shorten', ['label'=>'Acortar','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','condition'=>['pagination_type'=>['numbers','numbers_and_prev_next']]]);
-        $this->add_control('pagination_prev_label', ['label'=>'Texto «Anterior»','type'=>Controls_Manager::TEXT,'default'=>'&laquo; Anterior','condition'=>['pagination_type'=>['prev_next','numbers_and_prev_next']]]);
-        $this->add_control('pagination_next_label', ['label'=>'Texto «Siguiente»','type'=>Controls_Manager::TEXT,'default'=>'Siguiente &raquo;','condition'=>['pagination_type'=>['prev_next','numbers_and_prev_next']]]);
-        $this->add_control('pagination_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::align_options(),'selectors'=>['{{WRAPPER}} .obx-pagination'=>'text-align: {{VALUE}}; justify-content: {{VALUE}};'],'condition'=>$numbers]);
-        $this->add_control('text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'Cargar más','condition'=>['pagination_type'=>'load_more_on_click']]);
-        $this->add_control('load_more_no_posts_custom_message', ['label'=>'Mensaje al terminar','type'=>Controls_Manager::TEXT,'default'=>'No hay más entradas','label_block'=>true,'condition'=>['pagination_type'=>['load_more_on_click','load_more_infinite_scroll']]]);
-        $this->end_controls_section();
 
-        $this->start_controls_section('section_nothing_found', ['label'=>'Sin resultados']);
-        $this->add_control('nothing_found_message', ['label'=>'Mensaje','type'=>Controls_Manager::TEXTAREA,'default'=>static::SKIN_PREFIX ? 'Parece que no encontramos lo que buscas.' : '']);
-        $this->end_controls_section();
-    }
 
-    private function pagination_style(): void {
-        $this->start_controls_section('section_pagination_style', ['label'=>'Paginación','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['pagination_type!'=>'']]);
-        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'pagination_typography','selector'=>'{{WRAPPER}} .obx-pagination']);
-        $this->add_control('pagination_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers:not(.dots)'=>'color: {{VALUE}};']]);
-        $this->add_control('pagination_hover_color', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination a.page-numbers:hover'=>'color: {{VALUE}};']]);
-        $this->add_control('pagination_active_color', ['label'=>'Color activo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers.current'=>'color: {{VALUE}};']]);
-        $this->add_responsive_control('pagination_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'default'=>['size'=>10],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination'=>'gap: {{SIZE}}{{UNIT}};']]);
-        $this->add_responsive_control('pagination_spacing_top', ['label'=>'Distancia','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination, {{WRAPPER}} .obx-load-more'=>'margin-top: {{SIZE}}{{UNIT}};']]);
-        $this->add_control('load_more_color', ['label'=>'Color del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click'],'separator'=>'before']);
-        $this->add_control('load_more_background_color', ['label'=>'Fondo del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'background-color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click']]);
-        $this->end_controls_section();
-    }
-
-    protected function current_page(): int {
-        $arg = $this->page_arg();
-        if ($arg !== null) { return max(1, absint($_GET[$arg] ?? 1)); } // phpcs:ignore WordPress.Security.NonceVerification -- read-only page number.
-        return max(1, (int) get_query_var('paged'), (int) get_query_var('page'));
-    }
 
     protected function render(): void {
         $s = $this->get_settings_for_display();
@@ -241,7 +286,7 @@ abstract class Posts_Base extends Base {
         }
         echo '<div class="' . esc_attr(implode(' ', $classes)) . '">';
         foreach ($query->posts as $post) {
-            self::$shown[] = $post->ID;
+            Query::$shown[] = $post->ID;
             $url = esc_url(get_permalink($post));
             echo '<article class="obx-post ' . esc_attr(implode(' ', get_post_class('', $post))) . '">';
             if ($skin === 'cards') { echo '<div class="obx-post__card">'; }
@@ -314,42 +359,6 @@ abstract class Posts_Base extends Base {
         return (string) $html;
     }
 
-    private function pagination(array $s, \WP_Query $query): void {
-        $type = (string) ($s['pagination_type'] ?? '');
-        $limit = absint($s['pagination_page_limit'] ?? 5);
-        $total = (int) $query->max_num_pages;
-        if ($limit) { $total = min($total, $limit); }
-        if ($type === '' || $total < 2) { return; }
-        $current = min($this->current_page(), $total);
-        $arg = $this->page_arg();
-        $base = str_replace('999999999', '%#%', $arg !== null ? add_query_arg($arg, 999999999) : get_pagenum_link(999999999, false));
-        $format = '';
-        $link = static fn(int $page) => str_replace('%#%', (string) $page, $base);
-
-        if (str_starts_with($type, 'load_more')) {
-            if ($current >= $total) { return; }
-            $infinite = $type === 'load_more_infinite_scroll';
-            echo '<div class="obx-load-more" data-next="' . esc_attr($link($current + 1)) . '" data-page="' . esc_attr((string) $current) . '" data-max="' . esc_attr((string) $total) . '" data-mode="' . ($infinite ? 'scroll' : 'click') . '" data-done="' . esc_attr((string) ($s['load_more_no_posts_custom_message'] ?? '')) . '">';
-            echo $infinite ? '<span class="obx-load-more__spinner" aria-hidden="true"></span>' : '<button type="button" class="obx-load-more__button elementor-button">' . esc_html(($s['text'] ?? '') ?: 'Cargar más') . '</button>';
-            echo '<p class="obx-load-more__message" role="status" hidden></p></div>';
-            return;
-        }
-        $prev = wp_kses_post((string) ($s['pagination_prev_label'] ?? ''));
-        $next = wp_kses_post((string) ($s['pagination_next_label'] ?? ''));
-        $parts = [];
-        if ($type !== 'numbers') {
-            $parts[] = $current > 1 ? '<a class="page-numbers prev" href="' . esc_url($link($current - 1)) . '">' . $prev . '</a>' : '<span class="page-numbers prev" aria-disabled="true">' . $prev . '</span>';
-        }
-        if ($type !== 'prev_next') {
-            $shorten = ($s['pagination_numbers_shorten'] ?? '') === 'yes';
-            $numbers = paginate_links(['base'=>$base,'format'=>$format,'total'=>$total,'current'=>$current,'show_all'=>!$shorten,'end_size'=>1,'mid_size'=>1,'prev_next'=>false,'type'=>'array']);
-            $parts = array_merge($parts, (array) $numbers);
-        }
-        if ($type !== 'numbers') {
-            $parts[] = $current < $total ? '<a class="page-numbers next" href="' . esc_url($link($current + 1)) . '">' . $next . '</a>' : '<span class="page-numbers next" aria-disabled="true">' . $next . '</span>';
-        }
-        echo '<nav class="obx-pagination" aria-label="Paginación">' . implode('', $parts) . '</nav>'; // Escaped above.
-    }
 }
 
 /** Posts of the current archive, search or blog page. */
@@ -413,134 +422,13 @@ final class Posts extends Posts_Base {
 
     protected function page_arg(): ?string { return 'e-page-' . $this->get_id(); }
 
-    protected function query_controls(): void {
-        $types = [];
-        foreach (get_post_types(['public'=>true], 'objects') as $type) { if (!in_array($type->name, ['attachment','elementor_library','e-landing-page'], true)) { $types[$type->name] = $type->labels->name; } }
-        $types += ['by_id'=>'Selección manual','current_query'=>'Consulta actual','related'=>'Relacionadas'];
-        $terms = [];
-        foreach (get_taxonomies(['public'=>true,'show_ui'=>true], 'objects') as $taxonomy) {
-            if ($taxonomy->name === 'post_format') { continue; }
-            foreach (get_terms(['taxonomy'=>$taxonomy->name,'hide_empty'=>false,'number'=>200]) ?: [] as $term) {
-                if ($term instanceof \WP_Term) { $terms[(string) $term->term_id] = $taxonomy->labels->singular_name . ': ' . $term->name; }
-            }
-        }
-        $authors = [];
-        foreach (get_users(['capability'=>['edit_posts'],'number'=>200,'fields'=>['ID','display_name']]) as $user) { $authors[(string) $user->ID] = $user->display_name; }
-        $posts = [];
-        foreach (get_posts(['post_type'=>array_keys(array_diff_key($types, array_flip(['by_id','current_query','related']))),'numberposts'=>200,'orderby'=>'date','post_status'=>'publish']) as $post) { $posts[(string) $post->ID] = get_the_title($post) ?: '#' . $post->ID; }
-        $taxonomies = [];
-        foreach (get_taxonomies(['public'=>true,'show_ui'=>true], 'objects') as $taxonomy) { $taxonomies[$taxonomy->name] = $taxonomy->labels->name; }
-
-        $plain = ['posts_post_type!'=>['by_id','current_query','related']];
-        $this->start_controls_section('section_query', ['label'=>'Consulta']);
-        $this->add_control('posts_post_type', ['label'=>'Origen','type'=>Controls_Manager::SELECT,'default'=>'post','options'=>$types]);
-        $this->add_control('posts_posts_ids', ['label'=>'Entradas','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>['posts_post_type'=>'by_id']]);
-        $this->add_control('archive_query_note', ['type'=>Controls_Manager::RAW_HTML,'raw'=>'Muestra las entradas de la página en la que se use (archivo, búsqueda o blog).','content_classes'=>'elementor-panel-alert elementor-panel-alert-info','condition'=>['posts_post_type'=>'current_query']]);
-        $this->add_control('posts_related_taxonomies', ['label'=>'Relacionadas por','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$taxonomies,'default'=>['category','post_tag'],'condition'=>['posts_post_type'=>'related']]);
-        $this->add_control('posts_include', ['label'=>'Incluir solo','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>['terms'=>'Términos','authors'=>'Autores'],'condition'=>$plain]);
-        $this->add_control('posts_include_term_ids', ['label'=>'Términos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$terms,'condition'=>$plain + ['posts_include'=>'terms']]);
-        $this->add_control('posts_include_authors', ['label'=>'Autores','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$authors,'condition'=>$plain + ['posts_include'=>'authors']]);
-        $this->add_control('posts_exclude', ['label'=>'Excluir','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>['current_post'=>'Entrada actual','manual_selection'=>'Selección manual','terms'=>'Términos','authors'=>'Autores'],'condition'=>['posts_post_type!'=>['by_id','current_query']]]);
-        $this->add_control('posts_exclude_ids', ['label'=>'Entradas excluidas','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>['posts_exclude'=>'manual_selection']]);
-        $this->add_control('posts_exclude_term_ids', ['label'=>'Términos excluidos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$terms,'condition'=>['posts_exclude'=>'terms']]);
-        $this->add_control('posts_exclude_authors', ['label'=>'Autores excluidos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$authors,'condition'=>['posts_exclude'=>'authors']]);
-        $this->add_control('posts_avoid_duplicates', ['label'=>'Evitar duplicados','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','description'=>'Omite las entradas que ya muestran otros widgets de esta página.','condition'=>['posts_post_type!'=>'current_query']]);
-        $this->add_control('posts_offset', ['label'=>'Saltar','type'=>Controls_Manager::NUMBER,'default'=>0,'min'=>0,'condition'=>$plain]);
-        $this->add_control('posts_select_date', ['label'=>'Fecha','type'=>Controls_Manager::SELECT,'default'=>'anytime','options'=>['anytime'=>'Cualquiera','today'=>'Último día','week'=>'Última semana','month'=>'Último mes','quarter'=>'Último trimestre','year'=>'Último año','exact'=>'Personalizada'],'condition'=>$plain,'separator'=>'before']);
-        $this->add_control('posts_date_after', ['label'=>'Después de','type'=>Controls_Manager::DATE_TIME,'condition'=>$plain + ['posts_select_date'=>'exact']]);
-        $this->add_control('posts_date_before', ['label'=>'Antes de','type'=>Controls_Manager::DATE_TIME,'condition'=>$plain + ['posts_select_date'=>'exact']]);
-        $this->add_control('posts_orderby', ['label'=>'Ordenar por','type'=>Controls_Manager::SELECT,'default'=>'post_date','options'=>['post_date'=>'Fecha','post_title'=>'Título','menu_order'=>'Orden del menú','modified'=>'Última modificación','comment_count'=>'Número de comentarios','rand'=>'Aleatorio'],'condition'=>['posts_post_type!'=>'current_query']]);
-        $this->add_control('posts_order', ['label'=>'Orden','type'=>Controls_Manager::SELECT,'default'=>'desc','options'=>['asc'=>'Ascendente','desc'=>'Descendente'],'condition'=>['posts_post_type!'=>'current_query']]);
-        $this->add_control('posts_ignore_sticky_posts', ['label'=>'Ignorar entradas fijadas','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','condition'=>['posts_post_type'=>'post']]);
-        $this->add_control('posts_query_id', ['label'=>'ID de consulta','type'=>Controls_Manager::TEXT,'default'=>'','description'=>'Permite modificar la consulta desde código con la acción elementor/query/{ID}.','separator'=>'before']);
-        $this->add_control('posts_related_fallback', ['label'=>'Si no hay relacionadas','type'=>Controls_Manager::SELECT,'default'=>'fallback_none','options'=>['fallback_none'=>'No mostrar nada','fallback_by_id'=>'Selección manual','fallback_recent'=>'Entradas recientes'],'condition'=>['posts_post_type'=>'related']]);
-        $this->add_control('posts_fallback_ids', ['label'=>'Entradas de reserva','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>['posts_post_type'=>'related','posts_related_fallback'=>'fallback_by_id']]);
-        $this->end_controls_section();
-    }
-
-    /** @return int[] */
-    private static function ints($value): array { return array_values(array_filter(array_map('absint', (array) $value))); }
+    protected function query_controls(): void { Query::controls($this, 'posts_'); }
 
     protected function query(): \WP_Query {
         $s = $this->get_settings_for_display();
-        $source = (string) ($s['posts_post_type'] ?? 'post');
-        if ($source === 'current_query') { return Context::query(); }
-        $skin = $this->skin();
-        $per_page = max(1, min(100, (int) ($s[$skin . '_posts_per_page'] ?? 6) ?: 6));
+        $per_page = max(1, min(100, (int) ($s[$this->skin() . '_posts_per_page'] ?? 6) ?: 6));
         $paged = ($s['pagination_type'] ?? '') !== '' ? $this->current_page() : 1;
-        $orderby = (string) ($s['posts_orderby'] ?? 'post_date');
-        $orderby = ['post_date'=>'date','date'=>'date','post_title'=>'title','title'=>'title','menu_order'=>'menu_order','modified'=>'modified','post_modified'=>'modified','comment_count'=>'comment_count','rand'=>'rand'][$orderby] ?? 'date';
-        $args = ['post_status'=>'publish','posts_per_page'=>$per_page,'orderby'=>$orderby,'order'=>strtolower((string) ($s['posts_order'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC','ignore_sticky_posts'=>true];
-        $current = Context::template() ? null : get_queried_object();
-        $exclude = (array) ($s['posts_exclude'] ?? []);
-        $not_in = [];
-
-        if ($source === 'by_id') {
-            $ids = self::ints($s['posts_posts_ids'] ?? []);
-            $args += ['post_type'=>'any','post__in'=>$ids ?: [0],'orderby'=>$args['orderby']];
-        } elseif ($source === 'related') {
-            $post = Context::post();
-            $args['post_type'] = $post ? $post->post_type : 'post';
-            $tax_query = ['relation'=>'OR'];
-            foreach ((array) ($s['posts_related_taxonomies'] ?? []) as $taxonomy) {
-                if (!$post || !taxonomy_exists((string) $taxonomy)) { continue; }
-                $ids = wp_get_post_terms($post->ID, (string) $taxonomy, ['fields'=>'ids']);
-                if (!is_wp_error($ids) && $ids) { $tax_query[] = ['taxonomy'=>(string) $taxonomy,'terms'=>$ids]; }
-            }
-            if (count($tax_query) > 1) { $args['tax_query'] = $tax_query; } else { $args['post__in'] = [0]; }
-            if ($post) { $not_in[] = $post->ID; }
-        } else {
-            $args['post_type'] = post_type_exists($source) ? $source : 'post';
-            $args['ignore_sticky_posts'] = $source !== 'post' || ($s['posts_ignore_sticky_posts'] ?? 'yes') === 'yes';
-            $include = (array) ($s['posts_include'] ?? []);
-            $tax_query = [];
-            if (in_array('terms', $include, true) && ($terms = self::ints($s['posts_include_term_ids'] ?? []))) { $tax_query = array_merge($tax_query, self::term_clauses($terms, 'IN')); }
-            if (in_array('terms', $exclude, true) && ($terms = self::ints($s['posts_exclude_term_ids'] ?? []))) { $tax_query = array_merge($tax_query, self::term_clauses($terms, 'NOT IN')); }
-            if ($tax_query) { $args['tax_query'] = ['relation'=>'AND'] + $tax_query; }
-            if (in_array('authors', $include, true) && ($authors = self::ints($s['posts_include_authors'] ?? []))) { $args['author__in'] = $authors; }
-            $offset = max(0, (int) ($s['posts_offset'] ?? 0));
-            if ($offset) { $args['offset'] = $offset + ($paged - 1) * $per_page; }
-            $date = (string) ($s['posts_select_date'] ?? 'anytime');
-            $since = ['today'=>'-1 day','week'=>'-1 week','month'=>'-1 month','quarter'=>'-3 month','year'=>'-1 year'][$date] ?? null;
-            if ($since) { $args['date_query'] = [['after'=>$since,'inclusive'=>true]]; }
-            if ($date === 'exact') { $args['date_query'] = [array_filter(['after'=>$s['posts_date_after'] ?? '','before'=>$s['posts_date_before'] ?? '','inclusive'=>true])]; }
-        }
-        if ($source !== 'by_id') {
-            if (in_array('current_post', $exclude, true) && $current instanceof \WP_Post) { $not_in[] = $current->ID; }
-            if (in_array('manual_selection', $exclude, true)) { $not_in = array_merge($not_in, self::ints($s['posts_exclude_ids'] ?? [])); }
-            if (in_array('authors', $exclude, true) && ($authors = self::ints($s['posts_exclude_authors'] ?? []))) { $args['author__not_in'] = $authors; }
-            if (($s['posts_avoid_duplicates'] ?? '') === 'yes') { $not_in = array_merge($not_in, self::$shown); }
-        }
-        if ($not_in) { $args['post__not_in'] = array_values(array_unique($not_in)); }
-        $args['paged'] = $paged;
-
-        $query = new \WP_Query();
-        $query_id = sanitize_key((string) ($s['posts_query_id'] ?? ''));
-        // Elementor Pro's custom query hook, so existing snippets keep working.
-        $widget = $this;
-        $hook = $query_id !== '' ? static function($q) use ($query_id, $query, $widget) { if ($q === $query) { do_action('elementor/query/' . $query_id, $q, $widget); } } : null;
-        if ($hook) { add_action('pre_get_posts', $hook); }
-        $query->query($args);
-        if ($hook) { remove_action('pre_get_posts', $hook); }
-
-        if (!$query->have_posts() && $source === 'related') {
-            $fallback = (string) ($s['posts_related_fallback'] ?? 'fallback_none');
-            if ($fallback === 'fallback_recent') { $query = new \WP_Query(['post_type'=>$args['post_type'],'posts_per_page'=>$per_page,'post__not_in'=>$args['post__not_in'] ?? [],'ignore_sticky_posts'=>true]); }
-            if ($fallback === 'fallback_by_id') { $query = new \WP_Query(['post_type'=>'any','post__in'=>self::ints($s['posts_fallback_ids'] ?? []) ?: [0],'posts_per_page'=>$per_page]); }
-        }
-        return $query;
-    }
-
-    /** Groups term IDs by taxonomy into tax_query clauses. */
-    private static function term_clauses(array $ids, string $operator): array {
-        $by_taxonomy = [];
-        foreach ($ids as $id) {
-            $term = get_term($id);
-            if ($term instanceof \WP_Term) { $by_taxonomy[$term->taxonomy][] = $id; }
-        }
-        $clauses = [];
-        foreach ($by_taxonomy as $taxonomy => $terms) { $clauses[] = ['taxonomy'=>$taxonomy,'field'=>'term_id','terms'=>$terms,'operator'=>$operator]; }
-        return $clauses;
+        return Query::build($s, 'posts_', $per_page, $paged, $this);
     }
 }
 

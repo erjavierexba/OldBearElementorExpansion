@@ -31,6 +31,14 @@ abstract class Base extends Widget_Base {
             Countdown::class, Share_Buttons::class, Animated_Headline::class, Table_Of_Contents::class, Progress_Tracker::class,
             Login::class, Code_Highlight::class, Template::class, Form::class,
             Testimonial_Carousel::class, Nested_Carousel::class, Gallery::class,
+            Slides::class, Media_Carousel::class,
+            Loop_Grid::class, Loop_Carousel::class, Taxonomy_Filter::class,
+            Woo_Breadcrumbs::class, Woo_Menu_Cart::class, Woo_Product_Title::class, Woo_Product_Images::class,
+            Woo_Product_Price::class, Woo_Product_Add_To_Cart::class, Woo_Product_Rating::class, Woo_Product_Stock::class,
+            Woo_Product_Meta::class, Woo_Product_Content::class, Woo_Product_Short_Description::class,
+            Woo_Product_Data_Tabs::class, Woo_Product_Additional_Information::class, Woo_Product_Related::class,
+            Woo_Product_Upsell::class, Woo_Archive_Description::class, Woo_Archive_Products::class, Woo_Products::class,
+            Woo_Cart::class, Woo_Checkout::class, Woo_My_Account::class,
         ];
     }
 

@@ -14,10 +14,11 @@
 | 7 | Interoperabilidad: formato de datos de Elementor Pro (tipos de plantilla, condiciones, nombres y ajustes de widgets), importación de kits y conversión | ✅ v0.4.0 |
 | 4 | Formulario (campos, pasos, archivos, correo, webhook, envíos guardados) | ✅ v0.4.0 |
 | 6a | Carruseles (testimonios y carrusel anidado) y galería | ✅ v0.4.0 |
-| 2 | Etiquetas dinámicas en los widgets nativos | Pendiente |
-| 3 | Loop Grid / Loop Carousel con plantilla de tarjeta | Pendiente |
-| 5 | Popups | Pendiente |
-| 6b | Extras: CSS personalizado, cabecera fija, efectos de scroll, diapositivas, carrusel de medios… | Pendiente |
+| 2 | Etiquetas dinámicas en los widgets nativos | ✅ v0.5.0 |
+| 3 | Loop Grid / Loop Carousel, filtro de taxonomías y tarjetas editables | ✅ v0.5.0 |
+| 5 | Popups con condiciones, disparadores y reglas de frecuencia | ✅ v0.5.0 |
+| 6b | CSS y atributos personalizados, sticky, efectos, diapositivas y carrusel de medios | ✅ v0.5.0 |
+| 8 | Widgets de producto, archivo, carrito, compra y cuenta de WooCommerce | ✅ v0.5.0 |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 
@@ -54,13 +55,27 @@ Sin Elementor Pro, los widgets se registran **con los mismos nombres internos qu
 
 | Categoría | Widgets |
 | --- | --- |
-| Pro | Menú de navegación (`nav-menu`), Buscador (`search`, `search-form`), Entradas (`posts`), Formulario (`form`), Cita (`blockquote`), Llamada a la acción (`call-to-action`), Caja giratoria (`flip-box`), Tabla de precios (`price-table`), Lista de precios (`price-list`), Cuenta atrás (`countdown`), Botones para compartir (`share-buttons`), Titular animado (`animated-headline`), Tabla de contenidos (`table-of-contents`), Inicio de sesión (`login`), Resaltado de código (`code-highlight`), Carrusel de testimonios (`testimonial-carousel`), Carrusel anidado (`nested-carousel`), Galería (`gallery`), Plantilla (`template`) |
+| Pro | Menú de navegación (`nav-menu`), Buscador (`search`, `search-form`), Entradas (`posts`), Formulario (`form`), Cita (`blockquote`), Llamada a la acción (`call-to-action`), Caja giratoria (`flip-box`), Tabla de precios (`price-table`), Lista de precios (`price-list`), Cuenta atrás (`countdown`), Botones para compartir (`share-buttons`), Titular animado (`animated-headline`), Tabla de contenidos (`table-of-contents`), Inicio de sesión (`login`), Resaltado de código (`code-highlight`), Diapositivas (`slides`), carruseles de testimonios, medios y anidado, Galería (`gallery`) y Plantilla (`template`) |
 | Sitio | Logotipo y título del sitio, título de la página, título, imagen destacada, extracto e información de la entrada, título y entradas del archivo, caja de autor, navegación de entradas, comentarios, migas de pan, mapa del sitio e indicador de progreso (`theme-site-logo`, `theme-page-title`, `post-info`, `archive-posts`, `breadcrumbs`…) |
 | Individual | Contenido de la entrada (`theme-post-content`) |
+| Loop | Rejilla (`loop-grid`), carrusel (`loop-carousel`) y filtro de taxonomías (`taxonomy-filter`) con tarjetas `loop-item` |
+| WooCommerce | Migas, carrito del menú, widgets de producto, productos relacionados/dirigidos, archivo, catálogo, carrito, finalizar compra y Mi cuenta |
 
 Las plantillas guardadas con versiones anteriores, que usan los nombres `obx-*`, se siguen mostrando igual. Esos nombres ya no aparecen en el panel para no duplicar widgets. Con Elementor Pro activo ocurre lo contrario: Pro conserva sus widgets y los de OldBear aparecen con sus nombres `obx-*` en las categorías Sitio, Entrada individual y Archivo.
 
-Pendientes de la lista de Pro: Loop Grid/Carousel, Filtro de taxonomías, Popups, Mega menú, Diapositivas, Carrusel de medios, Reseñas, Portafolio, Lottie, Hotspot, Off-canvas, Lista de vídeos, botones de PayPal/Stripe, widgets de Facebook y WooCommerce.
+No pretende clonar todo el catálogo comercial. Quedan fuera Mega menú, Reseñas, Portafolio, Lottie, Hotspot, Off-canvas, Lista de vídeos, botones de PayPal/Stripe y widgets de Facebook. Las piezas necesarias para los kits estudiados —incluidos Loop Builder y WooCommerce— sí están cubiertas.
+
+### Loop Builder
+
+En **Plantillas → Theme Builder → Elementos de bucle** crea una tarjeta y edítala como cualquier plantilla de Elementor. Los widgets Loop Grid y Loop Carousel consultan entradas, páginas o productos y renderizan esa tarjeta para cada resultado. El filtro de taxonomías apunta al ID de un Loop Grid y conserva URLs navegables, por lo que funciona también sin JavaScript.
+
+### Ventanas emergentes
+
+**Plantillas → Ventanas emergentes** permite crear documentos `popup` compatibles con el tipo de Elementor Pro. Sus condiciones deciden en qué páginas están disponibles; pueden abrirse al cargar, al desplazarse, tras inactividad, al intentar salir, mediante un selector CSS o con la etiqueta dinámica «Ventana emergente». Incluyen cierre accesible, límite por visitante y bloqueo opcional del desplazamiento.
+
+### Etiquetas dinámicas y extras
+
+Los controles nativos con soporte dinámico pueden usar datos de entrada, archivo, sitio, usuario, autor, comentarios, acciones y producto. En **Avanzado** funcionan CSS personalizado, atributos filtrados, sticky y efectos de scroll/ratón con las mismas claves de datos de Pro. Los atributos capaces de ejecutar scripts o alterar enlaces se descartan en el servidor.
 
 ## Interoperabilidad con Elementor Pro
 
@@ -72,6 +87,7 @@ Desde la v0.4.0 los datos se guardan **en el mismo formato que Elementor Pro**, 
 - **Kits**: Elementor Free no importa las plantillas de Theme Builder de un kit sin Pro. Este plugin sí, con sus condiciones (formato de Elementor y metadatos de los kits de Envato).
 - **Formulario**: mismas claves (`form_fields`, `submit_actions`, `email_to`…). Los envíos van a un punto REST propio que vuelve a leer la configuración del documento guardado, nunca del navegador. Tiene campo trampa, límite de envíos por visitante, validación en el servidor y protección contra inyección de cabeceras. Los envíos guardados aparecen en **Elementor → Envíos**.
 - **Datos antiguos**: las plantillas hechas con versiones anteriores (nombres `obx-*` o claves propias) se traducen al vuelo al mostrarse. Para dejarlas guardadas en formato Pro: **Plantillas → Theme Builder → Convertir al formato de Elementor Pro**, o `wp obx convert` (`--dry-run` para contar sin cambiar nada).
+- **Loop, popups y producto**: reconoce `loop-item`, `popup`, `product` y `product-archive`; los widgets de Loop, acciones de popup, etiquetas dinámicas y controles WooCommerce usan sus nombres de Pro.
 - **Al activar Elementor Pro**: convierte antes los datos antiguos y, una vez activo, guarda una vez las condiciones de cada plantilla para que Pro regenere su caché.
 
 Se ha comprobado renderizando 167 plantillas de 10 kits comerciales «Elementor Pro Template Kit» (no incluidos en el repositorio) sin avisos de PHP. Las pruebas usan solo datos sintéticos.
@@ -118,6 +134,9 @@ includes/class-plugin.php          Comprobaciones (Elementor, versión, Pro) y c
 includes/class-context.php         Entrada/consulta real o de vista previa para los widgets
 includes/class-converter.php       Conversión de datos antiguos al formato de Pro (botón y wp obx convert)
 includes/forms/                    Envío del formulario (REST), acciones y envíos guardados
+includes/dynamic/                  Etiquetas dinámicas compatibles con el formato de Pro
+includes/extras/                   CSS, atributos, sticky y efectos de movimiento
+includes/popups/                   Condiciones, disparadores y runtime de ventanas emergentes
 includes/compat.php                elementor_theme_do_location() para temas compatibles
 includes/clean/                    Modo limpio (anuncios de Pro) y página de ajustes
 includes/theme-builder/            Tipos de documento, condiciones, ubicaciones y pantalla de administración

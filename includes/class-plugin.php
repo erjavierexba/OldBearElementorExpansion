@@ -32,6 +32,12 @@ final class Plugin {
             return;
         }
         ThemeBuilder\Module::boot();
+        require_once DIR . '/includes/dynamic/class-tags.php';
+        Dynamic\Tags::boot();
+        require_once DIR . '/includes/extras/class-extras.php';
+        Extras\Extras::boot();
+        require_once DIR . '/includes/popups/class-popups.php';
+        Popups\Popups::boot();
         require_once DIR . '/includes/forms/class-handler.php';
         Forms\Handler::boot();
         require_once DIR . '/includes/compat.php';

@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check JavaScript
-        run: node --check assets/js/nav-menu.js
+        run: find assets/js -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Start WordPress, Elementor and demo content
         env:
           OBX_ELEMENTOR_VERSION: ${{ matrix.elementor }}

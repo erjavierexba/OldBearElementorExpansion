@@ -10,6 +10,9 @@ docker compose exec -T wordpress sh -c 'cd wp-content/plugins/oldbear-elementor-
 wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/theme-builder.php
 wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/pro-widgets.php
 wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/interop.php
+if ! wp plugin is-installed woocommerce >/dev/null 2>&1; then wp plugin install woocommerce --version="${OBX_WOOCOMMERCE_VERSION:-11.3.0}"; fi
+wp plugin activate woocommerce
+wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/extended.php
 # Stored data in Elementor Pro's format (converts templates seeded by earlier versions).
 wp obx convert
 

@@ -105,6 +105,8 @@ final class Clean_Mode {
         if (!is_object($element) || !method_exists($element, 'get_controls')) { return; }
         $controls = $element->get_controls();
         foreach ($controls as $name => $control) {
+            if (in_array($name, ['custom_css','custom_css_pro'], true) && $element->get_controls('custom_css')) { continue; }
+            if ($name === 'section_custom_css_pro' && $element->get_controls('custom_css')) { continue; }
             $promo_section = str_ends_with((string) $section_id, '_pro') && (($control['section'] ?? '') === $section_id || $name === $section_id);
             if ($promo_section || in_array($name, self::PRO_CONTROLS, true)) { $element->remove_control($name); }
         }

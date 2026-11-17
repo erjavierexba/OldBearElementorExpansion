@@ -62,7 +62,9 @@ try {
     $missing = [];
     foreach (Base::registry() as $class) {
         // Without a logo, featured image, menu, images or chosen template these print nothing, as they should.
-        if ($class::PRO !== '' && $class::available() && !in_array($class::PRO, ['theme-site-logo','theme-post-featured-image','nav-menu','template','gallery'], true)
+        $configured = ['theme-site-logo','theme-post-featured-image','nav-menu','template','gallery','media-carousel','loop-grid','loop-carousel','taxonomy-filter','woocommerce-product-images','woocommerce-product-rating','woocommerce-product-data-tabs','woocommerce-product-related','woocommerce-product-upsell','woocommerce-archive-products'];
+        $needs_woo_context = is_subclass_of($class, \OldBearExpansion\Widgets\Woo_Element::class);
+        if ($class::PRO !== '' && $class::available() && !$needs_woo_context && !in_array($class::PRO, $configured, true)
             && !preg_match('/elementor-widget-' . preg_quote($class::PRO, '/') . '[\s"]/', $html)) { $missing[] = $class::PRO; }
     }
     $assert(!$missing, 'No se han renderizado: ' . implode(', ', $missing));

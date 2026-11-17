@@ -27,6 +27,10 @@ final class Module {
         Archive_Document::TYPE=>Archive_Document::class,
         Search_Results_Document::TYPE=>Search_Results_Document::class,
         Error_Document::TYPE=>Error_Document::class,
+        Loop_Item_Document::TYPE=>Loop_Item_Document::class,
+        Product_Document::TYPE=>Product_Document::class,
+        Product_Archive_Document::TYPE=>Product_Archive_Document::class,
+        Popup_Document::TYPE=>Popup_Document::class,
     ];
 
     /** @return string[] template types printed at a location */
@@ -99,6 +103,7 @@ final class Module {
 
     private static function load_widgets(): void {
         require_once DIR . '/includes/widgets/class-base.php';
+        require_once DIR . '/includes/widgets/class-query.php';
         require_once DIR . '/includes/widgets/theme-widgets.php';
         require_once DIR . '/includes/widgets/site-widgets.php';
         require_once DIR . '/includes/widgets/posts-widgets.php';
@@ -107,6 +112,9 @@ final class Module {
         require_once DIR . '/includes/widgets/interactive-widgets.php';
         require_once DIR . '/includes/widgets/form-widget.php';
         require_once DIR . '/includes/widgets/carousel-widgets.php';
+        require_once DIR . '/includes/widgets/media-widgets.php';
+        require_once DIR . '/includes/widgets/loop-widgets.php';
+        require_once DIR . '/includes/widgets/woocommerce-widgets.php';
     }
 
     public static function documents($manager): void {
@@ -118,6 +126,11 @@ final class Module {
         if (!Plugin::pro_active()) {
             if (!isset($manager->get_categories()['theme-elements-single'])) {
                 $manager->add_category('theme-elements-single', ['title'=>'Individual','icon'=>'eicon-single-post','active'=>false]);
+            }
+            if (class_exists('WooCommerce')) {
+                foreach (['woocommerce-elements'=>['WooCommerce','eicon-woocommerce'],'woocommerce-elements-single'=>['Producto individual','eicon-single-product'],'woocommerce-elements-archive'=>['Archivo de productos','eicon-products']] as $key => [$title,$icon]) {
+                    if (!isset($manager->get_categories()[$key])) { $manager->add_category($key, ['title'=>$title,'icon'=>$icon,'active'=>false]); }
+                }
             }
             return;
         }

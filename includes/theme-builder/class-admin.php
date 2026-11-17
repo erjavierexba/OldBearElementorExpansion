@@ -43,13 +43,13 @@ final class Admin {
 
     public static function create(): void {
         $location = isset($_POST['location']) && is_string($_POST['location']) ? sanitize_key(wp_unslash($_POST['location'])) : '';
-        if (!current_user_can('edit_posts') || !isset(Module::LOCATIONS[$location]) || !check_admin_referer('obx_new_template')) {
+        $class = $location === 'loop-item' ? Loop_Item_Document::class : (Module::LOCATIONS[$location] ?? null);
+        if (!current_user_can('edit_posts') || !$class || !check_admin_referer('obx_new_template')) {
             wp_die('No tienes permiso para crear plantillas.', '', ['response'=>403]);
         }
-        $class = Module::LOCATIONS[$location];
         $document = Elementor::$instance->documents->create($class::TYPE, ['post_title'=>$class::get_title() . ' ' . wp_date('Y-m-d H:i'),'post_status'=>'draft']);
         if (is_wp_error($document)) { wp_die(esc_html($document->get_error_message())); }
-        Location_Document::store_conditions((int) $document->get_main_id(), [['mode'=>'include','rule'=>Conditions::default_rule($location),'ids'=>[]]]);
+        if ($class::HAS_CONDITIONS) { Location_Document::store_conditions((int) $document->get_main_id(), [['mode'=>'include','rule'=>Conditions::default_rule($location),'ids'=>[]]]); }
         wp_safe_redirect($document->get_edit_url());
         exit;
     }
@@ -82,6 +82,10 @@ final class Admin {
             wp_nonce_field('obx_new_template');
             echo '<button class="button" type="submit">Añadir ' . esc_html(mb_strtolower($class::get_title())) . '</button></form>';
         }
+        echo '<h2 style="margin-top:32px">Elementos de bucle</h2><p>Diseña una tarjeta reutilizable para Loop Grid y Loop Carousel. Dentro puedes usar widgets de entrada y etiquetas dinámicas.</p>';
+        $loops = get_posts(['post_type'=>'elementor_library','post_status'=>['publish','draft','private'],'posts_per_page'=>-1,'meta_key'=>'_elementor_template_type','meta_value'=>'loop-item']);
+        if ($loops) { echo '<table class="widefat striped" style="max-width:1000px"><tbody>'; foreach ($loops as $loop) { echo '<tr><td><strong>' . esc_html($loop->post_title) . '</strong></td><td>' . esc_html($loop->post_status) . '</td><td><a class="button button-primary" href="' . esc_url(admin_url('post.php?post=' . $loop->ID . '&action=elementor')) . '">Editar con Elementor</a></td></tr>'; } echo '</tbody></table>'; }
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-top:12px"><input type="hidden" name="action" value="obx_new_template"><input type="hidden" name="location" value="loop-item">'; wp_nonce_field('obx_new_template'); echo '<button class="button" type="submit">Añadir elemento de bucle</button></form>';
         \OldBearExpansion\Converter::box();
         echo '<p style="margin-top:32px"><em>Necesita un tema clásico (por ejemplo Hello Elementor). Los temas de bloques no usan header.php ni footer.php.</em></p></div>';
     }
