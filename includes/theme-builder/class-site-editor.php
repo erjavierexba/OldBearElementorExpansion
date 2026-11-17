@@ -72,7 +72,35 @@ final class Site_Editor {
         add_action('wp_print_styles', [self::class, 'enqueue'], 0);
     }
 
+    /** Elementor's interface theme preference: light, dark or auto (follow the system). */
+    public static function ui_theme(): string {
+        try {
+            $manager = \Elementor\Core\Settings\Manager::get_settings_managers('editorPreferences');
+            $theme = $manager ? $manager->get_model()->get_settings('ui_theme') : 'auto';
+        } catch (\Throwable $e) {
+            $theme = 'auto';
+        }
+        return in_array($theme, ['light','dark','auto'], true) ? $theme : 'auto';
+    }
+
+    /**
+     * Dark from the first paint. Elementor marks the app dark only when its scripts have run (and in «auto»
+     * mode, after the whole app has loaded), so the screen showed a white frame first, also inside the
+     * editor's modal. The dark background and colour scheme now apply before any script or stylesheet.
+     */
+    public static function theme_css(string $theme): string {
+        if ($theme === 'light') { return ''; }
+        $css = ':root{color-scheme:dark}html,body{background-color:#1f2124}';
+        $html = '<style id="obx-app-theme">' . ($theme === 'auto' ? '@media (prefers-color-scheme:dark){' . $css . '}' : $css) . '</style>';
+        if ($theme === 'auto') {
+            // The class Elementor adds at the end, added as soon as <body> exists.
+            $html .= '<script>(function(){if(!window.matchMedia||!matchMedia("(prefers-color-scheme: dark)").matches){return;}var d=document;function add(){if(d.body){d.body.classList.add("eps-theme-dark");return true;}return false;}if(add()){return;}var o=new MutationObserver(function(){if(add()){o.disconnect();}});o.observe(d.documentElement,{childList:true});})();</script>';
+        }
+        return $html;
+    }
+
     public static function enqueue(): void {
+        echo self::theme_css(self::ui_theme()); // Static markup built above.
         $scripts = wp_scripts();
         if (!isset($scripts->registered['elementor-app'])) { return; }
         wp_register_script(self::HANDLE, Plugin::url('assets/js/site-editor.js'), ['elementor-app-packages', 'react', 'wp-i18n'], VERSION, true);

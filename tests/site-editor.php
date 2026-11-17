@@ -41,6 +41,12 @@ try {
     foreach (array_keys(Site_Editor::PARTS) as $part) { $assert(!empty($config['create'][$part]), "Falta el enlace de creación de {$part}."); }
     $assert(!empty($config['rules']['single']) && !empty($config['rules']['archive']) && $config['rules']['header'][0]['value'] === 'general', 'Faltan las reglas de condiciones para la app.');
     $assert(Admin::default_rule(\OldBearExpansion\ThemeBuilder\Search_Results_Document::class) === 'archive/search' && Admin::default_rule(\OldBearExpansion\ThemeBuilder\Single_Page_Document::class) === 'singular/page', 'Cada tipo nuevo debe nacer con su condición lógica.');
+    // Dark from the first paint (no white frame before Elementor applies its theme).
+    $assert(Site_Editor::theme_css('light') === '', 'El tema claro no debe cambiar nada.');
+    $assert(str_contains(Site_Editor::theme_css('dark'), 'color-scheme:dark') && str_contains(Site_Editor::theme_css('dark'), '#1f2124') && !str_contains(Site_Editor::theme_css('dark'), '<script'), 'El tema oscuro debe pintarse desde el principio.');
+    $auto = Site_Editor::theme_css('auto');
+    $assert(str_contains($auto, '@media (prefers-color-scheme:dark)') && str_contains($auto, 'eps-theme-dark') && str_contains($auto, 'MutationObserver'), 'El tema automático debe seguir al sistema desde el principio.');
+    $assert(in_array(Site_Editor::ui_theme(), ['light','dark','auto'], true), 'La preferencia de tema debe leerse de Elementor.');
     $routes = rest_get_server()->get_routes();
     $assert(isset($routes['/obx/v1/site-editor/templates']) && isset($routes['/obx/v1/site-editor/templates/(?P<id>\d+)']), 'Faltan las rutas REST del Theme Builder.');
 
