@@ -37,6 +37,8 @@ final class Plugin {
         Dynamic\Tags::boot();
         require_once DIR . '/includes/extras/class-extras.php';
         Extras\Extras::boot();
+        require_once DIR . '/includes/extras/class-site-settings.php';
+        Extras\Site_Settings::boot();
         require_once DIR . '/includes/popups/class-popups.php';
         Popups\Popups::boot();
         require_once DIR . '/includes/forms/class-handler.php';

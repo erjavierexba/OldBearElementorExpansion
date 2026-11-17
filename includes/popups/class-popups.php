@@ -50,19 +50,36 @@ final class Popups {
         update_post_meta((int) $document->get_main_id(), self::DISPLAY_META, $display);
     }
 
+    /** Saved page settings, including legacy keys (obx_*, open_by_selector) no longer registered as controls. */
+    private static function raw(int $id): array {
+        $raw = get_post_meta($id, '_elementor_page_settings', true);
+        return is_array($raw) ? $raw : [];
+    }
+
     private static function display(int $id, array $settings): array {
+        $raw = self::raw($id) + $settings;
         $display = get_post_meta($id, self::DISPLAY_META, true);
         $display = is_string($display) ? json_decode($display, true) : $display;
         if (!is_array($display)) { $display = []; }
         $display['triggers'] = is_array($display['triggers'] ?? null) ? $display['triggers'] : [];
         $display['timing'] = is_array($display['timing'] ?? null) ? $display['timing'] : [];
         if (!$display['triggers']) {
-            $display['triggers'] = ['page_load'=>($settings['obx_page_load'] ?? 'yes'),'page_load_delay'=>$settings['obx_page_load_delay'] ?? 0];
+            $display['triggers'] = ['page_load'=>($raw['obx_page_load'] ?? 'yes'),'page_load_delay'=>$raw['obx_page_load_delay'] ?? 0];
         }
-        $display['selector'] = (string) ($settings['open_by_selector'] ?? '');
-        $display['preventCloseOverlay'] = ($settings['obx_prevent_close_overlay'] ?? '') === 'yes' || ($settings['prevent_close_on_background_click'] ?? '') === 'yes';
-        $display['preventCloseEsc'] = ($settings['obx_prevent_close_esc'] ?? '') === 'yes' || ($settings['prevent_close_on_esc_key'] ?? '') === 'yes';
-        $display['preventScroll'] = ($settings['obx_prevent_scroll'] ?? '') === 'yes' || ($settings['prevent_scroll'] ?? '') === 'yes';
+        $yes = static fn(string ...$keys) => (bool) array_filter($keys, static fn($k) => ($raw[$k] ?? '') === 'yes');
+        $num = static fn(string $key) => max(0, (float) ($settings[$key] ?? 0));
+        $display['selector'] = trim((string) (($settings['open_selector'] ?? '') ?: ($raw['open_by_selector'] ?? '')));
+        $display['preventCloseOverlay'] = $yes('obx_prevent_close_overlay', 'prevent_close_on_background_click');
+        $display['preventCloseEsc'] = $yes('prevent_close_on_esc_key', 'obx_prevent_close_esc');
+        $display['preventScroll'] = $yes('prevent_scroll', 'obx_prevent_scroll');
+        $display['avoidMultiple'] = ($settings['avoid_multiple_popups'] ?? '') === 'yes';
+        $display['a11y'] = ($settings['a11y_navigation'] ?? 'yes') === 'yes';
+        $display['closeDelay'] = $num('close_button_delay');
+        $display['closeAuto'] = $num('close_automatically');
+        $display['animation'] = [];
+        foreach (['entrance_animation','exit_animation'] as $key) {
+            foreach (['', '_tablet', '_mobile'] as $suffix) { $display['animation'][$key . $suffix] = sanitize_html_class((string) ($settings[$key . $suffix] ?? '')); }
+        }
         return $display;
     }
 
@@ -80,18 +97,25 @@ final class Popups {
             $document = Elementor::$instance->documents->get($id);
             if (!$document) { continue; }
             $s = $document->get_settings_for_display();
-            $width = is_array($s['width'] ?? null) ? $s['width'] : ['size'=>640,'unit'=>'px'];
-            $height = is_array($s['height'] ?? null) ? $s['height'] : [];
-            $style = '--obx-popup-width:' . (float) ($width['size'] ?? 640) . preg_replace('/[^a-z%]/', '', (string) ($width['unit'] ?? 'px')) . ';';
-            if (($s['height_type'] ?? 'auto') === 'custom' && !empty($height['size'])) { $style .= '--obx-popup-height:' . (float) $height['size'] . preg_replace('/[^a-z%]/', '', (string) ($height['unit'] ?? 'px')) . ';'; }
-            $classes = ['obx-popup','obx-popup--h-' . sanitize_html_class((string) ($s['horizontal_position'] ?? 'center')),'obx-popup--v-' . sanitize_html_class((string) ($s['vertical_position'] ?? 'center'))];
-            if (($s['height_type'] ?? '') === 'fit_to_screen') { $classes[] = 'obx-popup--fit'; }
             $display = self::display($id, $s);
+            foreach (array_unique(array_filter($display['animation'])) as $animation) { self::animation_style($animation); }
+            $classes = ['obx-popup', 'elementor-popup-modal'];
+            if (($s['close_button_position'] ?? '') === 'outside') { $classes[] = 'obx-popup--close-outside'; }
+            foreach (preg_split('/\s+/', (string) ($s['classes'] ?? ''), -1, PREG_SPLIT_NO_EMPTY) as $class) { $classes[] = sanitize_html_class($class); }
             echo '<div id="elementor-popup-modal-' . esc_attr((string) $id) . '" class="' . esc_attr(implode(' ', $classes)) . '" data-obx-popup="' . esc_attr((string) $id) . '" data-settings="' . esc_attr((string) wp_json_encode($display)) . '" aria-hidden="true">';
             if (($s['overlay'] ?? 'yes') === 'yes') { echo '<div class="obx-popup__overlay" data-popup-close></div>'; }
-            echo '<div class="obx-popup__dialog animated ' . esc_attr((string) ($s['entrance_animation'] ?? 'fadeIn')) . '" role="dialog" aria-modal="true" aria-label="' . esc_attr(get_the_title($id)) . '" style="' . esc_attr($style) . '">';
-            if (($s['close_button'] ?? 'yes') === 'yes') { echo '<button type="button" class="obx-popup__close" data-popup-close aria-label="Cerrar">&times;</button>'; }
+            echo '<div class="obx-popup__dialog" role="dialog" aria-modal="true" aria-label="' . esc_attr(get_the_title($id)) . '" tabindex="-1">';
+            if (($s['close_button'] ?? 'yes') === 'yes') { echo '<button type="button" class="obx-popup__close" data-popup-close aria-label="Cerrar"' . ($display['closeDelay'] ? ' hidden' : '') . '>&times;</button>'; }
             echo '<div class="obx-popup__content">' . Elementor::$instance->frontend->get_builder_content_for_display($id, true) . '</div></div></div>'; // Elementor output.
+        }
+    }
+
+    /** Elementor ships one stylesheet per entrance animation; enqueue the ones popups use. */
+    private static function animation_style(string $animation): void {
+        $handle = 'e-animation-' . $animation;
+        if (wp_style_is($handle, 'registered')) { wp_enqueue_style($handle); return; }
+        if (defined('ELEMENTOR_ASSETS_PATH') && is_file(ELEMENTOR_ASSETS_PATH . 'lib/animations/styles/' . $animation . '.min.css')) {
+            wp_enqueue_style($handle, ELEMENTOR_ASSETS_URL . 'lib/animations/styles/' . $animation . '.min.css', [], ELEMENTOR_VERSION);
         }
     }
 

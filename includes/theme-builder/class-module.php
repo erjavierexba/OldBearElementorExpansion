@@ -47,6 +47,7 @@ final class Module {
         Site_Editor::boot();
         Kit_Import::boot();
         Upgrade::boot();
+        Saved_Documents::boot();
     }
 
     /** After saving in the editor, mirror the conditions into Elementor Pro's meta. */

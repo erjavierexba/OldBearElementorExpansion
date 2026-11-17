@@ -77,9 +77,12 @@ final class Locations {
 
     public static function template($template) {
         $location = self::main_location();
-        if ($location !== '' && self::template_id($location)) {
+        $id = $location !== '' ? self::template_id($location) : 0;
+        if ($id) {
             self::$main = $location;
-            return DIR . '/templates/location.php';
+            $document = Elementor::$instance->documents->get($id);
+            $layout = $document ? (string) $document->get_settings('page_template') : '';
+            return DIR . ($layout === 'elementor_canvas' ? '/templates/location-canvas.php' : '/templates/location.php');
         }
         return $template;
     }

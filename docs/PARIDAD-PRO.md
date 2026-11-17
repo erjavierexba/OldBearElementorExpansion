@@ -46,7 +46,7 @@ Para regenerarlos:
 | --- | --- | --- | --- |
 | Widgets | 110 | 61 con nombre de Pro | 49 widgets ausentes |
 | Ajustes en widgets compartidos | — | — | ~2.000 ajustes en 61 widgets (anexo A) |
-| Etiquetas dinámicas | 51 (con las de Free) | 41 (con las de Free) | 11 + integraciones ACF, Toolset y Pods |
+| Etiquetas dinámicas | 51 (con las de Free) | 41 (con las de Free) | 11 + integraciones ACF, Toolset y Pods (0.8.1: solo quedan `off-canvas`, Toolset y Pods) |
 | Tipos de documento | — | — | `widget` (global), `code_snippet`, `product-post`; ajustes ausentes en todas las plantillas (anexo C) |
 | Condiciones del Theme Builder | 41 (con WooCommerce) | ~30 | hijos de término en archivos, formatos, medios y WooCommerce |
 | Ajustes del sitio | pestaña WooCommerce, transiciones de página, scroll snap | — | 3 bloques |
@@ -59,51 +59,52 @@ Para regenerarlos:
 
 ### 3.1 Avanzado común y fondos
 
-- [ ] `motion_fx_transform_origin_x` / `_y` (choose, `center`; visibles con rotación o escala).
-- [ ] `motion_fx_scale_range` (slider, `{start:20,end:80}` en %).
-- [ ] Opción vacía `''` en `motion_fx_translateY_direction`, `motion_fx_translateX_direction` y `motion_fx_rotateZ_direction`.
-- [ ] `handle_motion_fx_asset_loading` (oculto).
-- [ ] **Efectos de movimiento del fondo** en contenedor, sección y columna: `background_motion_fx_*` (scroll: translateY, translateX, opacidad, desenfoque, rotación y escala; ratón: seguimiento e inclinación; `devices` y `range`). El sitio de referencia A los usa en su cabecera.
+- [x] `motion_fx_transform_origin_x` / `_y` (choose, `center`; visibles con rotación o escala).
+- [x] `motion_fx_scale_range` (slider, `{start:20,end:80}` en %).
+- [x] Opción vacía `''` en `motion_fx_translateY_direction`, `motion_fx_translateX_direction` y `motion_fx_rotateZ_direction`.
+- [x] `handle_motion_fx_asset_loading` (oculto).
+- [x] **Efectos de movimiento del fondo** en contenedor, sección y columna: `background_motion_fx_*` (scroll: translateY, translateX, opacidad, desenfoque, rotación y escala; ratón: seguimiento e inclinación; `devices` y `range`). El sitio de referencia A los usa en su cabecera.
 - [ ] **Condiciones de visualización por elemento**: `e_display_conditions` (oculto, cadena JSON escrita por el editor de condiciones de Pro).
   - Pendiente obtener ejemplos reales del formato guardado: no hay ninguno en los sitios de referencia.
   - Hace falta interfaz propia (modal en el editor) y evaluación en el servidor: no renderizar el elemento si no se cumple.
 
 ### 3.2 Plantillas del Theme Builder (cabecera, pie, individual, archivo, búsqueda, 404, producto y archivo de productos)
 
-- [ ] **Vista previa con las claves de Pro:** `preview_type` (select, p. ej. `single/post`, `archive/recent_posts`, `search`…), `preview_id` (query), `preview_search_term` (text) y `apply_preview` (botón).
-  - Hoy usamos `obx_preview_id`.
-  - Leer las dos claves y escribir la de Pro.
-- [ ] `content_wrapper_html_tag` (`div`, `main`, `article`, `header`, `footer`, `section`, `aside`, `nav`; por defecto `div`): etiqueta del envoltorio de la plantilla.
-- [ ] `page_template` en plantillas individuales y de archivo (`''`, `elementor_canvas`, `elementor_header_footer`).
-- [ ] Pestaña **Estilo** de la plantilla (`section_page_style`): `margin`, `padding` y grupo de fondo `background_*`.
-- [ ] `custom_css` en todas las plantillas, popup y elemento de bucle.
+- [x] **Vista previa con las claves de Pro:** `preview_type` (select, p. ej. `single/post`, `archive/recent_posts`, `search`…), `preview_id` (query), `preview_search_term` (text) y `apply_preview` (botón).
+  - `obx_preview_id` se sigue leyendo como alias.
+  - Los tipos de vista previa de archivo (término, autor, fecha, tipo de contenido) y de búsqueda cambian el contexto de los widgets del Theme Builder.
+- [x] `content_wrapper_html_tag` (`div`, `main`, `article`, `header`, `footer`, `section`, `aside`, `nav`; por defecto `div`): etiqueta del envoltorio de la plantilla.
+- [x] `page_template` en plantillas individuales y de archivo (`''`, `elementor_canvas`, `elementor_header_footer`). Con `elementor_canvas` la ubicación se imprime sin la cabecera ni el pie del tema.
+- [x] Pestaña **Estilo** de la plantilla (`section_page_style`): `margin`, `padding` y grupo de fondo `background_*`.
+- [x] `custom_css` en todas las plantillas, popup y elemento de bucle.
+- [x] Plantillas guardadas de tipo `section` y `floating-buttons`: Pro también les añade `content_wrapper_html_tag`, `preview_type`, `preview_id`, `preview_search_term` y `apply_preview` (0.8.1).
 
 ### 3.3 Ventanas emergentes
 
 Ajustes de Pro que faltan o que guardamos con otra clave:
 
-- [ ] `content_position` (`top`/`center`/`bottom`, con altura distinta de `auto`).
-- [ ] Animaciones por dispositivo `entrance_animation_tablet/_mobile` y `exit_animation_tablet/_mobile`, y `entrance_animation_duration` (1,2 s).
-- [ ] Estilo de la ventana: fondo `background_*`, borde `border_*`, `border_radius` y sombra `box_shadow_*` (sombra activada por defecto).
-- [ ] Superposición: `overlay_background_*`.
-- [ ] Botón de cierre:
+- [x] `content_position` (`top`/`center`/`bottom`, con altura distinta de `auto`).
+- [x] Animaciones por dispositivo `entrance_animation_tablet/_mobile` y `exit_animation_tablet/_mobile`, y `entrance_animation_duration` (1,2 s).
+- [x] Estilo de la ventana: fondo `background_*`, borde `border_*`, `border_radius` y sombra `box_shadow_*` (sombra activada por defecto).
+- [x] Superposición: `overlay_background_*`.
+- [x] Botón de cierre:
   - `close_button_position` (`''` o `outside`), `close_button_vertical` y `close_button_horizontal`;
   - `close_button_color` y `close_button_hover_color`, `icon_size`.
-- [ ] Avanzado:
+- [x] Avanzado:
   - `close_button_delay`, `close_automatically`;
   - `prevent_close_on_esc_key`, `prevent_scroll`, `avoid_multiple_popups`, `a11y_navigation` (sí por defecto);
   - `open_selector` (hoy `open_by_selector`), `margin`, `padding` y `classes`.
-- [ ] Mantener las claves `obx_*` como alias de lectura, sin escribirlas en plantillas nuevas.
+- [x] Mantener las claves `obx_*` como alias de lectura, sin escribirlas en plantillas nuevas.
 
 ### 3.4 Ajustes del sitio (kit)
 
-- [ ] **Transiciones de página** (`settings_page_transitions_*`):
+- [x] **Transiciones de página** (`settings_page_transitions_*`):
   - animación de entrada y salida, duración y botón de prueba;
   - precargador de tipo animación, icono o imagen, con color, tamaño, retraso, rotación y opacidad.
   - Elementor 4.4 ya muestra la pestaña, pero sin estos controles ni el código que los ejecuta.
   - El sitio de referencia B la usa.
-- [ ] **Scroll snap** (`scroll_snap`, `scroll_snap_position`, `scroll_snap_padding`, `force_stop`), en el kit y en las páginas.
-- [ ] Pestaña **WooCommerce** (`settings-woocommerce`):
+- [x] **Scroll snap** (`scroll_snap`, `scroll_snap_position`, `scroll_snap_padding`, `force_stop`), en el kit y en las páginas.
+- [ ] Pestaña **WooCommerce** (fase 0.10.0) (`settings-woocommerce`):
   - `woocommerce_{cart,checkout,myaccount,terms,purchase_summary,shop}_page_id` y `woocommerce_notices_elements`;
   - estilos de avisos: `error_message_*`, `notice_message_*`, `message_buttons_styles` e `info_buttons_styles`.
 
@@ -111,10 +112,10 @@ Ajustes de Pro que faltan o que guardamos con otra clave:
 
 Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_children`, `child_of`, `any_child_of`, `by_author`, `{tipo}_by_author`, 404) y archivo (todo, entradas, tipo, taxonomía, autor, fecha, búsqueda). Faltan:
 
-- [ ] Archivos de hijos de un término: `child_of_{tax}` y `any_child_of_{tax}`, en taxonomías jerárquicas.
-- [ ] Formatos de entrada: `post_format` en archivos e `in_post_format` en contenido individual.
-- [ ] Medios: `attachment` y `attachment_by_author`.
-- [ ] Grupo **WooCommerce**:
+- [x] Archivos de hijos de un término: `child_of_{tax}` y `any_child_of_{tax}`, en taxonomías jerárquicas.
+- [x] Formatos de entrada: `post_format` en archivos e `in_post_format` en contenido individual.
+- [x] Medios: `attachment` y `attachment_by_author`.
+- [x] Grupo **WooCommerce**:
   - `woocommerce` y `product_archive`;
   - `shop_page`, `product_search`;
   - `product_brand`, `product_cat`, `product_tag` (archivo);
@@ -122,12 +123,13 @@ Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_ch
 
 ### 3.6 Etiquetas dinámicas
 
-- [ ] `archive-meta`, `featured-image-data`, `request-arg`.
-- [ ] Acciones `off-canvas` y `reload-page`.
-- [ ] WooCommerce: `woocommerce-add-to-cart`, `woocommerce-category-image-tag`, `woocommerce-product-content-tag`, `woocommerce-product-gallery-tag`, `woocommerce-product-sale-tag`, `woocommerce-product-terms-tag`.
+- [x] `archive-meta`, `featured-image-data`, `request-arg` (antes la registrábamos como `request-parameter`, que se mantiene como alias).
+- [x] Acción `reload-page`.
+- [ ] Acción `off-canvas`: llega con el widget Off-canvas (fase 0.12.0).
+- [x] WooCommerce: `woocommerce-add-to-cart`, `woocommerce-category-image-tag`, `woocommerce-product-content-tag`, `woocommerce-product-gallery-tag`, `woocommerce-product-sale-tag`, `woocommerce-product-terms-tag`.
 - [ ] Integraciones, que solo se registran si el plugin está activo:
-  - ACF: `acf-text`, `acf-image`, `acf-url`, `acf-gallery`, `acf-file`, `acf-number`, `acf-color`;
-  - Toolset (`toolset-*`) y Pods (`pods-*`).
+  - [x] ACF: `acf-text`, `acf-image`, `acf-url`, `acf-gallery`, `acf-file`, `acf-number`, `acf-color` (clave `key` = `field_key:field_name`, como Pro; entrada, término, usuario y páginas de opciones). Sin pruebas automáticas: el entorno de desarrollo no tiene ACF.
+  - [ ] Toolset (`toolset-*`) y Pods (`pods-*`).
 
 ### 3.7 Otras piezas de Pro
 
@@ -164,7 +166,7 @@ El detalle de cada ajuste está en el anexo A. Las carencias funcionales que má
   - `columns` y estilos de la sección `section_style`;
   - mensaje de "sin resultados";
   - en el carrusel, navegación, paginación y su diseño.
-  - En la plantilla `loop-item`: `source`, `apply_query_source`, `preview_width` y `custom_css`.
+  - En la plantilla `loop-item` ya están `source`, `apply_query_source`, `preview_width`, `preview_search_term` y `custom_css` (0.8.0); falta que el widget use la fuente elegida.
 - **Search** (buscador de Pro):
   - resultados en directo (`live_results`, `template_id`, `minimum_search_characters`, `number_of_items`, `enable_loader`) y consulta `search_query_*`;
   - paginación, mensaje de "sin resultados", botón de limpiar y estilos de resultados.
@@ -200,8 +202,8 @@ Orden pensado para que lo que se importa desde Pro se vea igual cuanto antes:
 
 | Fase | Contenido | Estado |
 | --- | --- | --- |
-| 0.8.0 | §3.1 (excepto condiciones por elemento), §3.2, §3.3 y §3.4: claves de Pro en plantillas, popups, kit y fondos | ⏳ |
-| 0.8.1 | §3.5 condiciones y §3.6 etiquetas dinámicas | ☐ |
+| 0.8.0 | §3.1 (excepto condiciones por elemento), §3.2, §3.3 y §3.4 (excepto WooCommerce): claves de Pro en plantillas, popups, kit y fondos | ✅ |
+| 0.8.1 | §3.5 condiciones, §3.6 etiquetas dinámicas (excepto `off-canvas`, Toolset y Pods) y vista previa de secciones guardadas | ✅ |
 | 0.9.0 | Loop Grid/Carousel completos y Search | ☐ |
 | 0.9.1 | Formulario: integraciones y acción de popup | ☐ |
 | 0.10.0 | WooCommerce: widgets ausentes, ajustes de kit y estilos | ☐ |
@@ -211,6 +213,29 @@ Orden pensado para que lo que se importa desde Pro se vea igual cuanto antes:
 | 0.14.0 | Botones flotantes y Link in bio de Pro | ☐ |
 | 1.0.0 | Condiciones por elemento, notas, fuentes de Adobe, paquetes de iconos, WP-CLI y pagos | ☐ |
 | — | Editor v4 (formulario atómico, interacciones, variables, Collection Loop) | según evolucione Elementor |
+
+### Estado tras 0.8.0
+
+Nuevo inventario de OBX comparado con Pro 4.2.3 (ajustes ausentes por tipo de documento o elemento):
+
+| Tipo | Antes | Después |
+| --- | --- | --- |
+| Cabecera y pie | 42 | 0 |
+| Individual y archivo | 46 | 0 |
+| Popup | 106 | 0 |
+| Elemento de bucle | 8 | 0 |
+| Contenedor, sección y columna | 41 | 1 (`e_display_conditions`, fase 1.0.0) |
+| Página | 4 | 0 |
+| Sección y botones flotantes guardados | 5 | 0 (0.8.1) |
+| Kit | — | solo la pestaña WooCommerce (fase 0.10.0) |
+
+`tests/parity.php` comprueba las claves, los valores por defecto y el renderizado de todo lo anterior.
+
+### Estado tras 0.8.1
+
+- Condiciones: se leen y escriben con los nombres de Pro, también con el grupo delante (`include/woocommerce/product_archive/shop_page`). Las reglas antiguas `singular/product` y `archive/product_archive` se convierten en `product` y `product_archive`.
+- Etiquetas dinámicas: solo falta `off-canvas` respecto a Pro 4.2.3 (con WooCommerce).
+- `tests/parity.php`: 194 pruebas.
 
 Cada fase:
 

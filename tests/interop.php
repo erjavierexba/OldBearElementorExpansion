@@ -34,8 +34,9 @@ $render = static function (array $widgets, bool $as_guest = false) use ($uid, &$
 $cat_a = wp_insert_term('obx-interop-a ' . $uid(), 'category');
 $cat_b = wp_insert_term('obx-interop-b ' . $uid(), 'category');
 $posts = [];
+// Fixed dates far in the past: no other post of the site can fall between them (post navigation).
 foreach (['Alfa','Beta','Gamma','Delta'] as $i => $title) {
-    $posts[$title] = wp_insert_post(['post_type'=>'post','post_status'=>'publish','post_title'=>'obx-interop ' . $title,'post_content'=>'Texto de ' . $title . ' con varias palabras para el extracto del widget.','post_date'=>gmdate('Y-m-d H:i:s', time() - (10 - $i) * 3600),'post_category'=>[$i < 3 ? $cat_a['term_id'] : $cat_b['term_id']]]);
+    $posts[$title] = wp_insert_post(['post_type'=>'post','post_status'=>'publish','post_title'=>'obx-interop ' . $title,'post_content'=>'Texto de ' . $title . ' con varias palabras para el extracto del widget.','post_date'=>sprintf('2001-02-03 1%d:00:00', $i),'post_category'=>[$i < 3 ? $cat_a['term_id'] : $cat_b['term_id']]]);
     $created[] = $posts[$title];
 }
 $menu_id = wp_create_nav_menu('obx-interop-menu-' . $uid());

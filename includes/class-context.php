@@ -29,23 +29,68 @@ final class Context {
     public static function post(): ?\WP_Post {
         $template = self::template();
         if (!$template) { return get_post(); }
-        $id = absint($template->get_settings(Location_Document::PREVIEW));
-        if ($id && get_post_status($id) === 'publish') { return get_post($id); }
-        $latest = get_posts(['post_type'=>'post','posts_per_page'=>1,'post_status'=>'publish']);
+        [$type, $id] = $template->preview();
+        $post_type = str_starts_with($type, 'single/') ? substr($type, 7) : '';
+        if ($id && get_post_status($id) === 'publish' && (!$post_type || get_post_type($id) === $post_type)) { return get_post($id); }
+        if ($post_type === '' || !post_type_exists($post_type)) { $post_type = 'post'; }
+        $latest = get_posts(['post_type'=>$post_type,'posts_per_page'=>1,'post_status'=>'publish']);
+        if (!$latest && $post_type !== 'post') { $latest = get_posts(['post_type'=>'post','posts_per_page'=>1,'post_status'=>'publish']); }
         return $latest[0] ?? null;
     }
 
-    /** Main query for archive widgets; recent posts while editing a template. */
+    /**
+     * Main query for archive widgets. While editing a template it follows the template's
+     * «Preview settings» (recent posts, date, author, term, post type archive or search).
+     */
     public static function query(): \WP_Query {
         global $wp_query;
-        if (self::template() || !$wp_query instanceof \WP_Query) {
-            return new \WP_Query(['post_type'=>'post','post_status'=>'publish','posts_per_page'=>(int) get_option('posts_per_page', 10),'ignore_sticky_posts'=>true]);
+        $template = self::template();
+        if (!$template && $wp_query instanceof \WP_Query) { return $wp_query; }
+        $args = ['post_type'=>'post','post_status'=>'publish','posts_per_page'=>(int) get_option('posts_per_page', 10),'ignore_sticky_posts'=>true];
+        if ($template) {
+            [$type, $id, $search] = $template->preview();
+            [$group, $name] = array_pad(explode('/', $type, 2), 2, '');
+            if ($group === 'archive' && $name === 'author' && $id) { $args['author'] = $id; }
+            elseif ($group === 'taxonomy' && taxonomy_exists($name)) {
+                $term = $id ? get_term($id, $name) : null;
+                if (!$term instanceof \WP_Term) { $terms = get_terms(['taxonomy'=>$name,'number'=>1,'hide_empty'=>true]); $term = $terms[0] ?? null; }
+                $object = get_taxonomy($name);
+                $args['post_type'] = $object && $object->object_type ? $object->object_type : 'any';
+                if ($term instanceof \WP_Term) { $args['tax_query'] = [['taxonomy'=>$name,'terms'=>[$term->term_id]]]; }
+            }
+            elseif ($group === 'post_type_archive' && post_type_exists($name)) { $args['post_type'] = $name; }
+            elseif ($group === 'search') { $args['s'] = $search; $args['post_type'] = 'any'; }
         }
-        return $wp_query;
+        return new \WP_Query($args);
+    }
+
+    /** Term or author of the archive being shown (or previewed), if any. */
+    public static function archive_object(): ?object {
+        $template = self::template();
+        if (!$template) {
+            $object = get_queried_object();
+            return $object instanceof \WP_Term || $object instanceof \WP_User ? $object : null;
+        }
+        [$type, $id] = $template->preview();
+        [$group, $name] = array_pad(explode('/', $type, 2), 2, '');
+        if ($group === 'archive' && $name === 'author') { return $id ? (get_userdata($id) ?: null) : null; }
+        if ($group !== 'taxonomy' || !taxonomy_exists($name)) { return null; }
+        $term = $id ? get_term($id, $name) : null;
+        if (!$term instanceof \WP_Term) { $terms = get_terms(['taxonomy'=>$name,'number'=>1,'hide_empty'=>false]); $term = $terms[0] ?? null; }
+        return $term instanceof \WP_Term ? $term : null;
     }
 
     public static function archive_title(): string {
-        if (self::template()) { return 'Título del archivo'; }
+        $template = self::template();
+        if ($template) {
+            [$type, $id, $search] = $template->preview();
+            [$group, $name] = array_pad(explode('/', $type, 2), 2, '');
+            if ($group === 'search') { return sprintf('Resultados de búsqueda: %s', $search); }
+            if ($group === 'taxonomy' && $id && ($term = get_term($id, $name)) instanceof \WP_Term) { return $term->name; }
+            if ($group === 'archive' && $name === 'author' && $id && ($user = get_userdata($id))) { return $user->display_name; }
+            if ($group === 'post_type_archive' && ($object = get_post_type_object($name))) { return $object->labels->name; }
+            return 'Título del archivo';
+        }
         if (is_search()) { return sprintf('Resultados de búsqueda: %s', get_search_query()); }
         if (is_home()) {
             $page = (int) get_option('page_for_posts');

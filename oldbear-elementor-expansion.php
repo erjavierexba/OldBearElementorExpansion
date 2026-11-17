@@ -3,7 +3,7 @@
  * Plugin Name: OldBear Expansion for Elementor
  * Plugin URI: https://github.com/erjavierexba/OldBearElementorExpansion
  * Description: Theme Builder, widgets, elementos personalizados y herramientas avanzadas para Elementor Free.
- * Version: 0.7.3
+ * Version: 0.8.1
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: elementor
@@ -17,7 +17,7 @@ namespace OldBearExpansion;
 
 if (!defined('ABSPATH')) { exit; }
 
-const VERSION = '0.7.3';
+const VERSION = '0.8.1';
 const FILE = __FILE__;
 const DIR = __DIR__;
 

@@ -6,6 +6,13 @@
 	'use strict';
 	var cfg = window.obxEditorConditions;
 	if (!cfg || !window.$e || !window.$e.commands) { return; }
+
+	/* «Preview settings → Save and preview»: save the template and reload the preview with the chosen content. */
+	if (window.elementor && elementor.channels && elementor.channels.editor) {
+		elementor.channels.editor.on('obx:document:applyPreview', function () {
+			Promise.resolve($e.run('document/save/default')).then(function () { elementor.reloadPreview(); });
+		});
+	}
 	var pending = {};
 
 	function target(args) {

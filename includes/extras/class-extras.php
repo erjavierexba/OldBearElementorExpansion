@@ -35,6 +35,11 @@ final class Extras {
 
     /** Replace Elementor Free's Custom CSS teaser while its section is still open. */
     public static function before_section_end($stack, $section_id, $args): void {
+        $background_section = ['container'=>'section_background','section'=>'section_background','column'=>'section_style'];
+        if ($stack instanceof Element_Base && ($background_section[$stack->get_name()] ?? '') === $section_id && !$stack->get_controls('background_motion_fx_motion_fx_scrolling')) {
+            self::motion_controls($stack, 'background_motion_fx_');
+            return;
+        }
         if ($section_id !== 'section_custom_css_pro' || !is_object($stack) || !method_exists($stack, 'add_control')) { return; }
         if ($stack->get_controls('custom_css_pro')) { $stack->update_control('custom_css_pro', ['condition'=>['__obx_never'=>'yes'],'classes'=>'elementor-hidden']); }
         $stack->update_control('section_custom_css_pro', ['label'=>'CSS personalizado']);
@@ -65,47 +70,59 @@ final class Extras {
         }
     }
 
-    private static function motion_controls(Element_Base $element): void {
-        $p = 'motion_fx_';
-        $range = static fn(int $start, int $end) => ['sizes'=>['start'=>$start,'end'=>$end],'unit'=>'%'];
-        $element->add_control($p . 'motion_fx_scrolling', ['label'=>'Efectos de desplazamiento','type'=>Controls_Manager::SWITCHER,'label_off'=>'No','label_on'=>'Sí','render_type'=>'ui','frontend_available'=>true]);
+    /**
+     * Scrolling and mouse effects with Elementor Pro's keys and defaults. «motion_fx_» acts on the element;
+     * «background_motion_fx_» (containers, sections and columns) moves the background on its own layer.
+     */
+    private static function motion_controls(Element_Base $element, string $p = 'motion_fx_'): void {
+        $background = $p !== 'motion_fx_';
+        $range = static fn(int $start, int $end) => ['unit'=>'%','size'=>'','sizes'=>['start'=>$start,'end'=>$end]];
+        $speed = static fn(float $size) => ['unit'=>'px','size'=>$size,'sizes'=>[]];
+        $common = ['render_type'=>'none','frontend_available'=>true];
+        $element->add_control($p . 'motion_fx_scrolling', ['label'=>$background ? 'Efectos de desplazamiento del fondo' : 'Efectos de desplazamiento','type'=>Controls_Manager::SWITCHER,'label_off'=>'No','label_on'=>'Sí','separator'=>$background ? 'before' : 'default','render_type'=>'ui','frontend_available'=>true]);
         $on = [$p . 'motion_fx_scrolling'=>'yes'];
+        // [label, direction options, default direction, amount control, amount default, range key, range default]
         $effects = [
-            'translateY'=>['Desplazamiento vertical',['negative'=>'Hacia arriba','positive'=>'Hacia abajo'],'negative','speed'],
-            'translateX'=>['Desplazamiento horizontal',['negative'=>'Hacia la izquierda','positive'=>'Hacia la derecha'],'negative','speed'],
-            'opacity'=>['Transparencia',['out-in'=>'Aparecer','in-out'=>'Desvanecer','in-out-in'=>'Desvanecer y aparecer','out-in-out'=>'Aparecer y desvanecer'],'out-in','level'],
-            'blur'=>['Desenfoque',['out-in'=>'Enfocar','in-out'=>'Desenfocar','in-out-in'=>'Desenfocar y enfocar','out-in-out'=>'Enfocar y desenfocar'],'out-in','level'],
-            'rotateZ'=>['Rotación',['negative'=>'A la izquierda','positive'=>'A la derecha'],'negative','speed'],
-            'scale'=>['Escala',['out-in'=>'Acercar','in-out'=>'Alejar','in-out-in'=>'Alejar y acercar','out-in-out'=>'Acercar y alejar'],'out-in','speed'],
+            'translateY'=>['Desplazamiento vertical',[''=>'Hacia arriba','negative'=>'Hacia abajo'],'','speed',4,'affectedRange',[0,100]],
+            'translateX'=>['Desplazamiento horizontal',[''=>'Hacia la izquierda','negative'=>'Hacia la derecha'],'','speed',4,'affectedRange',[0,100]],
+            'opacity'=>['Transparencia',['out-in'=>'Aparecer','in-out'=>'Desvanecer','in-out-in'=>'Desvanecer y aparecer','out-in-out'=>'Aparecer y desvanecer'],'out-in','level',10,'range',[20,80]],
+            'blur'=>['Desenfoque',['out-in'=>'Enfocar','in-out'=>'Desenfocar','in-out-in'=>'Desenfocar y enfocar','out-in-out'=>'Enfocar y desenfocar'],'out-in','level',7,'range',[20,80]],
+            'rotateZ'=>['Rotación',[''=>'A la izquierda','negative'=>'A la derecha'],'','speed',1,'affectedRange',[0,100]],
+            'scale'=>['Escala',['out-in'=>'Acercar','in-out'=>'Alejar','in-out-in'=>'Alejar y acercar','out-in-out'=>'Acercar y alejar'],'out-in','speed',4,'range',[20,80]],
         ];
-        foreach ($effects as $name => [$label, $directions, $direction, $amount]) {
+        foreach ($effects as $name => [$label, $directions, $direction, $amount, $amount_default, $range_key, [$start, $end]]) {
             $key = $p . $name;
-            $element->add_control($key . '_effect', ['label'=>$label,'type'=>Controls_Manager::POPOVER_TOGGLE,'condition'=>$on,'render_type'=>'none','frontend_available'=>true]);
+            $element->add_control($key . '_effect', ['label'=>$label,'type'=>Controls_Manager::POPOVER_TOGGLE,'condition'=>$on] + $common);
             $element->start_popover();
             $show = $on + [$key . '_effect'=>'yes'];
-            $element->add_control($key . '_direction', ['label'=>'Dirección','type'=>Controls_Manager::SELECT,'default'=>$direction,'options'=>$directions,'condition'=>$show,'render_type'=>'none','frontend_available'=>true]);
+            $element->add_control($key . '_direction', ['label'=>'Dirección','type'=>Controls_Manager::SELECT,'default'=>$direction,'options'=>$directions,'condition'=>$show] + $common);
             if ($amount === 'speed') {
-                $element->add_control($key . '_speed', ['label'=>'Velocidad','type'=>Controls_Manager::SLIDER,'default'=>['size'=>$name === 'rotateZ' ? 1 : 4],'range'=>['px'=>['max'=>10,'step'=>0.1]],'condition'=>$show,'render_type'=>'none','frontend_available'=>true]);
-                $element->add_control($key . '_affectedRange', ['label'=>'Viewport','type'=>Controls_Manager::SLIDER,'default'=>$range(0, 100),'labels'=>['Abajo','Arriba'],'scales'=>1,'handles'=>'range','condition'=>$show,'render_type'=>'none','frontend_available'=>true]);
+                $element->add_control($key . '_speed', ['label'=>'Velocidad','type'=>Controls_Manager::SLIDER,'default'=>$speed($amount_default),'range'=>['px'=>['max'=>10,'step'=>0.1]],'condition'=>$show] + $common);
             } else {
-                $element->add_control($key . '_level', ['label'=>'Nivel','type'=>Controls_Manager::SLIDER,'default'=>['size'=>$name === 'blur' ? 7 : 10],'range'=>['px'=>['min'=>1,'max'=>$name === 'blur' ? 15 : 10,'step'=>0.1]],'condition'=>$show,'render_type'=>'none','frontend_available'=>true]);
-                $element->add_control($key . '_range', ['label'=>'Viewport','type'=>Controls_Manager::SLIDER,'default'=>$range(20, 80),'labels'=>['Abajo','Arriba'],'scales'=>1,'handles'=>'range','condition'=>$show,'render_type'=>'none','frontend_available'=>true]);
+                $element->add_control($key . '_level', ['label'=>'Nivel','type'=>Controls_Manager::SLIDER,'default'=>$speed($amount_default),'range'=>['px'=>['min'=>1,'max'=>$name === 'blur' ? 15 : 10,'step'=>0.1]],'condition'=>$show] + $common);
             }
+            $element->add_control($key . '_' . $range_key, ['label'=>'Viewport','type'=>Controls_Manager::SLIDER,'default'=>$range($start, $end),'labels'=>['Abajo','Arriba'],'scales'=>1,'handles'=>'range','condition'=>$show] + $common);
             $element->end_popover();
         }
-        $element->add_control($p . 'devices', ['label'=>'Aplicar en','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'default'=>array_keys(self::DEVICES),'options'=>self::DEVICES,'condition'=>$on,'render_type'=>'none','frontend_available'=>true]);
-        $element->add_control($p . 'range', ['label'=>'Efectos relativos a','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Por defecto','viewport'=>'Ventana','page'=>'Página completa'],'condition'=>$on,'render_type'=>'none','frontend_available'=>true]);
+        if (!$background) {
+            $origin = ['conditions'=>['terms'=>[['name'=>$p . 'motion_fx_scrolling','value'=>'yes'],['relation'=>'or','terms'=>[['name'=>$p . 'rotateZ_effect','value'=>'yes'],['name'=>$p . 'scale_effect','value'=>'yes']]]]]];
+            $element->add_control($p . 'transform_origin_x', ['label'=>'Punto de anclaje X','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>['left'=>['title'=>'Izquierda','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'right'=>['title'=>'Derecha','icon'=>'eicon-h-align-right']],'toggle'=>false] + $origin + $common);
+            $element->add_control($p . 'transform_origin_y', ['label'=>'Punto de anclaje Y','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>['top'=>['title'=>'Arriba','icon'=>'eicon-v-align-top'],'center'=>['title'=>'Centro','icon'=>'eicon-v-align-middle'],'bottom'=>['title'=>'Abajo','icon'=>'eicon-v-align-bottom']],'toggle'=>false] + $origin + $common);
+        }
+        $element->add_control($p . 'devices', ['label'=>'Aplicar en','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'default'=>array_keys(self::DEVICES),'options'=>self::DEVICES,'condition'=>$on] + $common);
+        $element->add_control($p . 'range', ['label'=>'Efectos relativos a','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Por defecto','viewport'=>'Ventana','page'=>'Página completa'],'condition'=>$on] + $common);
 
-        $element->add_control($p . 'motion_fx_mouse', ['label'=>'Efectos del ratón','type'=>Controls_Manager::SWITCHER,'label_off'=>'No','label_on'=>'Sí','separator'=>'before','render_type'=>'none','frontend_available'=>true]);
+        $element->add_control($p . 'motion_fx_mouse', ['label'=>$background ? 'Efectos del ratón en el fondo' : 'Efectos del ratón','type'=>Controls_Manager::SWITCHER,'label_off'=>'No','label_on'=>'Sí','separator'=>'before'] + $common);
         $mouse = [$p . 'motion_fx_mouse'=>'yes'];
-        foreach (['mouseTrack'=>'Seguir el ratón','tilt'=>'Inclinación 3D'] as $name => $label) {
+        foreach (['mouseTrack'=>['Seguir el ratón',1],'tilt'=>['Inclinación 3D',4]] as $name => [$label, $default]) {
             $key = $p . $name;
-            $element->add_control($key . '_effect', ['label'=>$label,'type'=>Controls_Manager::POPOVER_TOGGLE,'condition'=>$mouse,'render_type'=>'none','frontend_available'=>true]);
+            $element->add_control($key . '_effect', ['label'=>$label,'type'=>Controls_Manager::POPOVER_TOGGLE,'condition'=>$mouse] + $common);
             $element->start_popover();
-            $element->add_control($key . '_direction', ['label'=>'Dirección','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Con el ratón','negative'=>'Contraria'],'condition'=>$mouse + [$key . '_effect'=>'yes'],'render_type'=>'none','frontend_available'=>true]);
-            $element->add_control($key . '_speed', ['label'=>'Velocidad','type'=>Controls_Manager::SLIDER,'default'=>['size'=>$name === 'tilt' ? 4 : 1],'range'=>['px'=>['max'=>10,'step'=>0.1]],'condition'=>$mouse + [$key . '_effect'=>'yes'],'render_type'=>'none','frontend_available'=>true]);
+            $element->add_control($key . '_direction', ['label'=>'Dirección','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Con el ratón','negative'=>'Contraria'],'condition'=>$mouse + [$key . '_effect'=>'yes']] + $common);
+            $element->add_control($key . '_speed', ['label'=>'Velocidad','type'=>Controls_Manager::SLIDER,'default'=>$speed($default),'range'=>['px'=>['max'=>10,'step'=>0.1]],'condition'=>$mouse + [$key . '_effect'=>'yes']] + $common);
             $element->end_popover();
         }
+        $element->add_control($background ? 'background_handle_motion_fx_asset_loading' : 'handle_motion_fx_asset_loading', ['type'=>Controls_Manager::HIDDEN,'default'=>'']);
     }
 
     private static function sticky_controls(Element_Base $element): void {

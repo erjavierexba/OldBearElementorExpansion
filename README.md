@@ -22,6 +22,8 @@
 | 9 | Dashboard Pro: fuentes, iconos, código personalizado y edición de solo contenido por rol | ✅ v0.6.0 |
 | 10 | Pantallas de Elementor como con Pro: escritorio, Inicio, Quick Start, barra superior y enlaces de las herramientas Pro | ✅ v0.6.1 |
 | 11 | Theme Builder dentro de la app de Elementor (pantalla completa y modal del editor), con condiciones al publicar | ✅ v0.7.0 |
+| 12 | Formato de Pro en plantillas (vista previa, envoltorio, lienzo, estilo), popups, efectos de movimiento del fondo, transiciones de página, precargador y scroll snap | ✅ v0.8.0 |
+| 13 | Condiciones de Pro completas (hijos de término, formatos, medios y grupo WooCommerce), etiquetas dinámicas de Pro y ACF, vista previa de secciones guardadas | ✅ v0.8.1 |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 
@@ -49,8 +51,11 @@ También puedes crear las plantillas desde **Plantillas → Añadir nueva**: apa
 | --- | --- |
 | Todo el sitio | Cualquier página (solo cabecera y pie) |
 | Contenido individual · Todo / Portada / {tipo} | Entradas, páginas o un tipo de contenido; opcionalmente IDs concretos |
-| Contenido individual · Con término de {taxonomía} | Contenidos que tienen esos términos (IDs obligatorios) |
-| Archivos · Todos / Página de entradas / {tipo} / {taxonomía} / Autor / Fecha / Búsqueda | Listados |
+| Contenido individual · Con término de {taxonomía} / con hijos de un término / con formato | Contenidos que tienen esos términos (IDs obligatorios) |
+| Contenido individual · Hijo directo de / Descendiente de / De un autor / Medios | Jerarquía, autoría y adjuntos |
+| Archivos · Todos / Página de entradas / {tipo} / {taxonomía} / Autor / Fecha / Búsqueda / Formatos | Listados |
+| Archivos · {taxonomía} · Hijo directo de / Descendiente de | Archivos de los términos hijos de otro (IDs obligatorios) |
+| WooCommerce · Toda la tienda / Productos (por término o autor) / Archivos de productos / Página de la tienda / Búsqueda de productos / {taxonomía de producto} | Tienda, con los nombres de Pro (`woocommerce`, `product`, `product_archive`) |
 | Página 404 | Páginas no encontradas |
 
 Si varias plantillas coinciden, gana la más específica: portada/404 > ID concreto > «con término» > tipo o taxonomía > todos los individuales o archivos > todo el sitio. Con el mismo nivel gana la más reciente. Una regla de **excluir** que coincida descarta la plantilla.
@@ -79,9 +84,15 @@ En **Theme Builder → Elemento de bucle** crea una tarjeta y edítala como cual
 
 **Plantillas → Ventanas emergentes** permite crear documentos `popup` compatibles con el tipo de Elementor Pro. Sus condiciones deciden en qué páginas están disponibles; pueden abrirse al cargar, al desplazarse, tras inactividad, al intentar salir, mediante un selector CSS o con la etiqueta dinámica «Ventana emergente». Incluyen cierre accesible, límite por visitante y bloqueo opcional del desplazamiento.
 
+Usan las claves de Pro: tamaño y posición de la ventana, posición del contenido, animaciones de entrada y salida por dispositivo, estilo de la ventana, superposición y botón de cierre (dentro o fuera), retraso del botón de cierre, cierre automático, impedir el cierre con la superposición o con Esc, evitar varios popups a la vez, navegación por teclado con foco atrapado, selector de apertura (`open_selector`) y clases propias. Las claves `obx_*` anteriores se siguen leyendo.
+
 ### Etiquetas dinámicas y extras
 
-Los controles nativos con soporte dinámico pueden usar datos de entrada, archivo, sitio, usuario, autor, comentarios, acciones y producto. En **Avanzado** funcionan CSS personalizado, atributos filtrados, sticky y efectos de scroll/ratón con las mismas claves de datos de Pro. Los atributos capaces de ejecutar scripts o alterar enlaces se descartan en el servidor.
+Los controles nativos con soporte dinámico pueden usar datos de entrada, archivo (incluidos sus metadatos), sitio, usuario, autor, comentarios, acciones (también «Recargar la página»), producto (contenido, rebaja, términos, galería, imagen de categoría y enlace de añadir al carrito) y campos de ACF cuando ese plugin está activo. En **Avanzado** funcionan CSS personalizado, atributos filtrados, sticky y efectos de scroll/ratón con las mismas claves de datos de Pro. Los atributos capaces de ejecutar scripts o alterar enlaces se descartan en el servidor. Contenedores, secciones y columnas admiten también efectos de movimiento del fondo (`background_motion_fx_*`).
+
+### Ajustes del sitio
+
+En **Ajustes del sitio** del kit, la pestaña **Transiciones de página** de Elementor deja de ser un anuncio: animación de entrada y salida, duración, fondo y un precargador de animación, icono o imagen, con botón de prueba en el editor. **Scroll snap** está en el kit, en las páginas (Avanzado) y en las plantillas de página completa.
 
 ### Herramientas del dashboard
 
@@ -124,7 +135,7 @@ Se ha comprobado renderizando 167 plantillas de 10 kits comerciales «Elementor 
 
 Las claves, tipos, valores por defecto y opciones de los ajustes se tomaron como **especificación de formato** de un volcado público del registro de controles de widgets (GPL-2.0, derivado del proyecto «pro-elements»), y de qué claves aparecen guardadas en kits reales. De ahí solo se usan los nombres y valores de los datos. Etiquetas, textos de la interfaz, marcado HTML, CSS y JavaScript son propios. No se ha copiado código de Elementor Pro ni se ha hecho ingeniería inversa de él.
 
-En el editor, las plantillas de entrada y archivo se previsualizan con contenido real. La entrada concreta se elige en **Ajustes → Vista previa**.
+En el editor, las plantillas de entrada y archivo se previsualizan con contenido real. En **Ajustes → Vista previa** se elige qué previsualizar (`preview_type`: una entrada o página, un término, un autor, la fecha, un tipo de contenido, una búsqueda o la 404) y se aplica con **Aplicar vista previa**. Las plantillas admiten además la etiqueta del envoltorio (`content_wrapper_html_tag`), el diseño de página (`elementor_canvas` imprime solo la plantilla, sin cabecera ni pie), estilo propio y CSS personalizado.
 
 ### Compatibilidad con temas
 

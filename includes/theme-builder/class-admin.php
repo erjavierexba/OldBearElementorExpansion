@@ -79,8 +79,8 @@ final class Admin {
         return match ($class::TYPE) {
             'single-page'=>'singular/page',
             'search-results'=>'archive/search',
-            'product'=>'singular/product',
-            'product-archive'=>post_type_exists('product') ? 'archive/product_archive' : 'archive',
+            'product'=>'product',
+            'product-archive'=>post_type_exists('product') ? 'product_archive' : 'archive',
             default=>Conditions::default_rule($class::LOCATION),
         };
     }

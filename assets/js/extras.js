@@ -109,21 +109,52 @@
 		['position', 'top', 'bottom', 'zIndex'].forEach((p) => { this.el.style[p] = ''; });
 	};
 
-	function Motion(el, settings) {
+	/**
+	 * Scrolling and mouse effects. prefix «motion_fx_» moves the element itself; «background_motion_fx_»
+	 * moves a layer that carries the element's background (containers, sections and columns).
+	 */
+	function Motion(el, settings, prefix) {
 		this.el = el;
 		this.s = settings;
-		this.target = el.querySelector(':scope > .elementor-widget-container') || el;
+		this.p = prefix || 'motion_fx_';
+		this.background = this.p !== 'motion_fx_';
+		this.target = this.background ? this.layer() : (el.querySelector(':scope > .elementor-widget-container') || el);
 		this.mouse = { x: 0, y: 0 };
 		this.frame = 0;
 		this.request = () => { if (!this.frame) { this.frame = requestAnimationFrame(() => { this.frame = 0; this.apply(); }); } };
 		this.onMove = (e) => { this.mouse = { x: e.clientX / window.innerWidth - 0.5, y: e.clientY / window.innerHeight - 0.5 }; this.request(); };
 		window.addEventListener('scroll', this.request, { passive: true });
 		window.addEventListener('resize', this.request);
-		if (settings.motion_fx_motion_fx_mouse === 'yes') { window.addEventListener('mousemove', this.onMove, { passive: true }); }
+		if (settings[this.p + 'motion_fx_mouse'] === 'yes') { window.addEventListener('mousemove', this.onMove, { passive: true }); }
+		if (!this.background) {
+			const ox = settings.motion_fx_transform_origin_x || 'center', oy = settings.motion_fx_transform_origin_y || 'center';
+			this.target.style.transformOrigin = ox + ' ' + oy;
+		}
 		this.apply();
 	}
+	/** Moves the element's background onto an oversized layer, so it can travel without uncovering edges. */
+	Motion.prototype.layer = function () {
+		const el = this.el, cs = getComputedStyle(el), s = this.s, p = this.p;
+		const speed = (key) => (s[p + key + '_effect'] === 'yes' ? size(s[p + key + '_speed'], 4) : 0);
+		const ySpace = Math.max(speed('translateY'), s[p + 'mouseTrack_effect'] === 'yes' ? size(s[p + 'mouseTrack_speed'], 1) : 0) * 25;
+		const xSpace = Math.max(speed('translateX'), s[p + 'mouseTrack_effect'] === 'yes' ? size(s[p + 'mouseTrack_speed'], 1) : 0) * 25;
+		const box = document.createElement('div');
+		box.className = 'elementor-motion-effects-container obx-motion-bg';
+		box.setAttribute('aria-hidden', 'true');
+		const layer = document.createElement('div');
+		layer.className = 'elementor-motion-effects-layer';
+		['backgroundImage', 'backgroundColor', 'backgroundSize', 'backgroundPosition', 'backgroundRepeat'].forEach((k) => { layer.style[k] = cs[k]; });
+		if (!cs.backgroundSize || cs.backgroundSize === 'auto') { layer.style.backgroundSize = 'cover'; }
+		layer.style.inset = (-ySpace) + 'px ' + (-xSpace) + 'px';
+		box.appendChild(layer);
+		el.classList.add('obx-has-motion-bg');
+		el.style.backgroundImage = 'none';
+		el.insertBefore(box, el.firstChild);
+		this.box = box;
+		return layer;
+	};
 	Motion.prototype.progress = function () {
-		if (this.s.motion_fx_range === 'page') {
+		if (this.s[this.p + 'range'] === 'page') {
 			const max = document.documentElement.scrollHeight - window.innerHeight;
 			return max > 0 ? clamp(window.scrollY / max * 100, 0, 100) : 0;
 		}
@@ -132,7 +163,7 @@
 	};
 	Motion.prototype.apply = function () {
 		const s = this.s;
-		const p = 'motion_fx_';
+		const p = this.p;
 		const style = this.target.style;
 		if (!onDevice(s[p + 'devices'])) { style.transform = ''; style.opacity = ''; style.filter = ''; return; }
 		const transforms = [];
@@ -141,7 +172,8 @@
 		if (s[p + 'motion_fx_scrolling'] === 'yes') {
 			const progress = this.progress();
 			const t = (key, start, end) => { const [a, b] = range(s[p + key], start, end); return b > a ? clamp((progress - a) / (b - a), 0, 1) : 0; };
-			const sign = (key) => (s[p + key + '_direction'] === 'positive' ? 1 : -1);
+			// Elementor Pro stores '' for the default direction and 'negative' for the opposite one ('positive' in OBX ≤ 0.7).
+			const sign = (key) => { const d = s[p + key + '_direction']; return d === 'negative' || d === 'positive' ? 1 : -1; };
 			['translateY', 'translateX'].forEach((axis) => {
 				if (s[p + axis + '_effect'] !== 'yes') { return; }
 				const move = (t(axis + '_affectedRange', 0, 100) - 0.5) * size(s[p + axis + '_speed'], 4) * 50 * sign(axis);
@@ -154,7 +186,8 @@
 			if (s[p + 'scale_effect'] === 'yes') {
 				const ratio = shape(s[p + 'scale_direction'], t('scale_range', 20, 80));
 				const min = clamp(1 - size(s[p + 'scale_speed'], 4) / 10, 0.05, 1);
-				transforms.push('scale(' + (min + (1 - min) * ratio).toFixed(3) + ')');
+				const scale = min + (1 - min) * ratio;
+				transforms.push('scale(' + (this.background ? 1 + (1 - scale) : scale).toFixed(3) + ')');
 			}
 			if (s[p + 'opacity_effect'] === 'yes') {
 				const ratio = shape(s[p + 'opacity_direction'], t('opacity_range', 20, 80));
@@ -169,7 +202,7 @@
 		if (s[p + 'motion_fx_mouse'] === 'yes') {
 			const dir = (key) => (s[p + key + '_direction'] === 'negative' ? -1 : 1);
 			if (s[p + 'mouseTrack_effect'] === 'yes') {
-				const k = size(s[p + 'mouseTrack_speed'], 1) * 20 * dir('mouseTrack');
+				const k = size(s[p + 'mouseTrack_speed'], 1) * 20 * dir('mouseTrack') * (this.background ? -1 : 1);
 				transforms.push('translate(' + (this.mouse.x * k).toFixed(1) + 'px,' + (this.mouse.y * k).toFixed(1) + 'px)');
 			}
 			if (s[p + 'tilt_effect'] === 'yes') {
@@ -187,7 +220,8 @@
 		window.removeEventListener('resize', this.request);
 		window.removeEventListener('mousemove', this.onMove);
 		if (this.frame) { cancelAnimationFrame(this.frame); }
-		['transform', 'opacity', 'filter', 'willChange'].forEach((k) => { this.target.style[k] = ''; });
+		if (this.box) { this.box.remove(); this.el.classList.remove('obx-has-motion-bg'); this.el.style.backgroundImage = ''; return; }
+		['transform', 'opacity', 'filter', 'willChange', 'transformOrigin'].forEach((k) => { this.target.style[k] = ''; });
 	};
 
 	/** Settings of an element: the editor model while editing, data-settings on the live site. */
@@ -209,8 +243,20 @@
 		const list = [];
 		if (settings.sticky === 'top' || settings.sticky === 'bottom') { list.push(new Sticky(el, settings)); }
 		if (settings.motion_fx_motion_fx_scrolling === 'yes' || settings.motion_fx_motion_fx_mouse === 'yes') { list.push(new Motion(el, settings)); }
+		if (settings.background_motion_fx_motion_fx_scrolling === 'yes' || settings.background_motion_fx_motion_fx_mouse === 'yes') { list.push(new Motion(el, settings, 'background_motion_fx_')); }
 		instances.set(el, list);
 	};
+
+	// «Reload page» dynamic tag: #elementor-action:action=reload-page.
+	document.addEventListener('click', (e) => {
+		const link = e.target.closest && e.target.closest('a[href^="#elementor-action"], a[href^="%23elementor-action"]');
+		if (!link) { return; }
+		let raw = link.getAttribute('href').replace(/^(#|%23)/, '');
+		try { raw = decodeURIComponent(raw); } catch (err) { return; }
+		if (!/(^|[:&])action=reload-page(&|$)/.test(raw.replace(/^elementor-action:?/, ''))) { return; }
+		e.preventDefault();
+		if (!(window.elementorFrontend && elementorFrontend.isEditMode && elementorFrontend.isEditMode())) { window.location.reload(); }
+	});
 
 	const boot = () => {
 		if (!window.elementorFrontend || !elementorFrontend.hooks) {
@@ -221,7 +267,7 @@
 		if (elementorFrontend.isEditMode && elementorFrontend.isEditMode() && window.elementor && elementor.channels) {
 			elementor.channels.editor.on('change', (view) => {
 				const name = view && view.model ? view.model.get('name') : '';
-				if (!/^(sticky|motion_fx_)/.test(name || '')) { return; }
+				if (!/^(sticky|motion_fx_|background_motion_fx_|background_)/.test(name || '')) { return; }
 				const container = view.container || (view.options && view.options.container);
 				const el = container && container.view ? container.view.el : null;
 				if (el) { init(el); }

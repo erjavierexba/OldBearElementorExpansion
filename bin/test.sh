@@ -14,6 +14,7 @@ wp plugin activate woocommerce
 wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/pro-widgets.php
 wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/interop.php
 wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/extended.php
+wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/parity.php
 # Stored data in Elementor Pro's format (converts templates seeded by earlier versions).
 wp obx convert
 
