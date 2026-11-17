@@ -9,7 +9,8 @@ if (!defined('ABSPATH')) { exit; }
 
 final class Site_Logo extends Base {
     public const CATEGORY = 'obx-site';
-    public function get_name(): string { return 'obx-site-logo'; }
+    public const NAME = 'obx-site-logo';
+    public const PRO = 'theme-site-logo';
     public function get_title(): string { return 'Logotipo del sitio'; }
     public function get_icon(): string { return 'eicon-site-logo'; }
     public function get_keywords(): array { return ['logo','logotipo','marca','brand']; }
@@ -39,7 +40,8 @@ final class Site_Logo extends Base {
 
 final class Site_Title extends Base {
     public const CATEGORY = 'obx-site';
-    public function get_name(): string { return 'obx-site-title'; }
+    public const NAME = 'obx-site-title';
+    public const PRO = 'theme-site-title';
     public function get_title(): string { return 'Título del sitio'; }
     public function get_icon(): string { return 'eicon-site-title'; }
     public function get_keywords(): array { return ['site','sitio','titulo','nombre','tagline','lema']; }
@@ -63,7 +65,9 @@ final class Site_Title extends Base {
 
 final class Nav_Menu extends Base {
     public const CATEGORY = 'obx-site';
-    public function get_name(): string { return 'obx-nav-menu'; }
+    public const NAME = 'obx-nav-menu';
+    public const PRO = 'nav-menu';
+    public const PRO_CATEGORY = 'pro-elements';
     public function get_title(): string { return 'Menú de navegación'; }
     public function get_icon(): string { return 'eicon-nav-menu'; }
     public function get_keywords(): array { return ['menu','nav','navegacion','navigation']; }
@@ -117,7 +121,9 @@ final class Nav_Menu extends Base {
 
 final class Search_Form extends Base {
     public const CATEGORY = 'obx-site';
-    public function get_name(): string { return 'obx-search-form'; }
+    public const NAME = 'obx-search-form';
+    public const PRO = 'search';
+    public const PRO_CATEGORY = 'pro-elements';
     public function get_title(): string { return 'Formulario de búsqueda'; }
     public function get_icon(): string { return 'eicon-site-search'; }
     public function get_keywords(): array { return ['search','buscar','buscador','busqueda']; }

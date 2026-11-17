@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | 1 | Theme Builder: cabecera, pie, entrada individual, archivo y 404, con condiciones | ✅ v0.1.0 |
 | 1b | Modo limpio y convivencia con Elementor Pro | ✅ v0.2.0 |
+| 1c | Widgets de Pro con implementación propia (31 widgets) | ✅ v0.3.0 |
 | 2 | Etiquetas dinámicas en los widgets nativos | Pendiente |
 | 3 | Loop Grid con plantilla de tarjeta | Pendiente |
 | 4 | Formularios | Pendiente |
@@ -48,11 +49,19 @@ Si varias plantillas coinciden, gana la más específica: portada/404 > ID concr
 
 ### Widgets
 
+Sin Elementor Pro, los widgets se registran **con los mismos nombres internos que los de Pro** y en sus mismas categorías del panel. Elementor deja de mostrar el candado en ellos porque ya existen, y los ejecuta este plugin con su propio código. Los que aún no están implementados siguen bloqueados, salvo con el modo limpio, que los oculta.
+
 | Categoría | Widgets |
 | --- | --- |
-| Sitio | Logotipo del sitio, Título del sitio, Menú de navegación (desplegable en móvil/tableta, submenús), Formulario de búsqueda |
-| Entrada individual | Título, Contenido, Imagen destacada, Extracto, Información (fecha, autor, términos, comentarios) |
-| Archivo | Título del archivo, Entradas del archivo (rejilla adaptable con paginación) |
+| Pro | Menú de navegación (`nav-menu`), Formulario de búsqueda (`search`), Entradas (`posts`), Cita (`blockquote`), Llamada a la acción (`call-to-action`), Caja giratoria (`flip-box`), Tabla de precios (`price-table`), Lista de precios (`price-list`), Cuenta atrás (`countdown`), Botones para compartir (`share-buttons`), Titular animado (`animated-headline`), Tabla de contenidos (`table-of-contents`), Inicio de sesión (`login`), Resaltado de código (`code-highlight`), Plantilla (`template`) |
+| Sitio | Logotipo y título del sitio, título de la página, título, imagen destacada, extracto e información de la entrada, título y entradas del archivo, caja de autor, navegación de entradas, comentarios, migas de pan, mapa del sitio e indicador de progreso (`theme-site-logo`, `theme-page-title`, `post-info`, `archive-posts`, `breadcrumbs`…) |
+| Individual | Contenido de la entrada (`theme-post-content`) |
+
+Las plantillas guardadas con versiones anteriores, que usan los nombres `obx-*`, se siguen mostrando igual. Esos nombres ya no aparecen en el panel para no duplicar widgets. Con Elementor Pro activo ocurre lo contrario: Pro conserva sus widgets y los de OldBear aparecen con sus nombres `obx-*` en las categorías Sitio, Entrada individual y Archivo.
+
+> Los nombres de los widgets coinciden con los de Pro, pero los nombres de sus ajustes todavía no. Un diseño hecho con Pro se abrirá con el widget correcto, pero puede perder estilos u opciones hasta la fase 7. Por el mismo motivo, si más adelante activas Elementor Pro, revisa las páginas que usen estos widgets.
+
+Pendientes de la lista de Pro: Formulario, Loop Grid/Carousel, Popups, Mega menú, Galería, Carruseles (diapositivas, medios, testimonios, reseñas), Portafolio, Lottie, Hotspot, Off-canvas, Lista de vídeos, botones de PayPal/Stripe, widgets de Facebook y WooCommerce.
 
 En el editor, las plantillas de entrada y archivo se previsualizan con contenido real. La entrada concreta se elige en **Ajustes → Vista previa**.
 
@@ -93,8 +102,9 @@ includes/class-context.php         Entrada/consulta real o de vista previa para 
 includes/compat.php                elementor_theme_do_location() para temas compatibles
 includes/clean/                    Modo limpio (anuncios de Pro) y página de ajustes
 includes/theme-builder/            Tipos de documento, condiciones, ubicaciones y pantalla de administración
-includes/widgets/                  Widgets de sitio, entrada y archivo
+includes/widgets/                  Widgets (base con doble nombre obx-*/Pro, tema, sitio y generales)
 templates/                         header.php, footer.php y location.php que imprime el plugin
+assets/                            CSS y JS propios de los widgets (sin dependencias)
 dev/seed.php · tests/              Demo de desarrollo y pruebas de integración (wp eval-file)
 ```
 

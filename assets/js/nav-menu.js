@@ -16,6 +16,7 @@
     window.addEventListener('elementor/frontend/init', () => {
         if (window.elementorFrontend && window.elementorFrontend.hooks) {
             window.elementorFrontend.hooks.addAction('frontend/element_ready/obx-nav-menu.default', ($scope) => init($scope[0] || $scope));
+            window.elementorFrontend.hooks.addAction('frontend/element_ready/nav-menu.default', ($scope) => init($scope[0] || $scope));
         }
     });
 })();

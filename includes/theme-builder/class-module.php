@@ -30,6 +30,34 @@ final class Module {
         add_action('elementor/widgets/register', [self::class, 'widgets']);
         add_action('init', [self::class, 'assets'], 5);
         add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); });
+        if (!Plugin::pro_active() && defined('ELEMENTOR_VERSION')) {
+            // Elementor lists Pro widgets as locked promotions; drop the ones we provide.
+            add_filter('transient_elementor_remote_info_api_data_' . ELEMENTOR_VERSION, [self::class, 'drop_promotions']);
+        }
+    }
+
+    /** @return string[] Widget names this plugin registers in place of Elementor Pro's. */
+    public static function pro_names(): array {
+        self::load_widgets();
+        $names = [];
+        foreach (\OldBearExpansion\Widgets\Base::registry() as $class) { if ($class::PRO !== '') { $names[] = $class::PRO; } }
+        return $names;
+    }
+
+    public static function drop_promotions($data) {
+        if (is_array($data) && !empty($data['pro_widgets']) && is_array($data['pro_widgets'])) {
+            $ours = array_flip(self::pro_names());
+            $data['pro_widgets'] = array_values(array_filter($data['pro_widgets'], static fn($w) => !isset($ours[$w['name'] ?? ''])));
+        }
+        return $data;
+    }
+
+    private static function load_widgets(): void {
+        require_once DIR . '/includes/widgets/class-base.php';
+        require_once DIR . '/includes/widgets/theme-widgets.php';
+        require_once DIR . '/includes/widgets/site-widgets.php';
+        require_once DIR . '/includes/widgets/theme-extra-widgets.php';
+        require_once DIR . '/includes/widgets/pro-widgets.php';
     }
 
     public static function documents($manager): void {
@@ -37,20 +65,31 @@ final class Module {
     }
 
     public static function categories($manager): void {
+        // Without Pro, our widgets live in Elementor's own «Pro» and «Sitio» categories.
+        if (!Plugin::pro_active()) {
+            if (!isset($manager->get_categories()['theme-elements-single'])) {
+                $manager->add_category('theme-elements-single', ['title'=>'Individual','icon'=>'eicon-single-post','active'=>false]);
+            }
+            return;
+        }
         $manager->add_category('obx-site', ['title'=>'Sitio','icon'=>'eicon-site-identity']);
         $manager->add_category('obx-single', ['title'=>'Entrada individual','icon'=>'eicon-single-post']);
         $manager->add_category('obx-archive', ['title'=>'Archivo','icon'=>'eicon-archive']);
     }
 
     public static function widgets($manager): void {
-        require_once DIR . '/includes/widgets/class-base.php';
-        require_once DIR . '/includes/widgets/theme-widgets.php';
-        require_once DIR . '/includes/widgets/site-widgets.php';
-        foreach (\OldBearExpansion\Widgets\Base::registry() as $class) { $manager->register(new $class()); }
+        self::load_widgets();
+        $pro = Plugin::pro_active();
+        foreach (\OldBearExpansion\Widgets\Base::registry() as $class) {
+            // With Elementor Pro active only our own names are added; Pro keeps its widgets.
+            if ($class::NAME !== '') { $manager->register(new $class([], ['obx_name'=>$class::NAME])); }
+            if (!$pro && $class::PRO !== '') { $manager->register(new $class([], ['obx_name'=>$class::PRO])); }
+        }
     }
 
     public static function assets(): void {
         wp_register_style('obx-frontend', Plugin::url('assets/css/frontend.css'), [], VERSION);
         wp_register_script('obx-nav-menu', Plugin::url('assets/js/nav-menu.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
+        wp_register_script('obx-widgets', Plugin::url('assets/js/widgets.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
     }
 }

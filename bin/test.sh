@@ -8,6 +8,7 @@ wp() { docker compose run --rm -T cli wp "$@"; }
 
 docker compose exec -T wordpress sh -c 'cd wp-content/plugins/oldbear-elementor-expansion && find . -name "*.php" -not -path "./.git/*" -print0 | xargs -0 -n1 php -l' | grep -v '^No syntax errors' || true
 wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/theme-builder.php
+wp eval-file wp-content/plugins/oldbear-elementor-expansion/tests/pro-widgets.php
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 fetch() { curl -s -o "$tmp/page.html" -w '%{http_code}' "$base$1"; }
@@ -32,7 +33,7 @@ echo "OK modo limpio"
 # Coexistence with Elementor Pro (simulated through the obx/pro_active filter).
 docker compose run --rm -T cli sh -c "mkdir -p wp-content/mu-plugins && printf '%s\n' '<?php' \"add_filter('obx/pro_active', '__return_true');\" > wp-content/mu-plugins/obx-simulate-pro.php"
 trap 'docker compose run --rm -T cli rm -f wp-content/mu-plugins/obx-simulate-pro.php >/dev/null 2>&1; rm -rf "$tmp"' EXIT
-wp eval '$w = \Elementor\Plugin::$instance->widgets_manager->get_widget_types(); exit(isset($w["obx-nav-menu"]) && !\Elementor\Plugin::$instance->documents->get_document_type("obx-header", false) ? 0 : 1);' \
+wp eval '$w = \Elementor\Plugin::$instance->widgets_manager->get_widget_types(); exit(isset($w["obx-nav-menu"]) && !(($w["countdown"] ?? null) instanceof \OldBearExpansion\Widgets\Base) && !(($w["nav-menu"] ?? null) instanceof \OldBearExpansion\Widgets\Base) && $w["obx-nav-menu"]->show_in_panel() && !\Elementor\Plugin::$instance->documents->get_document_type("obx-header", false) ? 0 : 1);' \
     || { echo "FALLO: con Pro activo deben quedar los widgets y ceder el Theme Builder"; exit 1; }
 got="$(fetch /hola-desde-la-madriguera/)"
 test "$got" = 200 && ! grep -q 'id="obx-header"' "$tmp/page.html" && ! grep -qE 'Fatal error|Warning:' "$tmp/page.html" \

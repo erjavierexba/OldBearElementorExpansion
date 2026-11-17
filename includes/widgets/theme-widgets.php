@@ -10,7 +10,8 @@ use OldBearExpansion\Context;
 if (!defined('ABSPATH')) { exit; }
 
 final class Post_Title extends Base {
-    public function get_name(): string { return 'obx-post-title'; }
+    public const NAME = 'obx-post-title';
+    public const PRO = 'theme-post-title';
     public function get_title(): string { return 'Título de la entrada'; }
     public function get_icon(): string { return 'eicon-post-title'; }
     public function get_keywords(): array { return ['title','titulo','post','entrada']; }
@@ -32,7 +33,9 @@ final class Post_Title extends Base {
 
 final class Post_Content extends Base {
     private static int $depth = 0;
-    public function get_name(): string { return 'obx-post-content'; }
+    public const NAME = 'obx-post-content';
+    public const PRO = 'theme-post-content';
+    public const PRO_CATEGORY = 'theme-elements-single';
     public function get_title(): string { return 'Contenido de la entrada'; }
     public function get_icon(): string { return 'eicon-post-content'; }
     public function get_keywords(): array { return ['content','contenido','post','entrada']; }
@@ -60,7 +63,8 @@ final class Post_Content extends Base {
 }
 
 final class Featured_Image extends Base {
-    public function get_name(): string { return 'obx-featured-image'; }
+    public const NAME = 'obx-featured-image';
+    public const PRO = 'theme-post-featured-image';
     public function get_title(): string { return 'Imagen destacada'; }
     public function get_icon(): string { return 'eicon-featured-image'; }
     public function get_keywords(): array { return ['image','imagen','thumbnail','destacada']; }
@@ -96,7 +100,8 @@ final class Featured_Image extends Base {
 }
 
 final class Post_Excerpt extends Base {
-    public function get_name(): string { return 'obx-post-excerpt'; }
+    public const NAME = 'obx-post-excerpt';
+    public const PRO = 'theme-post-excerpt';
     public function get_title(): string { return 'Extracto de la entrada'; }
     public function get_icon(): string { return 'eicon-post-excerpt'; }
     public function get_keywords(): array { return ['excerpt','extracto','resumen']; }
@@ -114,7 +119,8 @@ final class Post_Excerpt extends Base {
 }
 
 final class Post_Info extends Base {
-    public function get_name(): string { return 'obx-post-info'; }
+    public const NAME = 'obx-post-info';
+    public const PRO = 'post-info';
     public function get_title(): string { return 'Información de la entrada'; }
     public function get_icon(): string { return 'eicon-post-info'; }
     public function get_keywords(): array { return ['meta','fecha','autor','categorias','info']; }
@@ -158,7 +164,8 @@ final class Post_Info extends Base {
 
 final class Archive_Title extends Base {
     public const CATEGORY = 'obx-archive';
-    public function get_name(): string { return 'obx-archive-title'; }
+    public const NAME = 'obx-archive-title';
+    public const PRO = 'theme-archive-title';
     public function get_title(): string { return 'Título del archivo'; }
     public function get_icon(): string { return 'eicon-archive-title'; }
     public function get_keywords(): array { return ['archive','archivo','titulo','categoria']; }
@@ -178,9 +185,10 @@ final class Archive_Title extends Base {
     }
 }
 
-final class Archive_Posts extends Base {
+class Archive_Posts extends Base {
     public const CATEGORY = 'obx-archive';
-    public function get_name(): string { return 'obx-archive-posts'; }
+    public const NAME = 'obx-archive-posts';
+    public const PRO = 'archive-posts';
     public function get_title(): string { return 'Entradas del archivo'; }
     public function get_icon(): string { return 'eicon-archive-posts'; }
     public function get_keywords(): array { return ['posts','entradas','archive','archivo','loop','grid']; }
@@ -190,7 +198,13 @@ final class Archive_Posts extends Base {
         return wp_trim_words(wp_strip_all_tags(strip_shortcodes($post->post_content)), max(5, $length ?: 40));
     }
 
+    /** Extra controls before the layout section (the Posts widget adds its query). */
+    protected function query_controls(): void {}
+
+    protected function query(): \WP_Query { return Context::query(); }
+
     protected function register_controls(): void {
+        $this->query_controls();
         $this->start_controls_section('content', ['label'=>'Diseño']);
         $this->add_responsive_control('columns', ['label'=>'Columnas','type'=>Controls_Manager::SELECT,'default'=>'3','tablet_default'=>'2','mobile_default'=>'1',
             'options'=>['1'=>'1','2'=>'2','3'=>'3','4'=>'4','5'=>'5','6'=>'6'],'selectors'=>['{{WRAPPER}} .obx-posts'=>'grid-template-columns: repeat({{VALUE}}, minmax(0, 1fr));']]);
@@ -220,7 +234,7 @@ final class Archive_Posts extends Base {
 
     protected function render(): void {
         $s = $this->get_settings_for_display();
-        $query = Context::query();
+        $query = $this->query();
         if (!$query->have_posts()) { echo '<p class="obx-posts-empty">' . esc_html($s['empty']) . '</p>'; return; }
         $tag = in_array($s['title_tag'], ['h2','h3','h4','h5','p'], true) ? $s['title_tag'] : 'h3';
         echo '<div class="obx-posts">';
@@ -238,7 +252,7 @@ final class Archive_Posts extends Base {
         }
         echo '</div>';
         if ($s['pagination'] === 'yes' && $query->max_num_pages > 1) {
-            $links = paginate_links(['total'=>$query->max_num_pages,'current'=>max(1, (int) get_query_var('paged')),'prev_text'=>'«','next_text'=>'»','type'=>'plain']);
+            $links = paginate_links(['total'=>$query->max_num_pages,'current'=>max(1, (int) get_query_var('paged'), (int) get_query_var('page')),'prev_text'=>'«','next_text'=>'»','type'=>'plain']);
             if ($links) { echo '<nav class="obx-pagination" aria-label="Paginación">' . $links . '</nav>'; }
         }
     }
