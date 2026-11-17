@@ -84,12 +84,17 @@ final class Conditions {
         return $rule;
     }
 
-    /** Normalizes repeater rows from the editor into conditions. */
-    public static function normalize($rows): array {
+    /**
+     * Normalizes repeater rows from the editor into conditions. Elementor saves repeater rows without the
+     * values equal to the control default, so a missing rule is the control's default ($default_rule).
+     */
+    public static function normalize($rows, string $default_rule = ''): array {
         if (!is_array($rows)) { return []; }
         $conditions = [];
         foreach ($rows as $row) {
-            if (!is_array($row) || empty($row['rule']) || !is_string($row['rule'])) { continue; }
+            if (!is_array($row)) { continue; }
+            if (!isset($row['rule']) && $default_rule !== '') { $row['rule'] = $default_rule; }
+            if (empty($row['rule']) || !is_string($row['rule'])) { continue; }
             $rule = self::upgrade_rule(sanitize_text_field($row['rule']));
             if (!preg_match('~^(general|singular|archive)(/[a-z0-9_\-]+)?$~', $rule)) { continue; }
             $ids = self::ids($row['object_id'] ?? '');

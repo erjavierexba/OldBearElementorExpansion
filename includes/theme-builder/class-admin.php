@@ -49,17 +49,40 @@ final class Admin {
         }
     }
 
+    /** New template from a location (this page) or a template type (Elementor's app, through GET). */
     public static function create(): void {
-        $location = isset($_POST['location']) && is_string($_POST['location']) ? sanitize_key(wp_unslash($_POST['location'])) : '';
-        $class = $location === 'loop-item' ? Loop_Item_Document::class : (Module::LOCATIONS[$location] ?? null);
+        $read = static fn(string $key) => isset($_REQUEST[$key]) && is_string($_REQUEST[$key]) ? sanitize_key(wp_unslash($_REQUEST[$key])) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- checked below.
+        $location = $read('location');
+        $type = $read('type');
+        $class = $type !== '' ? (Module::TYPES[$type] ?? null) : ($location === 'loop-item' ? Loop_Item_Document::class : (Module::LOCATIONS[$location] ?? null));
+        if ($class === Popup_Document::class) { $class = null; }
         if (!current_user_can('edit_posts') || !$class || !check_admin_referer('obx_new_template')) {
             wp_die('No tienes permiso para crear plantillas.', '', ['response'=>403]);
         }
+        $location = $class::LOCATION;
         $document = Elementor::$instance->documents->create($class::TYPE, ['post_title'=>$class::get_title() . ' ' . wp_date('Y-m-d H:i'),'post_status'=>'draft']);
         if (is_wp_error($document)) { wp_die(esc_html($document->get_error_message())); }
-        if ($class::HAS_CONDITIONS) { Location_Document::store_conditions((int) $document->get_main_id(), [['mode'=>'include','rule'=>Conditions::default_rule($location),'ids'=>[]]]); }
-        wp_safe_redirect($document->get_edit_url());
+        if ($class::HAS_CONDITIONS) { Location_Document::store_conditions((int) $document->get_main_id(), [['mode'=>'include','rule'=>self::default_rule($class),'ids'=>[]]]); }
+        $url = $document->get_edit_url();
+        if (!empty($_GET['obx_top'])) { // phpcs:ignore WordPress.Security.NonceVerification -- checked above.
+            // Opened inside Elementor's app frame (editor modal): the editor takes the whole window.
+            nocache_headers();
+            echo '<!doctype html><meta charset="utf-8"><script>(window.top||window).location.replace(' . wp_json_encode($url) . ');</script>'; // JSON-encoded URL.
+            exit;
+        }
+        wp_safe_redirect($url);
         exit;
+    }
+
+    /** First condition of a new template: the obvious one for its type. */
+    public static function default_rule(string $class): string {
+        return match ($class::TYPE) {
+            'single-page'=>'singular/page',
+            'search-results'=>'archive/search',
+            'product'=>'singular/product',
+            'product-archive'=>post_type_exists('product') ? 'archive/product_archive' : 'archive',
+            default=>Conditions::default_rule($class::LOCATION),
+        };
     }
 
     public static function page(): void {

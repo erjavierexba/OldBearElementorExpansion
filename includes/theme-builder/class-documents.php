@@ -90,7 +90,7 @@ abstract class Location_Document extends Library_Document {
         $id = (int) $this->get_main_id();
         $settings = get_post_meta($id, '_elementor_page_settings', true);
         if (is_array($settings) && array_key_exists(self::CONDITIONS, $settings)) {
-            $conditions = Conditions::normalize($settings[self::CONDITIONS]);
+            $conditions = Conditions::normalize($settings[self::CONDITIONS], Conditions::default_rule(static::LOCATION));
         } else {
             $conditions = Conditions::from_strings(get_post_meta($id, Conditions::META, true) ?: []);
         }

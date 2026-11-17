@@ -1,7 +1,7 @@
 <?php
 namespace OldBearExpansion\Admin;
 
-use OldBearExpansion\ThemeBuilder\Admin as Theme_Admin;
+use OldBearExpansion\ThemeBuilder\Site_Editor;
 use const OldBearExpansion\VERSION;
 
 if (!defined('ABSPATH')) { exit; }
@@ -22,7 +22,7 @@ final class Pro_Parity {
             'e-custom-icons'=>admin_url('edit.php?post_type=' . Dashboard::ICON),
             'e-form-submissions'=>admin_url('edit.php?post_type=obx_submission'),
             'e-popups'=>admin_url('edit.php?post_type=elementor_library&page=obx-popups'),
-            'elementor-theme-builder'=>Theme_Admin::url(),
+            'elementor-theme-builder'=>Site_Editor::url(),
         ];
     }
 
@@ -35,7 +35,6 @@ final class Pro_Parity {
         add_filter('elementor/editor/panel/get_pro_details', [self::class, 'panel_details'], 99);
         add_filter('elementor_one/upgrade_available', '__return_false', 99);
         add_action('admin_init', [self::class, 'redirect_pro_pages'], 1);
-        add_action('elementor/app/init', [self::class, 'app_routes']);
         add_action('admin_enqueue_scripts', [self::class, 'admin_styles']);
     }
 
@@ -84,14 +83,6 @@ final class Pro_Parity {
             wp_safe_redirect($pages[$page]);
             exit;
         }
-    }
-
-    /** Elementor's app routes for the Theme Builder (#/site-editor…) open ours; the app page renders on its own. */
-    public static function app_routes(): void {
-        // The app view prints its <head> with wp_print_styles(), before its own scripts load.
-        add_action('wp_print_styles', static function () {
-            echo '<script>if(/^#\\/site-editor/.test(location.hash)){location.replace(' . wp_json_encode(Theme_Admin::url()) . ');}</script>'; // Static code, JSON-encoded URL.
-        }, 0);
     }
 
     /** Notices Elementor only shows on sites without Pro. */

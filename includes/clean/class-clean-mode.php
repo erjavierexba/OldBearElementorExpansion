@@ -28,7 +28,6 @@ final class Clean_Mode {
         // Elementor builds its modules on init:0. Unhook its promotions module right after.
         add_action('init', [self::class, 'unhook_promotions'], 1);
         add_filter('elementor/editor/localize_settings', [self::class, 'editor_config'], 999);
-        add_filter('elementor/editor-one/menu/theme_builder_url', [self::class, 'theme_builder_url']);
         add_action('elementor/element/after_section_end', [self::class, 'strip_controls'], 999, 2);
         add_filter('pre_option__elementor_editor_upgrade_notice_dismissed', static fn() => time());
         add_filter('plugin_action_links_' . (defined('ELEMENTOR_PLUGIN_BASE') ? ELEMENTOR_PLUGIN_BASE : 'elementor/elementor.php'), [self::class, 'plugin_links'], 999);
@@ -109,10 +108,6 @@ final class Clean_Mode {
         return $config;
     }
 
-    public static function theme_builder_url(): string {
-        return \OldBearExpansion\ThemeBuilder\Admin::url();
-    }
-
     public static function strip_controls($element, $section_id): void {
         if (!is_object($element) || !method_exists($element, 'get_controls')) { return; }
         $controls = $element->get_controls();
@@ -156,6 +151,6 @@ final class Clean_Mode {
         settings_fields('obx_settings');
         echo '<table class="form-table"><tr><th scope="row">Modo limpio</th><td><input type="hidden" name="' . esc_attr(self::OPTION) . '" value="0"><label><input type="checkbox" name="' . esc_attr(self::OPTION) . '" value="1" ' . checked((bool) get_option(self::OPTION, 1), true, false) . '> Ocultar los anuncios y funciones bloqueadas de Elementor Pro</label><p class="description">No desactiva ninguna función gratuita de Elementor. Su entrada «Maquetador de temas» abre el Theme Builder de este plugin.</p></td></tr></table>';
         submit_button();
-        echo '</form><p><a href="' . esc_url(\OldBearExpansion\ThemeBuilder\Admin::url()) . '">Ir al Theme Builder</a></p></div>';
+        echo '</form><p><a href="' . esc_url(\OldBearExpansion\ThemeBuilder\Site_Editor::url()) . '">Ir al Theme Builder</a></p></div>';
     }
 }

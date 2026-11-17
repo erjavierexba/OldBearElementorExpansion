@@ -21,6 +21,7 @@
 | 8 | Widgets de producto, archivo, carrito, compra y cuenta de WooCommerce | ✅ v0.5.0 |
 | 9 | Dashboard Pro: fuentes, iconos, código personalizado y edición de solo contenido por rol | ✅ v0.6.0 |
 | 10 | Pantallas de Elementor como con Pro: escritorio, Inicio, Quick Start, barra superior y enlaces de las herramientas Pro | ✅ v0.6.1 |
+| 11 | Theme Builder dentro de la app de Elementor (pantalla completa y modal del editor), con condiciones al publicar | ✅ v0.7.0 |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 
@@ -33,9 +34,12 @@
 
 ## Uso
 
-1. **Plantillas → Theme Builder** muestra cada ubicación, sus plantillas y sus condiciones. «Añadir…» crea la plantilla y abre Elementor.
+1. Abre el **Theme Builder** desde donde lo ofrece Elementor: el menú (**Maquetador de temas**), el menú del editor, la barra de administración o `Ctrl+Shift+E`. Es la pantalla de Elementor (`admin.php?page=elementor-app#/site-editor`), a pantalla completa o en un modal dentro del editor, con nuestras plantillas en lugar de la promoción de Pro:
+   - **All Parts** muestra todas las plantillas con su estado y dónde se usan; cada parte del sitio (cabecera, pie, página, entrada, archivo, búsqueda, producto, archivo de productos, 404 y elemento de bucle) tiene su lista y su botón «+».
+   - Cada tarjeta tiene **Editar**, **Editar condiciones**, **Vista previa**, **Exportar**, **Cambiar nombre** y **Eliminar**.
+   - «Añadir nueva» crea un borrador con la condición lógica de su tipo y abre el editor.
 2. Diseña con widgets nativos y los de las categorías **Sitio**, **Entrada individual** y **Archivo**.
-3. En **Ajustes de la plantilla → Condiciones de visualización** añade reglas de incluir/excluir. Publica.
+3. Al **publicar** la plantilla por primera vez se abre el diálogo de condiciones (incluir/excluir). También se editan desde la tarjeta o en **Ajustes de la plantilla → Condiciones de visualización**.
 
 También puedes crear las plantillas desde **Plantillas → Añadir nueva**: aparecen como tipos Cabecera, Pie de página, Entrada individual, Archivo y Página 404.
 
@@ -69,7 +73,7 @@ No pretende clonar todo el catálogo comercial. Quedan fuera Mega menú, Reseña
 
 ### Loop Builder
 
-En **Plantillas → Theme Builder → Elementos de bucle** crea una tarjeta y edítala como cualquier plantilla de Elementor. Los widgets Loop Grid y Loop Carousel consultan entradas, páginas o productos y renderizan esa tarjeta para cada resultado. El filtro de taxonomías apunta al ID de un Loop Grid y conserva URLs navegables, por lo que funciona también sin JavaScript.
+En **Theme Builder → Elemento de bucle** crea una tarjeta y edítala como cualquier plantilla de Elementor. Los widgets Loop Grid y Loop Carousel consultan entradas, páginas o productos y renderizan esa tarjeta para cada resultado. El filtro de taxonomías apunta al ID de un Loop Grid y conserva URLs navegables, por lo que funciona también sin JavaScript.
 
 ### Ventanas emergentes
 
@@ -83,7 +87,7 @@ Los controles nativos con soporte dinámico pueden usar datos de entrada, archiv
 
 El menú moderno de Elementor incluye equivalentes funcionales de sus herramientas locales de Pro:
 
-- **Editor → Plantillas**: Maquetador de temas (el Theme Builder de este plugin), plantillas guardadas y Popups.
+- **Editor → Plantillas**: Maquetador de temas (el Theme Builder de este plugin, dentro de la app de Elementor), plantillas guardadas y Popups.
 - **Editor → Envíos**: registros de formularios con detalle, estado y metadatos.
 - **Editor → Administrador de roles**: sin acceso, edición completa o edición de solo contenido.
 - **Editor → Elementos personalizados → Fuentes**: carga WOFF2, WOFF, TTF y OTF, con peso y estilo; las familias aparecen en los controles de Tipografía.
@@ -94,7 +98,8 @@ Con el modo limpio, las pantallas propias de Elementor se ven como en un sitio c
 
 - **Escritorio**: la tarjeta «Elementor Overview» de siempre, con la versión de OldBear Expansion bajo la de Elementor y sin el enlace «Upgrade».
 - **Elementor → Inicio / Quick Start**: sin el botón «Upgrade» de la barra superior; las tarjetas de Theme Builder, Popups, Envíos, Fuentes, Iconos, Código y Roles muestran «Abrir» en lugar de «Hacerse Pro»; Quick Start muestra el contenido para usuarios de Pro, sin el anuncio lateral de ofertas.
-- **Enlaces de Pro**: las direcciones a las que apunta Elementor (`admin.php?page=e-popups`, `e-form-submissions`, `e-custom-fonts`, `e-custom-icons`, `e-custom-code`, `elementor-theme-builder`, `elementor-app#/site-editor`) abren las pantallas de este plugin. Fuentes, iconos y código usan los tipos de contenido de Pro (`elementor_font`, `elementor_icons`, `elementor_snippet`).
+- **Enlaces de Pro**: las direcciones a las que apunta Elementor (`admin.php?page=e-popups`, `e-form-submissions`, `e-custom-fonts`, `e-custom-icons`, `e-custom-code`, `elementor-theme-builder`) abren las pantallas de este plugin.
+- **Theme Builder** (`elementor-app#/site-editor`): la app de Elementor registra nuestras rutas en lugar de su página de promoción, con los componentes de la propia app (barra lateral de partes del sitio, tarjetas, diálogos). Las condiciones guardadas desde la app se reflejan en el editor abierto. En WordPress 7.1+ la app se sirve con la misma `Document-Isolation-Policy` que el editor para que el modal pueda comunicarse con él. Fuentes, iconos y código usan los tipos de contenido de Pro (`elementor_font`, `elementor_icons`, `elementor_snippet`).
 
 Para eso, la interfaz «Elementor One» recibe `elementor-pro` como herramienta instalada en su lista de plugins (solo esa lectura; instalar o activar no cambia). No se simula ninguna licencia.
 
@@ -137,7 +142,7 @@ Activado por defecto (**Ajustes → OldBear Expansion**). Oculta los anuncios de
 - secciones de solo promoción en Avanzado y en los ajustes de página (CSS personalizado, atributos, condiciones de visualización, efectos de scroll y ratón, sticky);
 - entradas de menú de Pro («Ventanas emergentes», «Elementos personalizados», «Actualizar», «Mejorar plan») y el enlace «Obtener Elementor Pro» en Plugins.
 
-La entrada **Maquetador de temas** de Elementor abre el Theme Builder de este plugin. Se desengancha el módulo de promociones de Elementor quitando solo los ganchos de ese módulo y de los objetos que crea (banner de conversión, avisos de temporada); el filtro `obx/clean_mode` permite desactivarlo por código.
+La entrada **Maquetador de temas** de Elementor abre el Theme Builder de este plugin dentro de la app de Elementor (la tabla clásica sigue en `admin.php?page=obx-theme-builder`). Se desengancha el módulo de promociones de Elementor quitando solo los ganchos de ese módulo y de los objetos que crea (banner de conversión, avisos de temporada); el filtro `obx/clean_mode` permite desactivarlo por código.
 
 ## Desarrollo
 
@@ -164,7 +169,7 @@ includes/extras/                   CSS, atributos, sticky y efectos de movimient
 includes/popups/                   Condiciones, disparadores y runtime de ventanas emergentes
 includes/compat.php                elementor_theme_do_location() para temas compatibles
 includes/clean/                    Modo limpio (anuncios de Pro) y página de ajustes
-includes/theme-builder/            Tipos de documento, condiciones, ubicaciones y pantalla de administración
+includes/theme-builder/            Tipos de documento, condiciones, ubicaciones, Theme Builder en la app de Elementor (REST) y pantalla clásica
 includes/widgets/                  Widgets (base con doble nombre obx-*/Pro, tema, sitio, entradas, generales, formulario y carruseles)
 templates/                         header.php, footer.php y location.php que imprime el plugin
 assets/                            CSS y JS propios (sin dependencias; los carruseles usan scroll-snap)

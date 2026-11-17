@@ -1,0 +1,67 @@
+/* OldBear Expansion: Theme Builder inside Elementor's app. Built on the app's own classes and variables. */
+.obx-site-editor { display: flex; flex-direction: column; gap: 0; }
+.obx-site-editor__header { margin-block-end: 0; }
+.obx-site-editor__header .eps-text { margin-block-start: .5rem; max-width: 46rem; }
+.obx-site-editor__notice { margin-block-end: 1rem; }
+.obx-site-editor__loading { position: relative; min-height: 240px; background: transparent; }
+
+/* Template cards */
+.obx-template .eps-card__header { gap: .5rem; align-items: center; }
+.obx-template .eps-card__headline { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obx-template__status { flex: none; font-size: .625rem; font-weight: 500; line-height: 1; padding: .25rem .4rem; border-radius: 2px; background: rgba(128, 128, 128, .18); text-transform: uppercase; letter-spacing: .02em; }
+.obx-template__actions { flex: none; }
+.obx-template__toggle { padding: 0 .25rem; opacity: .75; }
+.obx-template__toggle:hover { opacity: 1; }
+.obx-template__menu.eps-popover { inset-inline-start: auto; inset-inline-end: -.75rem; transform: none; min-width: 170px; }
+.obx-template__menu.eps-popover::before { inset-inline-start: auto; inset-inline-end: 1rem; }
+.obx-template__menu .eps-popover__item { display: flex; gap: .5rem; text-align: start; border: 0; }
+.obx-template .eps-card__image { cursor: default; }
+.obx-template__overlay, .obx-site-part__overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .625rem; }
+.obx-template__overlay .eps-button, .obx-site-part__overlay .eps-button { cursor: pointer; }
+.obx-template__overlay-secondary.eps-button { color: #0c0d0e; background: #fff; border-color: #fff; }
+.obx-header-add.eps-button { display: inline-flex; align-items: center; gap: .375rem; font-size: .8125rem; font-weight: 500; }
+.obx-template .eps-card__footer { display: flex; flex-direction: column; gap: .25rem; font-size: .75rem; }
+.obx-template__instances { display: flex; align-items: center; gap: .375rem; min-width: 0; }
+.obx-template__indicator { flex: none; width: .5rem; height: .5rem; border-radius: 50%; background: #a4afb7; }
+.obx-template__indicator.is-active { background: #39b54a; }
+.obx-template__label { flex: none; font-weight: 500; }
+.obx-template__value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .85; }
+.obx-template__meta { opacity: .6; font-size: .6875rem; }
+
+/* Add cards and the empty state */
+.obx-template--add.eps-card { display: flex; min-height: 300px; border: 1px dashed rgba(128, 128, 128, .5); box-shadow: none; background: transparent; }
+.obx-template__add { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; padding: 1.5rem; color: inherit; text-decoration: none; text-align: center; font-weight: 500; }
+.obx-template__add i { font-size: 1.75rem; opacity: .7; }
+.obx-template--add.eps-card:hover { border-color: currentColor; }
+.obx-template__add:hover { color: inherit; }
+.obx-site-part__add { display: flex; flex-direction: column; align-items: center; gap: .75rem; color: #fff; text-decoration: none; }
+.obx-site-part__add i { font-size: 1.75rem; }
+
+/* Dialogs */
+.obx-conditions.eps-modal { max-width: 860px; }
+.obx-conditions__intro { text-align: center; margin-block-end: 1.5rem; }
+.obx-conditions__intro .eps-text { margin-block-start: .5rem; }
+.obx-conditions__rows { display: flex; flex-direction: column; gap: .625rem; }
+.obx-conditions__row { display: grid; grid-template-columns: 110px minmax(0, 1fr) minmax(0, 200px) 32px; align-items: stretch; border: 1px solid rgba(128, 128, 128, .35); border-radius: 3px; overflow: hidden; }
+.obx-conditions__row select, .obx-conditions__ids { height: 40px; min-width: 0; border: 0; border-inline-end: 1px solid rgba(128, 128, 128, .35); border-radius: 0; background: transparent; color: inherit; padding: 0 .75rem; font: inherit; font-size: .8125rem; }
+.obx-conditions__row select option, .obx-conditions__row select optgroup { color: #0c0d0e; background: #fff; }
+.obx-conditions__mode { font-weight: 500; }
+.obx-conditions__row--include .obx-conditions__mode { background: rgba(57, 181, 74, .12); }
+.obx-conditions__row--exclude .obx-conditions__mode { background: rgba(219, 59, 59, .12); }
+.obx-conditions__remove.eps-button { justify-content: center; opacity: .7; }
+.obx-conditions__remove.eps-button:hover { opacity: 1; }
+.obx-conditions__add { display: flex; justify-content: center; margin-block: 1.25rem; }
+.obx-conditions__error { color: #db3b3b; text-align: center; }
+.obx-conditions__footer { display: flex; justify-content: center; padding-block-start: 1rem; border-block-start: 1px solid rgba(128, 128, 128, .25); }
+.obx-rename { margin-block-start: 1rem; }
+.obx-add-new.eps-modal { max-width: 860px; }
+.obx-add-new .eps-modal__body { max-height: calc(100vh - 140px); overflow: auto; }
+.obx-add-new__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .75rem; margin-block-start: 1.25rem; }
+.obx-add-new__item { display: flex; flex-direction: column; gap: .5rem; align-items: center; padding: .75rem; color: inherit; text-decoration: none; border: 1px solid rgba(128, 128, 128, .3); border-radius: 3px; font-size: .8125rem; font-weight: 500; text-align: center; }
+.obx-add-new__item:hover { border-color: currentColor; color: inherit; }
+.obx-add-new__item img { width: 100%; height: 96px; object-fit: contain; }
+@media (max-width: 640px) {
+	.obx-conditions__row { grid-template-columns: 1fr 32px; }
+	.obx-conditions__row select, .obx-conditions__ids { grid-column: 1; border-inline-end: 0; border-block-end: 1px solid rgba(128, 128, 128, .35); }
+	.obx-conditions__remove { grid-column: 2; grid-row: 1 / span 3; }
+}

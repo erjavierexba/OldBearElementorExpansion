@@ -20,6 +20,7 @@ final class Plugin {
         require_once DIR . '/includes/theme-builder/class-documents.php';
         require_once DIR . '/includes/theme-builder/class-locations.php';
         require_once DIR . '/includes/theme-builder/class-admin.php';
+        require_once DIR . '/includes/theme-builder/class-site-editor.php';
         require_once DIR . '/includes/theme-builder/class-upgrade.php';
         require_once DIR . '/includes/theme-builder/class-kit-import.php';
         require_once DIR . '/includes/theme-builder/class-module.php';

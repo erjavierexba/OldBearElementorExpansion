@@ -44,6 +44,7 @@ final class Module {
         self::boot_widgets();
         Locations::boot();
         Admin::boot();
+        Site_Editor::boot();
         Kit_Import::boot();
         Upgrade::boot();
     }
