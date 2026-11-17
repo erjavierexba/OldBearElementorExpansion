@@ -25,7 +25,15 @@ final class Admin {
     }
 
     public static function menu(): void {
-        add_submenu_page(self::hidden() ? '' : 'edit.php?post_type=elementor_library', 'Theme Builder', 'Theme Builder', 'edit_posts', self::PAGE, [self::class, 'page'], 1);
+        $hook = add_submenu_page(self::hidden() ? '' : 'edit.php?post_type=elementor_library', 'Theme Builder', 'Theme Builder', 'edit_posts', self::PAGE, [self::class, 'page'], 1);
+        if ($hook && self::hidden()) {
+            // A page without parent has no title and no highlighted menu: show it under Elementor's «Theme Builder».
+            add_action('load-' . $hook, static function () {
+                $GLOBALS['title'] = 'Theme Builder'; // phpcs:ignore WordPress.WP.GlobalVariablesOverride -- admin page title.
+                add_filter('parent_file', static fn() => 'elementor-home', 999);
+                add_filter('submenu_file', static fn() => self::url(), 999);
+            });
+        }
     }
 
     public static function columns(array $columns): array {
