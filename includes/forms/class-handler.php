@@ -20,6 +20,8 @@ final class Handler {
     public static function boot(): void {
         add_action('rest_api_init', [self::class, 'routes']);
         add_action('init', [self::class, 'post_type']);
+        add_action('elementor/editor-one/menu/register', [self::class, 'editor_one_menu'], 20);
+        add_action('admin_menu', [self::class, 'menu'], 1000);
         add_action('add_meta_boxes_' . self::POST_TYPE, [self::class, 'meta_box']);
         add_filter('manage_' . self::POST_TYPE . '_posts_columns', [self::class, 'columns']);
         add_action('manage_' . self::POST_TYPE . '_posts_custom_column', [self::class, 'column'], 10, 2);
@@ -33,10 +35,28 @@ final class Handler {
         $cap = 'manage_options';
         register_post_type(self::POST_TYPE, [
             'labels'=>['name'=>'Envíos de formularios','singular_name'=>'Envío','menu_name'=>'Envíos','all_items'=>'Envíos','edit_item'=>'Envío','search_items'=>'Buscar envíos','not_found'=>'Todavía no hay envíos.','not_found_in_trash'=>'No hay envíos en la papelera.'],
-            'public'=>false, 'show_ui'=>true, 'show_in_menu'=>'elementor', 'show_in_rest'=>false, 'exclude_from_search'=>true,
+            'public'=>false, 'show_ui'=>true, 'show_in_menu'=>false, 'show_in_rest'=>false, 'exclude_from_search'=>true,
             'supports'=>['title'], 'map_meta_cap'=>false, 'rewrite'=>false, 'query_var'=>false,
             'capabilities'=>['create_posts'=>'do_not_allow','edit_post'=>$cap,'read_post'=>$cap,'delete_post'=>$cap,'edit_posts'=>$cap,'edit_others_posts'=>$cap,'delete_posts'=>$cap,'delete_others_posts'=>$cap,'publish_posts'=>$cap,'read_private_posts'=>$cap,'edit_published_posts'=>$cap,'delete_published_posts'=>$cap,'edit_private_posts'=>$cap,'delete_private_posts'=>$cap],
         ]);
+    }
+
+    private static bool $editor_one = false;
+
+    /** Elementor 3.32+ builds its admin menu from registered items: take the «Envíos» slot. */
+    public static function editor_one_menu($provider): void {
+        if (!is_object($provider) || !method_exists($provider, 'register_menu') || !interface_exists('\Elementor\Core\Admin\EditorOneMenu\Interfaces\Menu_Item_With_Custom_Url_Interface')) { return; }
+        require_once __DIR__ . '/class-menu-item.php';
+        $provider->register_menu(new Menu_Item());
+        self::$editor_one = true;
+    }
+
+    /** Older Elementor: a plain submenu, added late (a post type menu under «elementor» would replace Elementor's own links). */
+    public static function menu(): void {
+        if (self::$editor_one) { return; }
+        global $menu;
+        $parent = in_array('elementor', array_column((array) $menu, 2), true) ? 'elementor' : 'tools.php';
+        add_submenu_page($parent, 'Envíos de formularios', 'Envíos', 'manage_options', 'edit.php?post_type=' . self::POST_TYPE);
     }
 
     public static function meta_box(): void {

@@ -57,6 +57,9 @@ final class Module {
         add_action('elementor/widgets/register', [self::class, 'widgets']);
         add_action('init', [self::class, 'assets'], 5);
         add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); });
+        add_action('elementor/editor/after_enqueue_scripts', static function() {
+            if (!Plugin::pro_active()) { wp_enqueue_script('obx-editor-nested', Plugin::url('assets/js/editor-nested.js'), ['jquery'], VERSION, true); }
+        });
         if (!Plugin::pro_active() && defined('ELEMENTOR_VERSION')) {
             // Elementor lists Pro widgets as locked promotions; drop the ones we provide.
             add_filter('transient_elementor_remote_info_api_data_' . ELEMENTOR_VERSION, [self::class, 'drop_promotions']);
@@ -88,6 +91,7 @@ final class Module {
         require_once DIR . '/includes/widgets/theme-extra-widgets.php';
         require_once DIR . '/includes/widgets/interactive-widgets.php';
         require_once DIR . '/includes/widgets/form-widget.php';
+        require_once DIR . '/includes/widgets/carousel-widgets.php';
     }
 
     public static function documents($manager): void {
@@ -111,6 +115,7 @@ final class Module {
         self::load_widgets();
         $pro = Plugin::pro_active();
         foreach (\OldBearExpansion\Widgets\Base::registry() as $class) {
+            if (!$class::available()) { continue; }
             // With Elementor Pro active only our own names are added; Pro keeps its widgets.
             if ($class::NAME !== '') { $manager->register(new $class([], ['obx_name'=>$class::NAME])); }
             if ($pro) { continue; }

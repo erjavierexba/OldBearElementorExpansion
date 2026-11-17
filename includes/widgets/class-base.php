@@ -30,6 +30,7 @@ abstract class Base extends Widget_Base {
             Posts::class, Blockquote::class, Call_To_Action::class, Flip_Box::class, Price_Table::class, Price_List::class,
             Countdown::class, Share_Buttons::class, Animated_Headline::class, Table_Of_Contents::class, Progress_Tracker::class,
             Login::class, Code_Highlight::class, Template::class, Form::class,
+            Testimonial_Carousel::class, Nested_Carousel::class, Gallery::class,
         ];
     }
 
@@ -46,6 +47,9 @@ abstract class Base extends Widget_Base {
         }
         parent::__construct($data, $args);
     }
+
+    /** Whether the widget can be registered on this site (required Elementor features). */
+    public static function available(): bool { return true; }
 
     /** @return string[] */
     public static function names(): array { return array_values(array_filter(array_merge([static::NAME, static::PRO], static::ALIASES))); }

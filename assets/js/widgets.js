@@ -396,6 +396,12 @@
             const focus = steps[index] && steps[index].querySelector('input:not([type=hidden]), select, textarea');
             if (focus) { focus.focus(); }
         };
+        // Native validation stops the submit event: show the same inline messages.
+        el.addEventListener('invalid', (event) => {
+            const input = event.target;
+            fieldError(input.closest('.obx-form__field'), input.validity.valueMissing ? messages.required_field_message : (custom ? messages.invalid_message : input.validationMessage));
+        }, true);
+        el.addEventListener('input', (event) => { const wrap = event.target.closest('.obx-form__field.has-error'); if (wrap && event.target.checkValidity()) { fieldError(wrap, ''); } });
         el.addEventListener('click', (event) => {
             if (event.target.closest('.obx-form__next')) { event.preventDefault(); if (check(steps[current])) { show(current + 1); } }
             if (event.target.closest('.obx-form__previous')) { event.preventDefault(); show(current - 1); }
@@ -434,9 +440,111 @@
         });
     };
 
+
+    /* Carousel on CSS scroll-snap: slides per view and per step come from CSS variables. */
+    const carousel = (el) => {
+        if (!once(el, 'obxReady')) { return; }
+        const track = el.querySelector(':scope > .obx-carousel__track');
+        if (!track) { return; }
+        let options = {};
+        try { options = JSON.parse(el.dataset.carousel || '{}'); } catch (e) { options = {}; }
+        const slides = () => Array.from(track.children).filter((c) => c.classList.contains('obx-carousel__slide') || c.classList.contains('e-con'));
+        const css = (name, fallback) => { const v = parseInt(getComputedStyle(el).getPropertyValue(name), 10); return v > 0 ? v : fallback; };
+        const perView = () => Math.min(css('--obx-slides', 1), Math.max(1, slides().length));
+        const perStep = () => Math.max(1, Math.min(css('--obx-scroll', 1), perView()));
+        const pages = () => Math.max(1, Math.ceil((slides().length - perView()) / perStep()) + 1);
+        const rtl = getComputedStyle(el).direction === 'rtl';
+        const pagination = el.querySelector(':scope > .obx-carousel__pagination');
+        let page = 0;
+        const go = (target, smooth = true) => {
+            const total = pages();
+            if (options.loop) { target = (target + total) % total; } else { target = Math.max(0, Math.min(total - 1, target)); }
+            const list = slides();
+            const slide = list[Math.min(list.length - 1, target * perStep())];
+            if (!slide) { return; }
+            const first = list[0];
+            const left = rtl ? (slide.offsetLeft + slide.offsetWidth) - (first.offsetLeft + first.offsetWidth) : slide.offsetLeft - first.offsetLeft;
+            track.scrollTo({ left, behavior: smooth && options.speed !== 0 ? 'smooth' : 'auto' });
+            page = target;
+            paint();
+        };
+        const paint = () => {
+            if (!pagination) { return; }
+            const total = pages();
+            if (pagination.classList.contains('obx-carousel__pagination--bullets')) {
+                if (pagination.children.length !== total) {
+                    pagination.textContent = '';
+                    for (let i = 0; i < total; i++) {
+                        const dot = document.createElement('button');
+                        dot.type = 'button';
+                        dot.className = 'obx-carousel__dot';
+                        dot.setAttribute('aria-label', 'Ir a la diapositiva ' + (i + 1));
+                        dot.addEventListener('click', () => { interact(); go(i); });
+                        pagination.appendChild(dot);
+                    }
+                }
+                Array.from(pagination.children).forEach((dot, i) => { dot.classList.toggle('is-active', i === page); dot.setAttribute('aria-current', i === page ? 'true' : 'false'); });
+            } else if (pagination.classList.contains('obx-carousel__pagination--fraction')) {
+                pagination.textContent = (page + 1) + ' / ' + total;
+            } else {
+                pagination.style.setProperty('--obx-progress', String((page + 1) / total));
+            }
+        };
+        let timer = null;
+        let stopped = false;
+        const stop = () => { clearInterval(timer); timer = null; };
+        const start = () => { stop(); if (options.autoplay && !stopped && pages() > 1) { timer = setInterval(() => go(page + 1), options.autoplaySpeed || 5000); } };
+        const interact = () => { if (options.pauseOnInteraction) { stopped = true; stop(); } };
+        el.querySelectorAll(':scope > .obx-carousel__arrow').forEach((arrow) => {
+            arrow.addEventListener('click', () => { interact(); go(page + (arrow.classList.contains('obx-carousel__arrow--next') ? 1 : -1)); });
+        });
+        let settle = null;
+        track.addEventListener('scroll', () => {
+            clearTimeout(settle);
+            settle = setTimeout(() => {
+                const list = slides();
+                if (list.length < 2) { return; }
+                const step = Math.abs(list[1].offsetLeft - list[0].offsetLeft) || 1;
+                const index = Math.round(Math.abs(track.scrollLeft) / step);
+                const atEnd = Math.abs(track.scrollLeft) + track.clientWidth >= track.scrollWidth - 2;
+                page = atEnd ? pages() - 1 : Math.min(pages() - 1, Math.round(index / perStep()));
+                paint();
+            }, 80);
+        }, { passive: true });
+        track.addEventListener('pointerdown', interact, { passive: true });
+        el.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+                const forward = (event.key === 'ArrowRight') !== rtl;
+                interact(); go(page + (forward ? 1 : -1)); event.preventDefault();
+            }
+        });
+        if (options.pauseOnHover) { el.addEventListener('mouseenter', stop); el.addEventListener('mouseleave', start); }
+        el.addEventListener('focusin', stop);
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { options.autoplay = false; }
+        window.addEventListener('resize', () => { go(Math.min(page, pages() - 1), false); });
+        slides().forEach((slide, i, all) => { if (!slide.hasAttribute('role')) { slide.setAttribute('role', 'group'); slide.setAttribute('aria-roledescription', 'diapositiva'); slide.setAttribute('aria-label', (i + 1) + ' / ' + all.length); } });
+        el.classList.add('is-ready');
+        paint();
+        start();
+    };
+
+    /* Gallery filter bar (several galleries in one widget). */
+    const galleryFilters = (bar) => {
+        if (!once(bar, 'obxReady')) { return; }
+        const gallery = bar.nextElementSibling;
+        if (!gallery || !gallery.classList.contains('obx-gallery')) { return; }
+        const show = (key) => {
+            bar.querySelectorAll('.obx-gallery__filter').forEach((b) => { const on = b.dataset.gallery === key; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', String(on)); });
+            gallery.querySelectorAll('.obx-gallery__item').forEach((item) => { item.hidden = key !== 'all' && !item.dataset.galleries.split(',').includes(key); });
+            gallery.querySelectorAll('[data-elementor-lightbox-slideshow]').forEach((a) => { a.dataset.elementorLightboxSlideshow = a.dataset.elementorLightboxSlideshow.replace(/^[^-]+-/, key + '-'); });
+        };
+        bar.addEventListener('click', (event) => { const b = event.target.closest('.obx-gallery__filter'); if (b) { show(b.dataset.gallery); } });
+        if (gallery.dataset.initial !== undefined) { show(gallery.dataset.initial); }
+    };
+
     const handlers = {
         '.obx-countdown': countdown, '.obx-headline': headline, '.obx-toc': toc, '.obx-progress': progress, '.obx-code': code,
-        '.obx-load-more': loadMore, '.obx-search-toggle': searchToggle, 'form[data-obx-form]': form,
+        '.obx-load-more': loadMore, '.obx-search-toggle': searchToggle, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters,
     };
     const init = (root) => {
         Object.entries(handlers).forEach(([selector, fn]) => {

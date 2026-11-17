@@ -53,7 +53,7 @@ try {
     $wp_query->the_post();
     $elements = [];
     foreach (Base::registry() as $class) {
-        if ($class::PRO !== '') { $elements[] = ['id'=>$uid(),'elType'=>'widget','widgetType'=>$class::PRO,'settings'=>[],'elements'=>[]]; }
+        if ($class::PRO !== '' && $class::available()) { $elements[] = ['id'=>$uid(),'elType'=>'widget','widgetType'=>$class::PRO,'settings'=>[],'elements'=>[]]; }
     }
     $document = Elementor::$instance->documents->get($page);
     $document->set_is_built_with_elementor(true);
@@ -61,8 +61,8 @@ try {
     $html = Elementor::$instance->frontend->get_builder_content_for_display($page);
     $missing = [];
     foreach (Base::registry() as $class) {
-        // Without a logo, featured image, menu or chosen template these print nothing, as they should.
-        if ($class::PRO !== '' && !in_array($class::PRO, ['theme-site-logo','theme-post-featured-image','nav-menu','template'], true)
+        // Without a logo, featured image, menu, images or chosen template these print nothing, as they should.
+        if ($class::PRO !== '' && $class::available() && !in_array($class::PRO, ['theme-site-logo','theme-post-featured-image','nav-menu','template','gallery'], true)
             && !preg_match('/elementor-widget-' . preg_quote($class::PRO, '/') . '[\s"]/', $html)) { $missing[] = $class::PRO; }
     }
     $assert(!$missing, 'No se han renderizado: ' . implode(', ', $missing));

@@ -10,13 +10,14 @@
 | --- | --- | --- |
 | 1 | Theme Builder: cabecera, pie, entrada individual, archivo y 404, con condiciones | ✅ v0.1.0 |
 | 1b | Modo limpio y convivencia con Elementor Pro | ✅ v0.2.0 |
-| 1c | Widgets de Pro con implementación propia (31 widgets) | ✅ v0.3.0 |
+| 1c | Widgets de Pro con implementación propia | ✅ v0.3.0 |
+| 7 | Interoperabilidad: formato de datos de Elementor Pro (tipos de plantilla, condiciones, nombres y ajustes de widgets), importación de kits y conversión | ✅ v0.4.0 |
+| 4 | Formulario (campos, pasos, archivos, correo, webhook, envíos guardados) | ✅ v0.4.0 |
+| 6a | Carruseles (testimonios y carrusel anidado) y galería | ✅ v0.4.0 |
 | 2 | Etiquetas dinámicas en los widgets nativos | Pendiente |
-| 3 | Loop Grid con plantilla de tarjeta | Pendiente |
-| 4 | Formularios | Pendiente |
+| 3 | Loop Grid / Loop Carousel con plantilla de tarjeta | Pendiente |
 | 5 | Popups | Pendiente |
-| 6 | Extras: CSS personalizado, cabecera fija, efectos de scroll, carrusel… | Pendiente |
-| 7 | Interoperabilidad: abrir sitios diseñados con Elementor Pro (tipos de plantilla, condiciones y widgets guardados) | Pendiente |
+| 6b | Extras: CSS personalizado, cabecera fija, efectos de scroll, diapositivas, carrusel de medios… | Pendiente |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 
@@ -53,15 +54,31 @@ Sin Elementor Pro, los widgets se registran **con los mismos nombres internos qu
 
 | Categoría | Widgets |
 | --- | --- |
-| Pro | Menú de navegación (`nav-menu`), Formulario de búsqueda (`search`), Entradas (`posts`), Cita (`blockquote`), Llamada a la acción (`call-to-action`), Caja giratoria (`flip-box`), Tabla de precios (`price-table`), Lista de precios (`price-list`), Cuenta atrás (`countdown`), Botones para compartir (`share-buttons`), Titular animado (`animated-headline`), Tabla de contenidos (`table-of-contents`), Inicio de sesión (`login`), Resaltado de código (`code-highlight`), Plantilla (`template`) |
+| Pro | Menú de navegación (`nav-menu`), Buscador (`search`, `search-form`), Entradas (`posts`), Formulario (`form`), Cita (`blockquote`), Llamada a la acción (`call-to-action`), Caja giratoria (`flip-box`), Tabla de precios (`price-table`), Lista de precios (`price-list`), Cuenta atrás (`countdown`), Botones para compartir (`share-buttons`), Titular animado (`animated-headline`), Tabla de contenidos (`table-of-contents`), Inicio de sesión (`login`), Resaltado de código (`code-highlight`), Carrusel de testimonios (`testimonial-carousel`), Carrusel anidado (`nested-carousel`), Galería (`gallery`), Plantilla (`template`) |
 | Sitio | Logotipo y título del sitio, título de la página, título, imagen destacada, extracto e información de la entrada, título y entradas del archivo, caja de autor, navegación de entradas, comentarios, migas de pan, mapa del sitio e indicador de progreso (`theme-site-logo`, `theme-page-title`, `post-info`, `archive-posts`, `breadcrumbs`…) |
 | Individual | Contenido de la entrada (`theme-post-content`) |
 
 Las plantillas guardadas con versiones anteriores, que usan los nombres `obx-*`, se siguen mostrando igual. Esos nombres ya no aparecen en el panel para no duplicar widgets. Con Elementor Pro activo ocurre lo contrario: Pro conserva sus widgets y los de OldBear aparecen con sus nombres `obx-*` en las categorías Sitio, Entrada individual y Archivo.
 
-> Los nombres de los widgets coinciden con los de Pro, pero los nombres de sus ajustes todavía no. Un diseño hecho con Pro se abrirá con el widget correcto, pero puede perder estilos u opciones hasta la fase 7. Por el mismo motivo, si más adelante activas Elementor Pro, revisa las páginas que usen estos widgets.
+Pendientes de la lista de Pro: Loop Grid/Carousel, Filtro de taxonomías, Popups, Mega menú, Diapositivas, Carrusel de medios, Reseñas, Portafolio, Lottie, Hotspot, Off-canvas, Lista de vídeos, botones de PayPal/Stripe, widgets de Facebook y WooCommerce.
 
-Pendientes de la lista de Pro: Formulario, Loop Grid/Carousel, Popups, Mega menú, Galería, Carruseles (diapositivas, medios, testimonios, reseñas), Portafolio, Lottie, Hotspot, Off-canvas, Lista de vídeos, botones de PayPal/Stripe, widgets de Facebook y WooCommerce.
+## Interoperabilidad con Elementor Pro
+
+Desde la v0.4.0 los datos se guardan **en el mismo formato que Elementor Pro**, así que un sitio puede pasar de uno a otro en ambas direcciones:
+
+- **Plantillas**: los tipos (`header`, `footer`, `single-post`, `single-page`, `single`, `archive`, `search-results`, `error-404`) y las condiciones (`_elementor_conditions`, p. ej. `include/singular/post/12`) son los de Pro. Al guardar se escriben en los dos formatos.
+- **Widgets**: mismos nombres internos, mismas claves de ajustes (incluidas las de apariencia, como `classic_columns` o `archive_cards_title_color`, y la consulta `posts_*`) y mismos valores por defecto en interruptores, listas y números. Como Elementor solo guarda lo que difiere del valor por defecto, un diseño hecho con Pro se ve igual aquí. Los textos por defecto son propios, en español.
+- **Acción `elementor/query/{id}`**: las consultas personalizadas de los widgets de entradas funcionan igual.
+- **Kits**: Elementor Free no importa las plantillas de Theme Builder de un kit sin Pro. Este plugin sí, con sus condiciones (formato de Elementor y metadatos de los kits de Envato).
+- **Formulario**: mismas claves (`form_fields`, `submit_actions`, `email_to`…). Los envíos van a un punto REST propio que vuelve a leer la configuración del documento guardado, nunca del navegador. Tiene campo trampa, límite de envíos por visitante, validación en el servidor y protección contra inyección de cabeceras. Los envíos guardados aparecen en **Elementor → Envíos**.
+- **Datos antiguos**: las plantillas hechas con versiones anteriores (nombres `obx-*` o claves propias) se traducen al vuelo al mostrarse. Para dejarlas guardadas en formato Pro: **Plantillas → Theme Builder → Convertir al formato de Elementor Pro**, o `wp obx convert` (`--dry-run` para contar sin cambiar nada).
+- **Al activar Elementor Pro**: convierte antes los datos antiguos y, una vez activo, guarda una vez las condiciones de cada plantilla para que Pro regenere su caché.
+
+Se ha comprobado renderizando 167 plantillas de 10 kits comerciales «Elementor Pro Template Kit» (no incluidos en el repositorio) sin avisos de PHP. Las pruebas usan solo datos sintéticos.
+
+### Origen del formato
+
+Las claves, tipos, valores por defecto y opciones de los ajustes se tomaron como **especificación de formato** de un volcado público del registro de controles de widgets (GPL-2.0, derivado del proyecto «pro-elements»), y de qué claves aparecen guardadas en kits reales. De ahí solo se usan los nombres y valores de los datos. Etiquetas, textos de la interfaz, marcado HTML, CSS y JavaScript son propios. No se ha copiado código de Elementor Pro ni se ha hecho ingeniería inversa de él.
 
 En el editor, las plantillas de entrada y archivo se previsualizan con contenido real. La entrada concreta se elige en **Ajustes → Vista previa**.
 
@@ -99,12 +116,14 @@ Usa otro puerto con `OBX_PORT=8099 bash bin/setup.sh` y otra versión de Element
 oldbear-elementor-expansion.php    Cabecera del plugin y arranque
 includes/class-plugin.php          Comprobaciones (Elementor, versión, Pro) y carga de módulos
 includes/class-context.php         Entrada/consulta real o de vista previa para los widgets
+includes/class-converter.php       Conversión de datos antiguos al formato de Pro (botón y wp obx convert)
+includes/forms/                    Envío del formulario (REST), acciones y envíos guardados
 includes/compat.php                elementor_theme_do_location() para temas compatibles
 includes/clean/                    Modo limpio (anuncios de Pro) y página de ajustes
 includes/theme-builder/            Tipos de documento, condiciones, ubicaciones y pantalla de administración
-includes/widgets/                  Widgets (base con doble nombre obx-*/Pro, tema, sitio y generales)
+includes/widgets/                  Widgets (base con doble nombre obx-*/Pro, tema, sitio, entradas, generales, formulario y carruseles)
 templates/                         header.php, footer.php y location.php que imprime el plugin
-assets/                            CSS y JS propios de los widgets (sin dependencias)
+assets/                            CSS y JS propios (sin dependencias; los carruseles usan scroll-snap)
 dev/seed.php · tests/              Demo de desarrollo y pruebas de integración (wp eval-file)
 ```
 

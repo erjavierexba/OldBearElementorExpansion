@@ -1,0 +1,437 @@
+<?php
+namespace OldBearExpansion\Widgets;
+
+use Elementor\Controls_Manager;
+use Elementor\Group_Control_Background;
+use Elementor\Group_Control_Border;
+use Elementor\Group_Control_Css_Filter;
+use Elementor\Group_Control_Image_Size;
+use Elementor\Icons_Manager;
+use Elementor\Modules\NestedElements\Base\Widget_Nested_Base;
+use Elementor\Repeater;
+use Elementor\Utils;
+
+if (!defined('ABSPATH')) { exit; }
+
+/**
+ * Carousel controls and markup shared by our carousels. The layout is CSS scroll-snap
+ * (slides per view and gaps come from responsive controls, so Elementor writes the CSS for every
+ * breakpoint); assets/js/widgets.js adds arrows, pagination, autoplay and loop on top.
+ */
+trait Carousel {
+    /** @param array{show:string,scroll:string,gap:string,arrows:string,loop:string,slides_default:string} $keys */
+    protected function carousel_controls(array $keys, array $defaults = []): void {
+        $numbers = [''=>'Por defecto'] + array_combine(array_map('strval', range(1, 10)), array_map('strval', range(1, 10)));
+        $this->add_responsive_control($keys['show'], ['label'=>'Diapositivas visibles','type'=>Controls_Manager::SELECT,'options'=>$numbers,'default'=>$defaults['show'] ?? '','tablet_default'=>$defaults['show_tablet'] ?? '','mobile_default'=>$defaults['show_mobile'] ?? '','selectors'=>['{{WRAPPER}} .obx-carousel'=>'--obx-slides: {{VALUE}};'],'frontend_available'=>true]);
+        $this->add_responsive_control($keys['scroll'], ['label'=>'Diapositivas por avance','type'=>Controls_Manager::SELECT,'options'=>$numbers,'default'=>'','description'=>'Cuántas diapositivas avanza cada paso.','selectors'=>['{{WRAPPER}} .obx-carousel'=>'--obx-scroll: {{VALUE}};'],'frontend_available'=>true]);
+        $this->add_control('autoplay', ['label'=>'Reproducción automática','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before','frontend_available'=>true]);
+        $this->add_control('autoplay_speed', ['label'=>'Intervalo (ms)','type'=>Controls_Manager::NUMBER,'default'=>5000,'condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control('pause_on_hover', ['label'=>'Pausar al pasar el ratón','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control('pause_on_interaction', ['label'=>'Pausar al interactuar','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control($keys['loop'], ['label'=>'Bucle infinito','type'=>Controls_Manager::SWITCHER,'default'=>'yes','frontend_available'=>true]);
+        $this->add_control('speed', ['label'=>'Duración de la transición (ms)','type'=>Controls_Manager::NUMBER,'default'=>500,'frontend_available'=>true]);
+        $this->add_control($keys['arrows'], ['label'=>'Flechas','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before','frontend_available'=>true]);
+        $this->add_control('pagination', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'bullets','options'=>[''=>'Ninguna','bullets'=>'Puntos','fraction'=>'Fracción','progressbar'=>'Barra de progreso'],'frontend_available'=>true]);
+    }
+
+    protected function carousel_navigation_style(string $arrows_key, string $prefix = 'arrows'): void {
+        $this->start_controls_section('section_navigation_style', ['label'=>'Navegación','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('heading_arrows', ['label'=>'Flechas','type'=>Controls_Manager::HEADING,'condition'=>[$arrows_key=>'yes']]);
+        $this->slider($prefix . '_size', 'Tamaño', '.obx-carousel__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>6,'max'=>100]],'condition'=>[$arrows_key=>'yes']], true);
+        $this->color($prefix === 'arrows' ? 'arrows_color' : 'arrows_normal_color', 'Color', '.obx-carousel__arrow', 'color', ['condition'=>[$arrows_key=>'yes']]);
+        $this->color('arrows_hover_color', 'Color al pasar el ratón', '.obx-carousel__arrow:hover', 'color', ['condition'=>[$arrows_key=>'yes']]);
+        $this->add_control('heading_pagination', ['label'=>'Paginación','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>['pagination!'=>'']]);
+        $this->slider('pagination_size', 'Tamaño', '.obx-carousel__pagination', '--obx-dot: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>30]],'condition'=>['pagination!'=>'']]);
+        $this->color('pagination_color_inactive', 'Color', '.obx-carousel__pagination', '--obx-dot-inactive', ['condition'=>['pagination!'=>'']]);
+        $this->color('pagination_color', 'Color activo', '.obx-carousel__pagination', '--obx-dot-active', ['condition'=>['pagination!'=>'']]);
+        $this->end_controls_section();
+    }
+
+    /** @return string data-carousel JSON */
+    protected function carousel_options(array $s, string $arrows_key, string $loop_key): string {
+        return (string) wp_json_encode([
+            'autoplay'=>($s['autoplay'] ?? 'yes') === 'yes' && !$this->editing(),
+            'autoplaySpeed'=>max(500, (int) ($s['autoplay_speed'] ?? 5000)),
+            'pauseOnHover'=>($s['pause_on_hover'] ?? 'yes') === 'yes',
+            'pauseOnInteraction'=>($s['pause_on_interaction'] ?? 'yes') === 'yes',
+            'loop'=>($s[$loop_key] ?? 'yes') === 'yes',
+            'speed'=>max(0, (int) ($s['speed'] ?? 500)),
+        ]);
+    }
+
+    protected function carousel_controls_html(array $s, string $arrows_key, string $prev = '', string $next = ''): string {
+        $html = '';
+        if (($s[$arrows_key] ?? 'yes') === 'yes') {
+            $html .= '<button type="button" class="obx-carousel__arrow obx-carousel__arrow--prev" aria-label="Diapositiva anterior">' . ($prev ?: '<span aria-hidden="true">‹</span>') . '</button>';
+            $html .= '<button type="button" class="obx-carousel__arrow obx-carousel__arrow--next" aria-label="Diapositiva siguiente">' . ($next ?: '<span aria-hidden="true">›</span>') . '</button>';
+        }
+        $type = (string) ($s['pagination'] ?? 'bullets');
+        if (in_array($type, ['bullets','fraction','progressbar'], true)) { $html .= '<div class="obx-carousel__pagination obx-carousel__pagination--' . $type . '"></div>'; }
+        return $html;
+    }
+}
+
+final class Testimonial_Carousel extends Element {
+    use Carousel;
+    public const PRO = 'testimonial-carousel';
+    public function get_title(): string { return 'Carrusel de testimonios'; }
+    public function get_icon(): string { return 'eicon-testimonial-carousel'; }
+    public function get_keywords(): array { return ['testimonial','testimonios','carousel','carrusel','opiniones','reseñas']; }
+
+    protected function register_controls(): void {
+        $this->start_controls_section('section_slides', ['label'=>'Testimonios']);
+        $r = new Repeater();
+        $r->add_control('content', ['label'=>'Texto','type'=>Controls_Manager::TEXTAREA,'dynamic'=>['active'=>true]]);
+        $r->add_control('image', ['label'=>'Foto','type'=>Controls_Manager::MEDIA,'dynamic'=>['active'=>true]]);
+        $r->add_control('name', ['label'=>'Nombre','type'=>Controls_Manager::TEXT,'default'=>'Nombre','dynamic'=>['active'=>true]]);
+        $r->add_control('title', ['label'=>'Cargo','type'=>Controls_Manager::TEXT,'default'=>'Cargo','dynamic'=>['active'=>true]]);
+        $sample = 'Cuenta aquí lo que opina un cliente de tu trabajo: qué problema tenía y cómo le ayudaste.';
+        $this->add_control('slides', ['type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'default'=>[['content'=>$sample,'name'=>'Nombre','title'=>'Cargo'],['content'=>$sample,'name'=>'Nombre','title'=>'Cargo'],['content'=>$sample,'name'=>'Nombre','title'=>'Cargo']],'title_field'=>'{{{ name }}}']);
+        $this->add_control('skin', ['label'=>'Apariencia','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>['default'=>'Por defecto','bubble'=>'Bocadillo'],'prefix_class'=>'obx-testimonials--skin-','separator'=>'before']);
+        $this->add_control('layout', ['label'=>'Disposición','type'=>Controls_Manager::SELECT,'default'=>'image_inline','options'=>['image_inline'=>'Foto en línea','image_stacked'=>'Foto apilada','image_above'=>'Foto arriba','image_left'=>'Foto a la izquierda','image_right'=>'Foto a la derecha'],'prefix_class'=>'obx-testimonials--layout-']);
+        $this->add_responsive_control('alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::logical_align(),'prefix_class'=>'obx-testimonials%s--align-','condition'=>['layout'=>['image_inline','image_stacked','image_above']]]);
+        $this->add_control('slides_name', ['type'=>Controls_Manager::HIDDEN,'default'=>'Testimonios']);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_additional_options', ['label'=>'Carrusel']);
+        $this->carousel_controls(['show'=>'slides_per_view','scroll'=>'slides_to_scroll','gap'=>'space_between','arrows'=>'show_arrows','loop'=>'loop']);
+        $this->add_control('lazyload', ['label'=>'Carga diferida','type'=>Controls_Manager::SWITCHER,'separator'=>'before']);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_slides_style', ['label'=>'Diapositivas','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->slider('space_between', 'Separación', '.obx-carousel', '--obx-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'default'=>['size'=>10],'range'=>['px'=>['max'=>100]]], true);
+        $this->slider('width', 'Ancho', '.obx-carousel', 'max-width: {{SIZE}}{{UNIT}};', ['size_units'=>['%','px','vw'],'range'=>['px'=>['min'=>100,'max'=>1140],'%'=>['min'=>50]]], true);
+        $this->color('slide_background_color', 'Fondo', '.obx-testimonial', 'background-color', ['separator'=>'before']);
+        $this->color('slide_border_color', 'Color del borde', '.obx-testimonial', 'border-color');
+        $this->slider('slide_border_size', 'Grosor del borde', '.obx-testimonial', 'border-width: {{SIZE}}{{UNIT}}; border-style: solid;', ['size_units'=>['px'],'range'=>['px'=>['max'=>20]]]);
+        $this->slider('slide_border_radius', 'Radio del borde', '.obx-testimonial', 'border-radius: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%']]);
+        $this->dimensions('slide_padding', 'Relleno', '.obx-testimonial', 'padding');
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_content_style', ['label'=>'Contenido','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->slider('content_gap', 'Separación', '.obx-testimonial', '--obx-content-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]], true);
+        $this->color('content_color', 'Color del texto', '.obx-testimonial__content');
+        $this->typography('content_typography', '.obx-testimonial__content');
+        $this->add_control('heading_name_style', ['label'=>'Nombre','type'=>Controls_Manager::HEADING,'separator'=>'before']);
+        $this->color('name_color', 'Color', '.obx-testimonial__name');
+        $this->typography('name_typography', '.obx-testimonial__name');
+        $this->add_control('heading_title_style', ['label'=>'Cargo','type'=>Controls_Manager::HEADING,'separator'=>'before']);
+        $this->color('title_color', 'Color', '.obx-testimonial__title');
+        $this->typography('title_typography', '.obx-testimonial__title');
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_image_style', ['label'=>'Foto','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->slider('image_size', 'Tamaño', '.obx-testimonial__image img', 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>20,'max'=>200]]], true);
+        $this->slider('image_gap', 'Separación', '.obx-testimonial__footer', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]], true);
+        $this->add_control('image_border', ['label'=>'Borde','type'=>Controls_Manager::SWITCHER,'selectors'=>self::css('.obx-testimonial__image img', 'border-style: solid;')]);
+        $this->color('image_border_color', 'Color del borde', '.obx-testimonial__image img', 'border-color', ['condition'=>['image_border'=>'yes']]);
+        $this->slider('image_border_width', 'Grosor del borde', '.obx-testimonial__image img', 'border-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px'],'range'=>['px'=>['max'=>20]],'condition'=>['image_border'=>'yes']]);
+        $this->slider('image_border_radius', 'Radio del borde', '.obx-testimonial__image img', 'border-radius: {{SIZE}}{{UNIT}};', ['size_units'=>['%','px']]);
+        $this->end_controls_section();
+
+        $this->carousel_navigation_style('show_arrows');
+    }
+
+    protected function render(): void {
+        $s = $this->get_settings_for_display();
+        $slides = array_values(array_filter((array) ($s['slides'] ?? []), 'is_array'));
+        if (!$slides) { $this->placeholder('Añade algún testimonio.'); return; }
+        $lazy = ($s['lazyload'] ?? '') === 'yes' ? 'lazy' : 'eager';
+        echo '<div class="obx-carousel obx-testimonials" data-carousel="' . esc_attr($this->carousel_options($s, 'show_arrows', 'loop')) . '" role="region" aria-roledescription="carrusel" aria-label="' . esc_attr((string) ($s['slides_name'] ?? 'Testimonios')) . '">';
+        echo '<div class="obx-carousel__track">';
+        foreach ($slides as $i => $slide) {
+            echo '<div class="obx-carousel__slide" role="group" aria-roledescription="diapositiva" aria-label="' . esc_attr(($i + 1) . ' / ' . count($slides)) . '"><figure class="obx-testimonial">';
+            if ((string) ($slide['content'] ?? '') !== '') { echo '<blockquote class="obx-testimonial__content">' . wp_kses_post(wpautop((string) $slide['content'])) . '</blockquote>'; }
+            echo '<figcaption class="obx-testimonial__footer">';
+            if (!empty($slide['image']['url'])) {
+                $img = !empty($slide['image']['id']) ? wp_get_attachment_image((int) $slide['image']['id'], 'thumbnail', false, ['loading'=>$lazy,'alt'=>(string) ($slide['name'] ?? '')]) : '';
+                echo '<span class="obx-testimonial__image">' . ($img ?: '<img src="' . esc_url($slide['image']['url']) . '" alt="' . esc_attr((string) ($slide['name'] ?? '')) . '" loading="' . $lazy . '">') . '</span>';
+            }
+            echo '<cite class="obx-testimonial__cite">';
+            if ((string) ($slide['name'] ?? '') !== '') { echo '<span class="obx-testimonial__name">' . esc_html($slide['name']) . '</span>'; }
+            if ((string) ($slide['title'] ?? '') !== '') { echo '<span class="obx-testimonial__title">' . esc_html($slide['title']) . '</span>'; }
+            echo '</cite></figcaption></figure></div>';
+        }
+        echo '</div>' . $this->carousel_controls_html($s, 'show_arrows') . '</div>';
+    }
+}
+
+/** Nested carousel: each slide is a container edited in place (Elementor's nested elements). */
+final class Nested_Carousel extends Widget_Nested_Base {
+    use Carousel;
+    public const NAME = '';
+    public const PRO = 'nested-carousel';
+    public const ALIASES = [];
+    public const PRO_CATEGORY = 'pro-elements';
+
+    public static function names(): array { return [self::PRO]; }
+    public static function wants_upgrade(string $name, array $settings): bool { return false; }
+    public static function convert(string $name, array $settings): array { return $settings; }
+    public static function available(): bool {
+        $experiments = \Elementor\Plugin::$instance->experiments;
+        return class_exists(Widget_Nested_Base::class) && $experiments->is_feature_active('nested-elements') && $experiments->is_feature_active('container');
+    }
+
+    public function get_name(): string { return self::PRO; }
+    public function get_title(): string { return 'Carrusel anidado'; }
+    public function get_icon(): string { return 'eicon-nested-carousel'; }
+    public function get_categories(): array { return [self::PRO_CATEGORY]; }
+    public function get_keywords(): array { return ['carousel','carrusel','slider','diapositivas','nested','anidado']; }
+    public function get_style_depends(): array { return ['obx-frontend']; }
+    public function get_script_depends(): array { return ['obx-widgets']; }
+    public function show_in_panel(): bool { return true; }
+    public function has_widget_inner_wrapper(): bool { return false; }
+    protected function editing(): bool { return \OldBearExpansion\Context::is_editor(); }
+    protected function placeholder(string $message): void { if ($this->editing()) { echo '<div class="obx-placeholder">' . esc_html($message) . '</div>'; } }
+
+    private function slider(string $key, string $label, string $selector, string $declaration, array $extra = [], bool $responsive = false): void {
+        $args = ['label'=>$label,'type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','%','custom'],'selectors'=>['{{WRAPPER}} ' . $selector=>$declaration]] + $extra;
+        $responsive ? $this->add_responsive_control($key, $args) : $this->add_control($key, $args);
+    }
+    private function color(string $key, string $label, string $selector, string $property = 'color', array $extra = []): void {
+        $this->add_control($key, ['label'=>$label,'type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} ' . $selector=>$property . ': {{VALUE}};']] + $extra);
+    }
+
+    private function slide_container(int $index): array {
+        return ['elType'=>'container','settings'=>['_title'=>sprintf('Diapositiva #%d', $index),'content_width'=>'full'],'isInner'=>true];
+    }
+    protected function get_default_children_elements() { return [$this->slide_container(1), $this->slide_container(2), $this->slide_container(3)]; }
+    protected function get_default_repeater_title_setting_key() { return 'slide_title'; }
+    protected function get_default_children_title() { return 'Diapositiva #%d'; }
+    protected function get_default_children_placeholder_selector() { return '.obx-carousel__track'; }
+
+    protected function register_controls(): void {
+        $this->start_controls_section('section_slides', ['label'=>'Diapositivas']);
+        $r = new Repeater();
+        $r->add_control('slide_title', ['label'=>'Título','type'=>Controls_Manager::TEXT,'default'=>'Diapositiva','label_block'=>true]);
+        $this->add_control('carousel_items', ['label'=>'Diapositivas','type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'default'=>[['slide_title'=>'Diapositiva #1'],['slide_title'=>'Diapositiva #2'],['slide_title'=>'Diapositiva #3']],'title_field'=>'{{{ slide_title }}}','button_text'=>'Añadir diapositiva']);
+        $this->add_control('carousel_name', ['label'=>'Nombre accesible','type'=>Controls_Manager::TEXT,'default'=>'Carrusel']);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_carousel_settings', ['label'=>'Carrusel']);
+        $this->carousel_controls(['show'=>'slides_to_show','scroll'=>'slides_to_scroll','gap'=>'image_spacing_custom','arrows'=>'arrows','loop'=>'infinite'], ['show'=>'3','show_tablet'=>'2','show_mobile'=>'1']);
+        $this->add_control('navigation_previous_icon', ['label'=>'Icono anterior','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'fas fa-chevron-left','library'=>'fa-solid'],'condition'=>['arrows'=>'yes']]);
+        $this->add_control('navigation_next_icon', ['label'=>'Icono siguiente','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'fas fa-chevron-right','library'=>'fa-solid'],'condition'=>['arrows'=>'yes']]);
+        $this->add_control('equal_height', ['label'=>'Misma altura','type'=>Controls_Manager::SWITCHER,'default'=>'yes','prefix_class'=>'obx-ncarousel--equal-','separator'=>'before']);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_slides_style', ['label'=>'Diapositivas','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->slider('image_spacing_custom', 'Separación', '.obx-carousel', '--obx-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'default'=>['size'=>10],'range'=>['px'=>['max'=>100]]], true);
+        $this->add_responsive_control('content_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],'selectors'=>['{{WRAPPER}} .obx-carousel__track > .e-con'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_navigation_style', ['label'=>'Navegación','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->slider('arrows_size', 'Tamaño de las flechas', '.obx-carousel__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>6,'max'=>100]],'condition'=>['arrows'=>'yes']], true);
+        $this->color('arrows_normal_color', 'Color', '.obx-carousel__arrow', 'color', ['condition'=>['arrows'=>'yes']]);
+        $this->color('arrows_hover_color', 'Color al pasar el ratón', '.obx-carousel__arrow:hover', 'color', ['condition'=>['arrows'=>'yes']]);
+        $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'arrows_normal_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-carousel__arrow','condition'=>['arrows'=>'yes']]);
+        $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'arrows_normal_border_type','selector'=>'{{WRAPPER}} .obx-carousel__arrow','condition'=>['arrows'=>'yes']]);
+        $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'arrows_hover_border_type','selector'=>'{{WRAPPER}} .obx-carousel__arrow:hover','condition'=>['arrows'=>'yes']]);
+        $this->add_responsive_control('arrows_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em'],'selectors'=>['{{WRAPPER}} .obx-carousel__arrow'=>'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};'],'condition'=>['arrows'=>'yes']]);
+        $this->add_responsive_control('arrows_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em'],'selectors'=>['{{WRAPPER}} .obx-carousel__arrow'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};'],'condition'=>['arrows'=>'yes']]);
+        foreach (['previous'=>'anterior','next'=>'siguiente'] as $dir => $label) {
+            $this->slider('navigation_' . $dir . '_icon_horizontal_position', 'Desplazamiento horizontal (' . $label . ')', '.obx-carousel__arrow--' . ($dir === 'previous' ? 'prev' : 'next'), '--obx-arrow-x: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%','em','rem','vw'],'range'=>['px'=>['min'=>-300,'max'=>300]],'condition'=>['arrows'=>'yes']], true);
+            $this->slider('navigation_' . $dir . '_icon_vertical_position', 'Desplazamiento vertical (' . $label . ')', '.obx-carousel__arrow--' . ($dir === 'previous' ? 'prev' : 'next'), '--obx-arrow-y: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%','em','rem','vh'],'range'=>['px'=>['min'=>-300,'max'=>300]],'condition'=>['arrows'=>'yes']], true);
+        }
+        $this->slider('dots_size', 'Tamaño de los puntos', '.obx-carousel__pagination', '--obx-dot: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>30]],'condition'=>['pagination!'=>''],'separator'=>'before'], true);
+        $this->slider('dots_pagination_spacing', 'Distancia al contenido', '.obx-carousel__pagination', 'margin-top: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]],'condition'=>['pagination!'=>'']], true);
+        $this->color('dots_color_inactive', 'Color de los puntos', '.obx-carousel__pagination', '--obx-dot-inactive', ['condition'=>['pagination!'=>'']]);
+        $this->color('dots_color_active', 'Color del punto activo', '.obx-carousel__pagination', '--obx-dot-active', ['condition'=>['pagination!'=>'']]);
+        $this->end_controls_section();
+    }
+
+    protected function render(): void {
+        $s = $this->get_settings_for_display();
+        $items = array_values(array_filter((array) ($s['carousel_items'] ?? []), 'is_array'));
+        $prev = !empty($s['navigation_previous_icon']['value']) ? (string) Icons_Manager::try_get_icon_html($s['navigation_previous_icon'], ['aria-hidden'=>'true']) : '';
+        $next = !empty($s['navigation_next_icon']['value']) ? (string) Icons_Manager::try_get_icon_html($s['navigation_next_icon'], ['aria-hidden'=>'true']) : '';
+        echo '<div class="obx-carousel obx-ncarousel" data-carousel="' . esc_attr($this->carousel_options($s, 'arrows', 'infinite')) . '" role="region" aria-roledescription="carrusel" aria-label="' . esc_attr((string) ($s['carousel_name'] ?? 'Carrusel')) . '"><div class="obx-carousel__track">';
+        // The slide containers are the carousel slides (direct children of the track, as in the editor).
+        foreach (array_keys($items) as $index) { $this->print_child($index); }
+        echo '</div>' . $this->carousel_controls_html($s, 'arrows', $prev, $next) . '</div>';
+    }
+
+    protected function content_template(): void {
+        ?>
+        <div class="obx-carousel obx-ncarousel" data-carousel="{}">
+            <div class="obx-carousel__track">
+            </div>
+            <# if ( 'yes' === settings.arrows ) { #>
+            <button type="button" class="obx-carousel__arrow obx-carousel__arrow--prev" aria-label="Diapositiva anterior">{{{ elementor.helpers.renderIcon( view, settings.navigation_previous_icon, { 'aria-hidden': true }, 'i', 'object' )?.value || '‹' }}}</button>
+            <button type="button" class="obx-carousel__arrow obx-carousel__arrow--next" aria-label="Diapositiva siguiente">{{{ elementor.helpers.renderIcon( view, settings.navigation_next_icon, { 'aria-hidden': true }, 'i', 'object' )?.value || '›' }}}</button>
+            <# } #>
+            <# if ( settings.pagination ) { #><div class="obx-carousel__pagination obx-carousel__pagination--{{ settings.pagination }}"></div><# } #>
+        </div>
+        <?php
+    }
+}
+
+final class Gallery extends Element {
+    public const PRO = 'gallery';
+    public function get_title(): string { return 'Galería'; }
+    public function get_icon(): string { return 'eicon-gallery-justified'; }
+    public function get_keywords(): array { return ['gallery','galeria','imagenes','fotos','masonry','justified','portfolio']; }
+
+    protected function register_controls(): void {
+        $this->start_controls_section('settings', ['label'=>'Galería']);
+        $this->add_control('gallery_type', ['label'=>'Tipo','type'=>Controls_Manager::SELECT,'default'=>'single','options'=>['single'=>'Una galería','multiple'=>'Varias galerías']]);
+        $this->add_control('gallery', ['label'=>'Imágenes','type'=>Controls_Manager::GALLERY,'dynamic'=>['active'=>true],'condition'=>['gallery_type'=>'single']]);
+        $r = new Repeater();
+        $r->add_control('gallery_title', ['label'=>'Título','type'=>Controls_Manager::TEXT,'default'=>'Nueva galería','dynamic'=>['active'=>true]]);
+        $r->add_control('multiple_gallery', ['label'=>'Imágenes','type'=>Controls_Manager::GALLERY,'dynamic'=>['active'=>true]]);
+        $this->add_control('galleries', ['type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'title_field'=>'{{{ gallery_title }}}','default'=>[['gallery_title'=>'Nueva galería']],'condition'=>['gallery_type'=>'multiple']]);
+        $this->add_control('order_by', ['label'=>'Orden','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Por defecto','random'=>'Aleatorio']]);
+        $this->add_control('lazyload', ['label'=>'Carga diferida','type'=>Controls_Manager::SWITCHER,'default'=>'yes']);
+        $this->add_control('gallery_layout', ['label'=>'Diseño','type'=>Controls_Manager::SELECT,'default'=>'grid','options'=>['grid'=>'Cuadrícula','justified'=>'Justificado','masonry'=>'Mosaico'],'separator'=>'before']);
+        $this->add_responsive_control('columns', ['label'=>'Columnas','type'=>Controls_Manager::NUMBER,'default'=>4,'tablet_default'=>2,'mobile_default'=>1,'min'=>1,'max'=>24,'selectors'=>['{{WRAPPER}} .obx-gallery'=>'--obx-columns: {{VALUE}};'],'condition'=>['gallery_layout!'=>'justified']]);
+        $this->add_responsive_control('ideal_row_height', ['label'=>'Altura de fila','type'=>Controls_Manager::SLIDER,'size_units'=>['px'],'range'=>['px'=>['min'=>50,'max'=>500]],'default'=>['size'=>200],'selectors'=>['{{WRAPPER}} .obx-gallery'=>'--obx-row-height: {{SIZE}}px;'],'condition'=>['gallery_layout'=>'justified']]);
+        $this->add_responsive_control('gap', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'default'=>['size'=>10],'selectors'=>['{{WRAPPER}} .obx-gallery'=>'--obx-gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('link_to', ['label'=>'Enlace','type'=>Controls_Manager::SELECT,'default'=>'file','options'=>[''=>'Ninguno','file'=>'Archivo multimedia','custom'=>'Dirección personalizada'],'separator'=>'before']);
+        $this->add_control('url', ['label'=>'Dirección','type'=>Controls_Manager::URL,'condition'=>['link_to'=>'custom']]);
+        $this->add_control('open_lightbox', ['label'=>'Caja de luz','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>['default'=>'Por defecto','yes'=>'Sí','no'=>'No'],'condition'=>['link_to'=>'file']]);
+        $this->add_control('aspect_ratio', ['label'=>'Proporción','type'=>Controls_Manager::SELECT,'default'=>'3:2','options'=>['1:1'=>'1:1','3:2'=>'3:2','4:3'=>'4:3','9:16'=>'9:16','16:9'=>'16:9','21:9'=>'21:9'],'condition'=>['gallery_layout'=>'grid']]);
+        $this->add_group_control(Group_Control_Image_Size::get_type(), ['name'=>'thumbnail_image','default'=>'medium']);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_filter_bar_content', ['label'=>'Barra de filtros','condition'=>['gallery_type'=>'multiple']]);
+        $this->add_control('show_all_galleries', ['label'=>'Opción «Todas»','type'=>Controls_Manager::SWITCHER,'default'=>'yes']);
+        $this->add_control('show_all_galleries_label', ['label'=>'Texto','type'=>Controls_Manager::TEXT,'default'=>'Todas','condition'=>['show_all_galleries'=>'yes']]);
+        $this->add_control('pointer', ['label'=>'Indicador','type'=>Controls_Manager::SELECT,'default'=>'underline','options'=>['none'=>'Ninguno','underline'=>'Subrayado','overline'=>'Sobrerrayado','double-line'=>'Doble línea','framed'=>'Marco','background'=>'Fondo','text'=>'Texto']]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('overlay', ['label'=>'Capa al pasar el ratón']);
+        $this->add_control('overlay_background', ['label'=>'Fondo','type'=>Controls_Manager::SWITCHER,'default'=>'yes']);
+        $fields = [''=>'Ninguno','title'=>'Título','caption'=>'Leyenda','alt'=>'Texto alternativo','description'=>'Descripción'];
+        $this->add_control('overlay_title', ['label'=>'Título','type'=>Controls_Manager::SELECT,'default'=>'','options'=>$fields]);
+        $this->add_control('overlay_description', ['label'=>'Descripción','type'=>Controls_Manager::SELECT,'default'=>'','options'=>$fields]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('image_style', ['label'=>'Imagen','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->color('image_border_color', 'Color del borde', '.obx-gallery__item', 'border-color');
+        $this->slider('image_border_width', 'Grosor del borde', '.obx-gallery__item', 'border-width: {{SIZE}}{{UNIT}}; border-style: solid;', ['size_units'=>['px'],'range'=>['px'=>['max'=>20]]]);
+        $this->slider('image_border_radius', 'Radio del borde', '.obx-gallery__item', 'border-radius: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%']]);
+        $this->color('image_border_color_hover', 'Color del borde al pasar el ratón', '.obx-gallery__item:hover', 'border-color');
+        $this->slider('image_border_radius_hover', 'Radio del borde al pasar el ratón', '.obx-gallery__item:hover', 'border-radius: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%']]);
+        $this->add_control('image_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Ninguna','grow'=>'Acercar','shrink-contained'=>'Alejar','move-contained-left'=>'Mover a la izquierda','move-contained-right'=>'Mover a la derecha','move-contained-top'=>'Mover arriba','move-contained-bottom'=>'Mover abajo']]);
+        $this->slider('image_animation_duration', 'Duración (ms)', '.obx-gallery__image', 'transition-duration: {{SIZE}}ms;', ['size_units'=>['px'],'default'=>['size'=>800],'range'=>['px'=>['max'=>3000,'step'=>100]]]);
+        $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>'image_css_filters','selector'=>'{{WRAPPER}} .obx-gallery__image']);
+        $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>'image_css_filters_hover','selector'=>'{{WRAPPER}} .obx-gallery__item:hover .obx-gallery__image']);
+        $this->end_controls_section();
+
+        $this->start_controls_section('overlay_style', ['label'=>'Capa','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['overlay_background'=>'yes']]);
+        $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'overlay_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-gallery__overlay']);
+        $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'overlay_background_hover','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-gallery__item:hover .obx-gallery__overlay']);
+        $this->add_control('image_blend_mode', ['label'=>'Mezcla','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Normal','multiply'=>'Multiplicar','screen'=>'Trama','overlay'=>'Superponer','darken'=>'Oscurecer','lighten'=>'Aclarar','color-dodge'=>'Sobreexponer color','color-burn'=>'Subexponer color','hue'=>'Tono','saturation'=>'Saturación','color'=>'Color','exclusion'=>'Exclusión','luminosity'=>'Luminosidad'],'selectors'=>self::css('.obx-gallery__overlay', 'mix-blend-mode: {{VALUE}};')]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('overlay_content_style', ['label'=>'Contenido de la capa','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('content_alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::align_options(),'selectors'=>self::css('.obx-gallery__content', 'text-align: {{VALUE}};')]);
+        $this->add_control('content_vertical_position', ['label'=>'Posición vertical','type'=>Controls_Manager::CHOOSE,'options'=>['top'=>['title'=>'Arriba','icon'=>'eicon-v-align-top'],'middle'=>['title'=>'Centro','icon'=>'eicon-v-align-middle'],'bottom'=>['title'=>'Abajo','icon'=>'eicon-v-align-bottom']],'selectors_dictionary'=>['top'=>'flex-start','middle'=>'center','bottom'=>'flex-end'],'selectors'=>self::css('.obx-gallery__content', 'justify-content: {{VALUE}};')]);
+        $this->slider('content_padding', 'Relleno', '.obx-gallery__content', 'padding: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'default'=>['size'=>20]], true);
+        $this->color('title_color', 'Color del título', '.obx-gallery__title', 'color', ['separator'=>'before']);
+        $this->typography('title_typography', '.obx-gallery__title');
+        $this->slider('title_spacing', 'Separación del título', '.obx-gallery__title', 'margin-bottom: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem']]);
+        $this->color('description_color', 'Color de la descripción', '.obx-gallery__description', 'color', ['separator'=>'before']);
+        $this->typography('description_typography', '.obx-gallery__description');
+        $this->add_control('content_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'fade-in','options'=>[''=>'Ninguna','fade-in'=>'Aparecer','slide-in-up'=>'Deslizar hacia arriba','zoom-in'=>'Acercar']]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('filter_bar_style', ['label'=>'Barra de filtros','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['gallery_type'=>'multiple']]);
+        $this->add_control('align_filter_bar_items', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::align_options(),'selectors_dictionary'=>['left'=>'flex-start','center'=>'center','right'=>'flex-end'],'selectors'=>self::css('.obx-gallery__filters', 'justify-content: {{VALUE}};')]);
+        $this->color('galleries_title_color_normal', 'Color', '.obx-gallery__filter');
+        $this->color('galleries_title_color_hover', 'Color al pasar el ratón', '.obx-gallery__filter:hover');
+        $this->color('galleries_title_color_active', 'Color activo', '.obx-gallery__filter.is-active');
+        $this->color('galleries_pointer_color_hover', 'Indicador al pasar el ratón', '.obx-gallery__filters', '--obx-pointer-hover');
+        $this->color('galleries_pointer_color_active', 'Indicador activo', '.obx-gallery__filters', '--obx-pointer-active');
+        $this->slider('pointer_width', 'Grosor del indicador', '.obx-gallery__filters', '--obx-pointer-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px'],'range'=>['px'=>['max'=>30]]]);
+        $this->typography('galleries_titles_typography', '.obx-gallery__filter');
+        $this->slider('galleries_titles_space_between', 'Separación entre filtros', '.obx-gallery__filters', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem']]);
+        $this->slider('galleries_titles_gap', 'Distancia a la galería', '.obx-gallery__filters', 'margin-bottom: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem']]);
+        $this->end_controls_section();
+    }
+
+    private static function field(int $id, string $field): string {
+        if ($id <= 0 || $field === '') { return ''; }
+        $post = get_post($id);
+        if (!$post) { return ''; }
+        return match ($field) {
+            'title'=>(string) $post->post_title,
+            'caption'=>(string) $post->post_excerpt,
+            'alt'=>(string) get_post_meta($id, '_wp_attachment_image_alt', true),
+            'description'=>(string) $post->post_content,
+            default=>'',
+        };
+    }
+
+    protected function render(): void {
+        $s = $this->get_settings_for_display();
+        $multiple = ($s['gallery_type'] ?? 'single') === 'multiple';
+        $sets = $multiple ? array_values(array_filter((array) ($s['galleries'] ?? []), 'is_array')) : [['gallery_title'=>'','multiple_gallery'=>(array) ($s['gallery'] ?? [])]];
+        // Image id/url => list of gallery indexes containing it.
+        $items = [];
+        foreach ($sets as $g => $set) {
+            foreach ((array) ($set['multiple_gallery'] ?? []) as $image) {
+                if (!is_array($image) || (empty($image['id']) && empty($image['url']))) { continue; }
+                $key = !empty($image['id']) ? 'id' . (int) $image['id'] : 'u' . md5((string) $image['url']);
+                $items[$key] ??= ['image'=>$image,'galleries'=>[]];
+                $items[$key]['galleries'][] = $g;
+            }
+        }
+        if (!$items) { $this->placeholder('Añade imágenes a la galería.'); return; }
+        $items = array_values($items);
+        if (($s['order_by'] ?? '') === 'random' && !$this->editing()) { shuffle($items); }
+        $layout = in_array($s['gallery_layout'] ?? 'grid', ['grid','justified','masonry'], true) ? $s['gallery_layout'] : 'grid';
+        $ratio = array_map('intval', explode(':', (string) ($s['aspect_ratio'] ?? '3:2'))) + [1, 1];
+        $link_to = (string) ($s['link_to'] ?? 'file');
+        $lightbox = (string) ($s['open_lightbox'] ?? 'default');
+        $lazy = ($s['lazyload'] ?? 'yes') === 'yes';
+        $id = $this->get_id();
+
+        if ($multiple) {
+            echo '<div class="obx-gallery__filters obx-gallery__filters--' . esc_attr(sanitize_html_class((string) ($s['pointer'] ?? 'underline'))) . '" role="tablist">';
+            if (($s['show_all_galleries'] ?? 'yes') === 'yes') { echo '<button type="button" class="obx-gallery__filter is-active" data-gallery="all" role="tab" aria-selected="true">' . esc_html((string) ($s['show_all_galleries_label'] ?? 'Todas')) . '</button>'; }
+            foreach ($sets as $g => $set) {
+                $first = $g === 0 && ($s['show_all_galleries'] ?? 'yes') !== 'yes';
+                echo '<button type="button" class="obx-gallery__filter' . ($first ? ' is-active' : '') . '" data-gallery="' . $g . '" role="tab" aria-selected="' . ($first ? 'true' : 'false') . '">' . esc_html((string) ($set['gallery_title'] ?? '')) . '</button>';
+            }
+            echo '</div>';
+        }
+        $animation = sanitize_html_class((string) ($s['image_hover_animation'] ?? ''));
+        $content_anim = sanitize_html_class((string) ($s['content_hover_animation'] ?? 'fade-in'));
+        printf('<div class="obx-gallery obx-gallery--%s%s%s" style="--obx-ratio: %s"%s>', esc_attr($layout), $animation ? ' obx-gallery--hover-' . esc_attr($animation) : '', $content_anim ? ' obx-gallery--content-' . esc_attr($content_anim) : '', esc_attr(max(1, $ratio[0]) . ' / ' . max(1, $ratio[1])), $multiple && ($s['show_all_galleries'] ?? 'yes') !== 'yes' ? ' data-initial="0"' : '');
+        foreach ($items as $item) {
+            $image = $item['image'];
+            $attachment = (int) ($image['id'] ?? 0);
+            $src = $attachment ? (string) Group_Control_Image_Size::get_attachment_image_src($attachment, 'thumbnail_image', $s) : '';
+            $src = $src ?: (string) ($image['url'] ?? '');
+            if ($src === '') { continue; }
+            $meta = $attachment ? wp_get_attachment_metadata($attachment) : [];
+            $w = max(1, (int) ($meta['width'] ?? 3));
+            $h = max(1, (int) ($meta['height'] ?? 2));
+            $alt = $attachment ? (string) get_post_meta($attachment, '_wp_attachment_image_alt', true) : '';
+            $title = self::field($attachment, (string) ($s['overlay_title'] ?? ''));
+            $description = self::field($attachment, (string) ($s['overlay_description'] ?? ''));
+            $href = '';
+            $attrs = '';
+            if ($link_to === 'file') {
+                $href = $attachment ? (string) wp_get_attachment_url($attachment) : (string) ($image['url'] ?? '');
+                $attrs = ' data-elementor-open-lightbox="' . esc_attr($lightbox) . '" data-elementor-lightbox-slideshow="' . esc_attr('all-' . $id) . '"' . ($title !== '' ? ' data-elementor-lightbox-title="' . esc_attr($title) . '"' : '');
+            } elseif ($link_to === 'custom' && !empty($s['url']['url'])) {
+                $href = (string) $s['url']['url'];
+                $attrs = !empty($s['url']['is_external']) ? ' target="_blank" rel="noopener"' : '';
+            }
+            $tag = $href !== '' ? 'a' : 'div';
+            printf('<%1$s class="obx-gallery__item" data-galleries="%2$s" style="--w: %3$d; --h: %4$d"%5$s%6$s>', $tag, esc_attr(implode(',', $item['galleries'])), $w, $h, $href !== '' ? ' href="' . esc_url($href) . '"' : '', $attrs);
+            echo '<img class="obx-gallery__image" src="' . esc_url($src) . '" alt="' . esc_attr($alt) . '"' . ($lazy ? ' loading="lazy"' : '') . ' width="' . $w . '" height="' . $h . '">';
+            if (($s['overlay_background'] ?? 'yes') === 'yes') { echo '<span class="obx-gallery__overlay" aria-hidden="true"></span>'; }
+            if ($title !== '' || $description !== '') {
+                echo '<span class="obx-gallery__content">';
+                if ($title !== '') { echo '<span class="obx-gallery__title">' . esc_html($title) . '</span>'; }
+                if ($description !== '') { echo '<span class="obx-gallery__description">' . esc_html(wp_strip_all_tags($description)) . '</span>'; }
+                echo '</span>';
+            }
+            echo '</' . $tag . '>';
+        }
+        echo '</div>';
+    }
+}

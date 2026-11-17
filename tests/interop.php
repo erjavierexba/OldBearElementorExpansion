@@ -239,6 +239,28 @@ try {
     global $wpdb;
     $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '\_transient\_obx\_form\_%' OR option_name LIKE '\_transient\_timeout\_obx\_form\_%'");
 
+
+    // Carousels and gallery with Pro keys.
+    $html = $render([$widget('testimonial-carousel', ['slides'=>[['_id'=>'t1','content'=>'Opinión ficticia uno','name'=>'Cliente A','title'=>'Ciudad'],['_id'=>'t2','content'=>'Opinión ficticia dos','name'=>'Cliente B','title'=>'Pueblo']],'skin'=>'bubble','layout'=>'image_stacked','alignment'=>'left','show_arrows'=>'','pagination'=>'progressbar','slides_per_view'=>'3','autoplay'=>'','loop'=>''])]);
+    $assert(str_contains($html, 'obx-testimonials--skin-bubble') && str_contains($html, 'obx-testimonials--layout-image_stacked') && str_contains($html, 'obx-testimonials--align-left') && !str_contains($html, 'obx-carousel__arrow') && str_contains($html, 'obx-carousel__pagination--progressbar') && substr_count($html, 'obx-carousel__slide"') === 2 && str_contains($html, 'Cliente B'), 'testimonial-carousel: claves de Pro.');
+    $assert(str_contains($html, '&quot;autoplay&quot;:false') && str_contains($html, '&quot;loop&quot;:false'), 'testimonial-carousel: opciones del carrusel.');
+    if (\OldBearExpansion\Widgets\Nested_Carousel::available()) {
+        $nested = $widget('nested-carousel', ['carousel_items'=>[['_id'=>'s1','slide_title'=>'Uno'],['_id'=>'s2','slide_title'=>'Dos']],'slides_to_show'=>'2','pagination'=>'fraction']);
+        $nested['elements'] = [
+            ['id'=>$uid(),'elType'=>'container','isInner'=>true,'settings'=>[],'elements'=>[$widget('heading', ['title'=>'Contenido de la diapositiva uno'])]],
+            ['id'=>$uid(),'elType'=>'container','isInner'=>true,'settings'=>[],'elements'=>[$widget('heading', ['title'=>'Contenido de la diapositiva dos'])]],
+        ];
+        $html = $render([$nested]);
+        $assert(str_contains($html, 'obx-ncarousel') && str_contains($html, 'Contenido de la diapositiva uno') && str_contains($html, 'Contenido de la diapositiva dos') && preg_match_all('~<div class="obx-carousel__track">\\s*<div class="elementor-element[^"]*e-con~', $html) === 1 && str_contains($html, 'obx-carousel__pagination--fraction') && str_contains($html, 'obx-carousel__arrow--next'), 'nested-carousel: diapositivas con contenedores hijos.');
+    }
+    $img = wp_insert_attachment(['post_title'=>'obx-interop-img','post_mime_type'=>'image/png','post_status'=>'inherit','post_excerpt'=>'Leyenda ficticia'], false);
+    $created[] = $img;
+    update_post_meta($img, '_wp_attachment_metadata', ['width'=>800,'height'=>400,'file'=>'obx-interop.png']);
+    update_post_meta($img, '_wp_attached_file', 'obx-interop.png');
+    $html = $render([$widget('gallery', ['gallery'=>[['id'=>$img,'url'=>'https://example.com/a.png']],'aspect_ratio'=>'1:1','columns'=>3,'overlay_title'=>'caption','image_hover_animation'=>'grow'])]);
+    $assert(str_contains($html, 'obx-gallery--grid') && str_contains($html, '--obx-ratio: 1 / 1') && str_contains($html, 'data-elementor-open-lightbox="default"') && str_contains($html, 'Leyenda ficticia') && str_contains($html, '--w: 800; --h: 400') && str_contains($html, 'obx-gallery--hover-grow'), 'gallery: cuadrícula con claves de Pro.');
+    $html = $render([$widget('gallery', ['gallery_type'=>'multiple','galleries'=>[['_id'=>'g1','gallery_title'=>'Primera','multiple_gallery'=>[['id'=>$img,'url'=>'']]],['_id'=>'g2','gallery_title'=>'Segunda','multiple_gallery'=>[['id'=>$img,'url'=>'']]]],'show_all_galleries_label'=>'Todo','gallery_layout'=>'justified','link_to'=>''])]);
+    $assert(str_contains($html, 'obx-gallery--justified') && str_contains($html, '>Todo</button>') && str_contains($html, '>Segunda</button>') && str_contains($html, 'data-galleries="0,1"') && !str_contains($html, '<a class="obx-gallery__item'), 'gallery: varias galerías y filtros.');
     // Conversion of stored data to Elementor Pro's format.
     $tree = [['id'=>'c1','elType'=>'container','settings'=>[],'elements'=>[
         ['id'=>'w1','elType'=>'widget','widgetType'=>'obx-nav-menu','settings'=>['menu'=>(string) $menu_id,'breakpoint'=>'none','align'=>'center'],'elements'=>[]],
