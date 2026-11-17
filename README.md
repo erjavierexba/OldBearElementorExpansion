@@ -19,6 +19,7 @@
 | 5 | Popups con condiciones, disparadores y reglas de frecuencia | ✅ v0.5.0 |
 | 6b | CSS y atributos personalizados, sticky, efectos, diapositivas y carrusel de medios | ✅ v0.5.0 |
 | 8 | Widgets de producto, archivo, carrito, compra y cuenta de WooCommerce | ✅ v0.5.0 |
+| 9 | Dashboard Pro: fuentes, iconos, código personalizado y edición de solo contenido por rol | ✅ v0.6.0 |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 
@@ -77,6 +78,19 @@ En **Plantillas → Theme Builder → Elementos de bucle** crea una tarjeta y ed
 
 Los controles nativos con soporte dinámico pueden usar datos de entrada, archivo, sitio, usuario, autor, comentarios, acciones y producto. En **Avanzado** funcionan CSS personalizado, atributos filtrados, sticky y efectos de scroll/ratón con las mismas claves de datos de Pro. Los atributos capaces de ejecutar scripts o alterar enlaces se descartan en el servidor.
 
+### Herramientas del dashboard
+
+El menú moderno de Elementor incluye equivalentes funcionales de sus herramientas locales de Pro:
+
+- **Editor → Plantillas**: Theme Builder, plantillas guardadas y Popups.
+- **Editor → Envíos**: registros de formularios con detalle, estado y metadatos.
+- **Editor → Administrador de roles**: sin acceso, edición completa o edición de solo contenido.
+- **Editor → Elementos personalizados → Fuentes**: carga WOFF2, WOFF, TTF y OTF, con peso y estilo; las familias aparecen en los controles de Tipografía.
+- **Editor → Elementos personalizados → Iconos**: carga SVG saneado y biblioteca propia dentro del selector de iconos.
+- **Editor → Elementos personalizados → Código**: HTML, CSS o JavaScript en `head`, inicio o final de `body`, con prioridad y condiciones de visualización.
+
+Licencia, soporte, plantillas en la nube y los plugins independientes de Elementor (accesibilidad, correo e imágenes) son servicios externos, no funciones locales del dashboard, y no se simulan.
+
 ## Interoperabilidad con Elementor Pro
 
 Desde la v0.4.0 los datos se guardan **en el mismo formato que Elementor Pro**, así que un sitio puede pasar de uno a otro en ambas direcciones:
@@ -134,6 +148,7 @@ includes/class-plugin.php          Comprobaciones (Elementor, versión, Pro) y c
 includes/class-context.php         Entrada/consulta real o de vista previa para los widgets
 includes/class-converter.php       Conversión de datos antiguos al formato de Pro (botón y wp obx convert)
 includes/forms/                    Envío del formulario (REST), acciones y envíos guardados
+includes/admin/                    Dashboard: menús, fuentes, iconos, código y restricciones por rol
 includes/dynamic/                  Etiquetas dinámicas compatibles con el formato de Pro
 includes/extras/                   CSS, atributos, sticky y efectos de movimiento
 includes/popups/                   Condiciones, disparadores y runtime de ventanas emergentes

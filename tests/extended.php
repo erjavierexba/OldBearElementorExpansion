@@ -3,6 +3,7 @@
 if (!defined('WP_CLI') || !WP_CLI) { exit; }
 
 use Elementor\Plugin as Elementor;
+use OldBearExpansion\Admin\Dashboard;
 use OldBearExpansion\ThemeBuilder\Location_Document;
 
 $checks=0; $created=[]; $grid_id='';
@@ -20,6 +21,25 @@ try{
     foreach(['loop-item','popup','product','product-archive'] as $name){$assert((bool)Elementor::$instance->documents->get_document_type($name,false),"Falta el documento {$name}.");}
     $native=Elementor::$instance->widgets_manager->get_widget_types()['heading']->get_controls();
     foreach(['custom_css','_attributes','sticky','motion_fx_motion_fx_scrolling','motion_fx_motion_fx_mouse'] as $control){$assert(isset($native[$control]),"Falta el control avanzado {$control} en widgets nativos.");}
+
+    foreach([Dashboard::FONT,Dashboard::ICON,Dashboard::CODE] as $post_type){$assert(post_type_exists($post_type),"Falta la herramienta administrativa {$post_type}.");}
+    $provider=new class{public array $items=[];public function register_menu($item):void{$this->items[]=$item;}};
+    Dashboard::editor_menu($provider);$labels=array_map(static fn($item)=>$item->get_label(),$provider->items);
+    foreach(['Elementos personalizados','Fuentes','Iconos','Código','Theme Builder','Popups'] as $label){$assert(in_array($label,$labels,true),"Falta {$label} en el menú de Elementor.");}
+    ob_start();Dashboard::render_dashboard();$dashboard_html=ob_get_clean();
+    foreach(['Theme Builder','Popups','Envíos','Fuentes','Iconos','Código','Administrador de roles'] as $label){$assert(str_contains($dashboard_html,$label),"Falta {$label} en el panel de inicio de WordPress.");}
+    $remote=\OldBearExpansion\Clean\Clean_Mode::remote_info(['pro_widgets'=>['locked'],'admin_notice'=>['title'=>'Oferta']]);
+    $assert($remote['pro_widgets']===[]&&!isset($remote['admin_notice']),'El modo limpio debe retirar la publicidad remota del escritorio.');
+    $safe_svg=Dashboard::sanitize_svg('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script><path d="M0 0"/></svg>');
+    $assert($safe_svg!==''&&!str_contains($safe_svg,'script')&&!str_contains($safe_svg,'onload'),'Los SVG personalizados deben sanear scripts y eventos.');
+    $font=wp_insert_post(['post_type'=>Dashboard::FONT,'post_status'=>'publish','post_title'=>'OBX Test Font']);$created[]=$font;update_post_meta($font,'_obx_font_url','https://example.org/test.woff2');
+    $icon=wp_insert_post(['post_type'=>Dashboard::ICON,'post_status'=>'publish','post_title'=>'OBX Paw']);$created[]=$icon;update_post_meta($icon,'_obx_icon_url','https://example.org/paw.svg');
+    $code=wp_insert_post(['post_type'=>Dashboard::CODE,'post_status'=>'publish','post_title'=>'OBX Test Code']);$created[]=$code;update_post_meta($code,'_obx_code_location','head');update_post_meta($code,'_obx_code_condition','entire_site');update_post_meta($code,'_obx_code_priority',5);update_post_meta($code,'_obx_code','<meta name="obx-code-test" content="ok">');
+    $fonts=Dashboard::fonts([]);$tabs=Dashboard::icon_tabs([]);ob_start();Dashboard::font_styles();$font_css=ob_get_clean();ob_start();Dashboard::print_code('head');$custom_code=ob_get_clean();
+    $assert(($fonts['OBX Test Font']??'')==='obx-custom'&&str_contains($font_css,'@font-face'),'Las fuentes personalizadas deben registrarse y generar CSS.');
+    $assert(isset($tabs['obx-custom-icons'])&&in_array('obx-paw',$tabs['obx-custom-icons']['icons'],true),'Los iconos personalizados deben entrar en la biblioteca de Elementor.');
+    $assert(str_contains($custom_code,'obx-code-test'),'El código personalizado debe respetar ubicación y condición.');
+    ob_start();Dashboard::role_control('editor',[]);$role_html=ob_get_clean();$assert(str_contains($role_html,'value="design"'),'El Administrador de roles debe ofrecer edición de solo contenido.');
 
     $cat=wp_insert_term('obx-loop-'.$uid(),'category'); $term=(int)$cat['term_id'];
     $posts=[]; foreach(['Uno','Dos','Tres'] as $title){$id=wp_insert_post(['post_type'=>'post','post_status'=>'publish','post_title'=>'Bucle '.$title,'post_content'=>'Contenido '.$title,'post_category'=>[$term]]);$created[]=$id;$posts[]=$id;}

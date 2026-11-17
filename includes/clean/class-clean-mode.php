@@ -43,7 +43,11 @@ final class Clean_Mode {
 
     /** Elementor appends locked "Pro" widgets from its remote info after the editor config filter. */
     public static function remote_info($data) {
-        if (is_array($data)) { $data['pro_widgets'] = []; }
+        if (is_array($data)) {
+            $data['pro_widgets'] = [];
+            // Elementor uses this remote slot for seasonal and upgrade marketing.
+            unset($data['admin_notice']);
+        }
         return $data;
     }
 

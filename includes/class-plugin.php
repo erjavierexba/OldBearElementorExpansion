@@ -40,6 +40,8 @@ final class Plugin {
         Popups\Popups::boot();
         require_once DIR . '/includes/forms/class-handler.php';
         Forms\Handler::boot();
+        require_once DIR . '/includes/admin/class-dashboard.php';
+        Admin\Dashboard::boot();
         require_once DIR . '/includes/compat.php';
         require_once DIR . '/includes/clean/class-clean-mode.php';
         Clean\Clean_Mode::boot();
