@@ -37,7 +37,7 @@ final class Locations {
         if (is_array($index)) { return $index; }
         $index = array_fill_keys(array_keys(Module::LOCATIONS), []);
         $posts = get_posts(['post_type'=>'elementor_library','post_status'=>'publish','posts_per_page'=>-1,'fields'=>'ids','orderby'=>'ID','order'=>'DESC',
-            'meta_query'=>[['key'=>'_elementor_template_type','value'=>array_map(static fn($l)=>'obx-' . $l, array_keys(Module::LOCATIONS)),'compare'=>'IN']]]);
+            'meta_query'=>[['key'=>'_elementor_template_type','value'=>array_keys(Module::TYPES),'compare'=>'IN']]]);
         foreach ($posts as $id) {
             $document = Elementor::$instance->documents->get($id);
             if ($document instanceof Location_Document) { $index[$document::LOCATION][$id] = $document->get_conditions(); }

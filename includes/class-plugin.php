@@ -20,7 +20,11 @@ final class Plugin {
         require_once DIR . '/includes/theme-builder/class-documents.php';
         require_once DIR . '/includes/theme-builder/class-locations.php';
         require_once DIR . '/includes/theme-builder/class-admin.php';
+        require_once DIR . '/includes/theme-builder/class-upgrade.php';
+        require_once DIR . '/includes/theme-builder/class-kit-import.php';
         require_once DIR . '/includes/theme-builder/class-module.php';
+        require_once DIR . '/includes/class-converter.php';
+        Converter::boot();
         if (self::pro_active()) {
             // Coexistence: Elementor Pro owns the Theme Builder; our widgets stay available.
             ThemeBuilder\Module::boot_widgets();
@@ -28,6 +32,8 @@ final class Plugin {
             return;
         }
         ThemeBuilder\Module::boot();
+        require_once DIR . '/includes/forms/class-handler.php';
+        Forms\Handler::boot();
         require_once DIR . '/includes/compat.php';
         require_once DIR . '/includes/clean/class-clean-mode.php';
         Clean\Clean_Mode::boot();

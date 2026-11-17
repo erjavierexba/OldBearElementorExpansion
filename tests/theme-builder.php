@@ -26,8 +26,9 @@ $go = static function (array $args, bool $not_found = false): void {
 $uid = static fn() => substr(str_replace('-', '', wp_generate_uuid4()), 0, 8);
 $widget = static fn(string $type, array $settings = []) => ['id'=>$uid(),'elType'=>'widget','widgetType'=>$type,'settings'=>$settings,'elements'=>[]];
 $created = [];
-$template = static function (string $location, array $rules, array $elements = []) use (&$created, $uid) {
-    $document = Elementor::$instance->documents->create('obx-' . $location, ['post_title'=>'obx-test ' . $location,'post_status'=>'publish']);
+$types = ['header'=>'header','footer'=>'footer','single'=>'single-post','archive'=>'archive','error-404'=>'error-404'];
+$template = static function (string $location, array $rules, array $elements = []) use (&$created, $uid, $types) {
+    $document = Elementor::$instance->documents->create($types[$location], ['post_title'=>'obx-test ' . $location,'post_status'=>'publish']);
     if (is_wp_error($document)) { throw new RuntimeException($document->get_error_message()); }
     $rows = array_map(static fn($r) => ['_id'=>$uid(),'mode'=>$r[0],'rule'=>$r[1],'object_id'=>$r[2] ?? ''], $rules);
     $document->save(['elements'=>$elements ?: [['id'=>$uid(),'elType'=>'container','isInner'=>false,'settings'=>[],'elements'=>[]]],'settings'=>['obx_conditions'=>$rows]]);
@@ -36,9 +37,9 @@ $template = static function (string $location, array $rules, array $elements = [
 };
 
 // Document types.
-foreach (['header','footer','single','archive','error-404'] as $location) {
-    $class = Elementor::$instance->documents->get_document_type('obx-' . $location, false);
-    $assert($class && is_subclass_of($class, Location_Document::class), "Tipo de documento no registrado: {$location}");
+foreach (['header','footer','single-post','single-page','single','archive','search-results','error-404'] as $type) {
+    $class = Elementor::$instance->documents->get_document_type($type, false);
+    $assert($class && is_subclass_of($class, Location_Document::class), "Tipo de documento no registrado: {$type}");
 }
 $assert(function_exists('elementor_theme_do_location'), 'Falta la API de compatibilidad para temas.');
 
@@ -91,7 +92,7 @@ try {
     // Rendering with real widgets and escaping.
     $go(['p'=>$post_a]);
     $html = Elementor::$instance->frontend->get_builder_content_for_display($single);
-    $assert(str_contains($html, 'obx-test-single') && str_contains($html, 'class="obx-post-title"'), 'La plantilla debe renderizar los widgets de tema.');
+    $assert(str_contains($html, 'obx-test-single') && preg_match('~<h1 class="elementor-heading-title [^"]*obx-post-title~', $html), 'La plantilla debe renderizar los widgets de tema.');
     $assert(str_contains($html, 'Contenido ' . $prefix), 'El contenido de la entrada debe aparecer.');
     $assert(!str_contains($html, '<script>alert(1)</script>') && str_contains($html, '&lt;script&gt;'), 'El título debe escaparse.');
     $assert(str_contains($html, $prefix), 'Los metadatos deben incluir la categoría.');
@@ -108,6 +109,40 @@ try {
     $GLOBALS['post'] = get_post($single);
     $assert(\OldBearExpansion\Context::template() instanceof Location_Document, 'El contexto debe detectar la plantilla en edición.');
     $assert(\OldBearExpansion\Context::post() instanceof WP_Post && \OldBearExpansion\Context::post()->post_type === 'post', 'La vista previa debe usar una entrada real.');
+
+    // Elementor Pro format: strings in _elementor_conditions, kept in sync with the editor rows.
+    $strings = ['include/singular/post/' . $post_b, 'include/archive/category/' . $term['term_id'], 'exclude/singular/page', 'include/singular/not_found404'];
+    $assert(Conditions::to_strings(Conditions::from_strings($strings)) === $strings, 'Las condiciones de Pro deben convertirse sin pérdidas.');
+    $assert(Conditions::from_strings([['type'=>'include','name'=>'singular','sub_name'=>'in_category','sub_id'=>(string) $term['term_id']]]) === [['mode'=>'include','rule'=>'singular/in_category','ids'=>[(int) $term['term_id']]]], 'Las condiciones en formato de manifiesto deben leerse.');
+    $assert(Conditions::from_strings(['include/singular/in_category', 'include/../../x', 'other']) === [], 'Las condiciones incompletas o inválidas deben descartarse.');
+    $saved = get_post_meta($specific, Conditions::META, true);
+    $assert($saved === ['include/singular/post/' . $post_b], 'Al guardar, las condiciones deben escribirse también en el formato de Pro.');
+    $assert(get_post_meta($in_term, Conditions::META, true) === ['include/singular/in_category/' . $term['term_id']], 'Las reglas antiguas deben guardarse con los nombres de Pro.');
+
+    // A template made with Pro: only the meta, no editor rows.
+    $pro_doc = Elementor::$instance->documents->create('single-page', ['post_title'=>'obx-test pro','post_status'=>'publish']);
+    $pro_page = $pro_doc->get_main_id();
+    $created[] = $pro_page;
+    $pro_doc->save(['elements'=>[['id'=>$uid(),'elType'=>'container','isInner'=>false,'settings'=>[],'elements'=>[]]]]);
+    delete_post_meta($pro_page, '_elementor_page_settings');
+    update_post_meta($pro_page, Conditions::META, ['include/singular/page/' . $page]);
+    Locations::flush();
+    $go(['page_id'=>$page]);
+    $assert(Locations::template_id('single') === $pro_page, 'Una plantilla con condiciones de Pro debe aplicarse.');
+    delete_post_meta($pro_page, Conditions::META);
+    Locations::flush();
+    $go(['page_id'=>$page]);
+    $assert(Locations::template_id('single') === 0, 'Sin condiciones, una plantilla no se muestra.');
+
+    // Templates from earlier versions are migrated to Elementor Pro's types.
+    $legacy = wp_insert_post(['post_type'=>'elementor_library','post_status'=>'publish','post_title'=>'obx-test legacy']);
+    $created[] = $legacy;
+    update_post_meta($legacy, '_elementor_template_type', 'obx-footer');
+    update_post_meta($legacy, '_elementor_edit_mode', 'builder');
+    update_post_meta($legacy, '_elementor_page_settings', ['obx_conditions'=>[['_id'=>'a1','mode'=>'include','rule'=>'taxonomy/category','object_id'=>(string) $term['term_id']]]]);
+    $assert(\OldBearExpansion\ThemeBuilder\Upgrade::run() >= 1, 'La migración debe convertir las plantillas antiguas.');
+    $assert(get_post_meta($legacy, '_elementor_template_type', true) === 'footer' && has_term('footer', 'elementor_library_type', $legacy), 'El tipo antiguo debe pasar a «footer».');
+    $assert(get_post_meta($legacy, Conditions::META, true) === ['include/archive/category/' . $term['term_id']], 'La migración debe escribir las condiciones de Pro.');
 } finally {
     foreach ($created as $id) { wp_delete_post($id, true); }
     foreach ([$post_a, $post_b, $page] as $id) { wp_delete_post($id, true); }

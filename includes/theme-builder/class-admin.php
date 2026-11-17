@@ -47,8 +47,9 @@ final class Admin {
             wp_die('No tienes permiso para crear plantillas.', '', ['response'=>403]);
         }
         $class = Module::LOCATIONS[$location];
-        $document = Elementor::$instance->documents->create('obx-' . $location, ['post_title'=>$class::get_title() . ' ' . wp_date('Y-m-d H:i'),'post_status'=>'draft']);
+        $document = Elementor::$instance->documents->create($class::TYPE, ['post_title'=>$class::get_title() . ' ' . wp_date('Y-m-d H:i'),'post_status'=>'draft']);
         if (is_wp_error($document)) { wp_die(esc_html($document->get_error_message())); }
+        Location_Document::store_conditions((int) $document->get_main_id(), [['mode'=>'include','rule'=>Conditions::default_rule($location),'ids'=>[]]]);
         wp_safe_redirect($document->get_edit_url());
         exit;
     }
@@ -59,14 +60,15 @@ final class Admin {
         echo '<div class="wrap"><h1>Theme Builder</h1><p>Diseña con Elementor la cabecera, el pie, las entradas, los archivos y la página 404 de todo el sitio. Cada plantilla se muestra según sus condiciones de visualización (Ajustes de la plantilla → Condiciones de visualización).</p>';
         foreach (Module::LOCATIONS as $location => $class) {
             echo '<h2 style="margin-top:32px">' . esc_html($class::get_plural_title()) . '</h2>';
-            $posts = get_posts(['post_type'=>'elementor_library','post_status'=>['publish','draft','private'],'posts_per_page'=>-1,'meta_key'=>'_elementor_template_type','meta_value'=>'obx-' . $location]);
+            $posts = get_posts(['post_type'=>'elementor_library','post_status'=>['publish','draft','private'],'posts_per_page'=>-1,'meta_query'=>[['key'=>'_elementor_template_type','value'=>Module::types_for($location),'compare'=>'IN']]]);
             if ($posts) {
                 echo '<table class="widefat striped" style="max-width:1000px"><thead><tr><th>Plantilla</th><th>Estado</th><th>Condiciones</th><th></th></tr></thead><tbody>';
                 foreach ($posts as $post) {
                     $document = Elementor::$instance->documents->get($post->ID);
                     $conditions = $document instanceof Location_Document ? $document->get_conditions() : [];
                     $active = isset($index[$location][$post->ID]);
-                    echo '<tr><td><strong>' . esc_html($post->post_title) . '</strong></td><td>' . esc_html($active ? 'Activa' : ($post->post_status === 'publish' ? 'Publicada' : 'Borrador')) . '</td><td>' . esc_html(Conditions::describe($conditions, $location)) . '</td><td>';
+                    $kind = $document ? $document::get_title() : '';
+                    echo '<tr><td><strong>' . esc_html($post->post_title) . '</strong>' . ($kind && $kind !== $class::get_title() ? ' <span style="opacity:.7">· ' . esc_html($kind) . '</span>' : '') . '</td><td>' . esc_html($active ? 'Activa' : ($post->post_status === 'publish' ? 'Publicada' : 'Borrador')) . '</td><td>' . esc_html(Conditions::describe($conditions, $location)) . '</td><td>';
                     if (current_user_can('edit_post', $post->ID)) {
                         echo '<a class="button button-primary" href="' . esc_url(admin_url('post.php?post=' . $post->ID . '&action=elementor')) . '">Editar con Elementor</a>';
                     }
@@ -80,6 +82,7 @@ final class Admin {
             wp_nonce_field('obx_new_template');
             echo '<button class="button" type="submit">Añadir ' . esc_html(mb_strtolower($class::get_title())) . '</button></form>';
         }
+        \OldBearExpansion\Converter::box();
         echo '<p style="margin-top:32px"><em>Necesita un tema clásico (por ejemplo Hello Elementor). Los temas de bloques no usan header.php ni footer.php.</em></p></div>';
     }
 }

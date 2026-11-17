@@ -24,40 +24,63 @@
             if (left > 0) { return; }
             clearInterval(timer);
             if (document.body.classList.contains('elementor-editor-active')) { return; }
-            const action = el.dataset.expire;
-            if (action === 'hide') { el.hidden = true; }
-            if (action === 'message') { el.hidden = true; const msg = el.nextElementSibling; if (msg) { msg.hidden = false; } }
-            if (action === 'redirect' && el.dataset.redirect) { window.location.href = el.dataset.redirect; }
+            const actions = (el.dataset.expire || '').split(',');
+            if (actions.includes('hide') || actions.includes('message')) { el.hidden = true; }
+            if (actions.includes('message')) { const msg = el.nextElementSibling; if (msg && msg.classList.contains('obx-countdown__message')) { msg.hidden = false; } }
+            if (actions.includes('redirect') && el.dataset.redirect) { window.location.href = el.dataset.redirect; }
         };
         const timer = setInterval(tick, 1000);
         tick();
     };
 
     const headline = (el) => {
-        if (!once(el, 'obxReady') || !el.classList.contains('obx-headline--rotate')) {
-            if (el.classList.contains('obx-headline--highlight')) { requestAnimationFrame(() => el.classList.add('is-visible')); }
+        if (!once(el, 'obxReady')) { return; }
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const loop = el.dataset.loop !== '0';
+        if (el.classList.contains('obx-headline--highlight')) {
+            const duration = Number(el.dataset.duration) || 1200;
+            const delay = Number(el.dataset.delay) || 8000;
+            el.style.setProperty('--obx-highlight-duration', duration + 'ms');
+            const draw = () => { el.classList.remove('is-visible'); void el.offsetWidth; el.classList.add('is-visible'); };
+            const start = () => {
+                draw();
+                if (loop && !reduced) { setInterval(draw, duration + delay); }
+            };
+            if (reduced || !('IntersectionObserver' in window)) { el.classList.add('is-visible'); return; }
+            const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) { io.disconnect(); start(); } });
+            io.observe(el);
             return;
         }
         let words = [];
         try { words = JSON.parse(el.dataset.words || '[]'); } catch (e) { words = []; }
         const target = el.querySelector('.obx-headline__dynamic');
-        if (!target || words.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+        if (!target || words.length < 2 || reduced) { return; }
         const duration = Number(el.dataset.duration) || 2500;
-        const loop = el.dataset.loop !== '0';
         let index = 0;
         const typing = el.classList.contains('obx-headline--typing');
         const next = () => {
             if (!loop && index === words.length - 1) { return; }
             index = (index + 1) % words.length;
             if (typing) {
-                const word = words[index];
-                let i = 0;
-                target.textContent = '';
-                const type = setInterval(() => { target.textContent = word.slice(0, ++i); if (i >= word.length) { clearInterval(type); setTimeout(next, duration); } }, 70);
+                target.classList.add('is-selected');
+                setTimeout(() => {
+                    target.classList.remove('is-selected');
+                    const word = words[index];
+                    let i = 0;
+                    target.textContent = '';
+                    const type = setInterval(() => { target.textContent = word.slice(0, ++i); if (i >= word.length) { clearInterval(type); setTimeout(next, duration); } }, 90);
+                }, 500);
                 return;
             }
+            target.classList.remove('is-in');
             target.classList.add('is-out');
-            setTimeout(() => { target.textContent = words[index]; target.classList.remove('is-out'); setTimeout(next, duration); }, 300);
+            setTimeout(() => {
+                target.textContent = words[index];
+                target.classList.remove('is-out');
+                void target.offsetWidth;
+                target.classList.add('is-in');
+                setTimeout(next, duration);
+            }, 450);
         };
         setTimeout(next, duration);
     };
@@ -74,14 +97,18 @@
         if (!once(el, 'obxReady')) { return; }
         const body = el.querySelector('.obx-toc__body');
         const toggle = el.querySelector('.obx-toc__toggle');
+        const setOpen = (open) => {
+            if (!toggle) { return; }
+            toggle.setAttribute('aria-expanded', String(open));
+            body.hidden = !open;
+            el.classList.toggle('is-collapsed', !open);
+        };
         if (toggle) {
-            toggle.addEventListener('click', () => {
-                const open = toggle.getAttribute('aria-expanded') !== 'true';
-                toggle.setAttribute('aria-expanded', String(open));
-                body.hidden = !open;
-                el.classList.toggle('is-collapsed', !open);
-            });
+            toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
+            const below = { desktop: Infinity, tablet: 1024, mobile: 767 }[el.dataset.minimizedOn];
+            if (below && window.innerWidth <= below) { setOpen(false); }
         }
+        const bullet = el.querySelector('template.obx-toc__bullet');
         let root = document;
         if (el.dataset.container) { try { root = document.querySelector(el.dataset.container) || document; } catch (e) { root = document; } }
         const tags = (el.dataset.headings || 'h2,h3').split(',');
@@ -111,13 +138,15 @@
             const a = document.createElement('a');
             a.href = '#' + h.id;
             a.textContent = h.textContent.trim();
+            if (bullet) { li.classList.add('has-icon'); const icon = document.createElement('span'); icon.className = 'obx-toc__icon'; icon.appendChild(bullet.content.cloneNode(true)); li.appendChild(icon); }
             li.appendChild(a);
             parent.sub.appendChild(li);
             stack.push({ level, item: li, sub: null });
             links.push([a, h]);
         });
-        body.innerHTML = '';
+        Array.from(body.children).forEach((child) => { if (!child.matches('template')) { child.remove(); } });
         body.appendChild(top);
+        if (el.dataset.collapseSubitems === '1') { el.classList.add('obx-toc--collapse-subitems'); }
         const offset = Number(el.dataset.offset) || 0;
         el.addEventListener('click', (event) => {
             const a = event.target.closest('a[href^="#"]');
@@ -132,7 +161,13 @@
             const io = new IntersectionObserver((entries) => {
                 entries.forEach((entry) => {
                     if (!entry.isIntersecting) { return; }
-                    links.forEach(([a, h]) => a.classList.toggle('is-active', h === entry.target));
+                    links.forEach(([a, h]) => {
+                        a.classList.toggle('is-active', h === entry.target);
+                        a.parentElement.classList.toggle('is-active', h === entry.target);
+                    });
+                    el.querySelectorAll('li.is-open').forEach((li) => li.classList.remove('is-open'));
+                    const active = el.querySelector('a.is-active');
+                    for (let li = active && active.parentElement; li && li !== el; li = li.parentElement) { if (li.tagName === 'LI') { li.classList.add('is-open'); } }
                 });
             }, { rootMargin: `-${offset}px 0px -70% 0px` });
             links.forEach(([, h]) => io.observe(h));
@@ -157,7 +192,7 @@
                 ratio = total > 0 ? window.scrollY / total : 0;
             }
             const pct = Math.round(Math.min(1, Math.max(0, ratio)) * 100);
-            if (circular) { fill.style.strokeDashoffset = String(100 - pct); } else { fill.style.width = pct + '%'; }
+            if (circular) { fill.style.strokeDashoffset = String(el.classList.contains('obx-progress--rtl') ? pct - 100 : 100 - pct); } else { fill.style.width = pct + '%'; }
             if (value) { value.textContent = pct + '%'; }
             el.setAttribute('aria-valuenow', String(pct));
         };
@@ -231,8 +266,177 @@
         }
     };
 
+    /* «Load more» and infinite scroll: fetch the next page and append this widget's posts. */
+    const loadMore = (el) => {
+        if (!once(el, 'obxReady')) { return; }
+        const widget = el.closest('[data-id]');
+        const grid = widget && widget.querySelector('.obx-posts');
+        if (!grid) { return; }
+        const button = el.querySelector('.obx-load-more__button');
+        const message = el.querySelector('.obx-load-more__message');
+        let next = el.dataset.next;
+        let page = Number(el.dataset.page) || 1;
+        const max = Number(el.dataset.max) || 1;
+        let busy = false;
+        let observer = null;
+        const finish = () => {
+            if (button) { button.hidden = true; }
+            if (observer) { observer.disconnect(); }
+            el.classList.remove('is-loading');
+            if (message && el.dataset.done) { message.textContent = el.dataset.done; message.hidden = false; }
+        };
+        const load = () => {
+            if (busy || !next) { return; }
+            busy = true;
+            el.classList.add('is-loading');
+            if (button) { button.disabled = true; }
+            fetch(next, { credentials: 'same-origin' })
+                .then((response) => (response.ok ? response.text() : Promise.reject(response.status)))
+                .then((html) => {
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const remote = doc.querySelector(`[data-id="${CSS.escape(widget.dataset.id)}"] .obx-posts`);
+                    const items = remote ? Array.from(remote.children) : [];
+                    items.forEach((item) => grid.appendChild(document.importNode(item, true)));
+                    const more = remote && remote.parentElement.querySelector('.obx-load-more');
+                    page += 1;
+                    next = more && page < max ? more.dataset.next : '';
+                    busy = false;
+                    el.classList.remove('is-loading');
+                    if (button) { button.disabled = false; }
+                    if (!items.length || !next) { finish(); }
+                })
+                .catch(() => { busy = false; el.classList.remove('is-loading'); if (button) { button.disabled = false; } });
+        };
+        if (button) { button.addEventListener('click', load); }
+        if (el.dataset.mode === 'scroll' && 'IntersectionObserver' in window && !document.body.classList.contains('elementor-editor-active')) {
+            observer = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) { load(); } }, { rootMargin: '200px' });
+            observer.observe(el);
+        }
+    };
+
+    /* Full screen search: open/close the overlay. */
+    const searchToggle = (el) => {
+        if (!once(el, 'obxReady')) { return; }
+        const open = el.querySelector('.obx-search-toggle__open');
+        const overlay = el.querySelector('.obx-search-overlay');
+        if (!open || !overlay) { return; }
+        const set = (state) => {
+            overlay.hidden = !state;
+            open.setAttribute('aria-expanded', String(state));
+            if (state) { const field = overlay.querySelector('input'); if (field) { field.focus(); } } else { open.focus(); }
+        };
+        open.addEventListener('click', () => set(true));
+        overlay.querySelector('.obx-search-overlay__close').addEventListener('click', () => set(false));
+        overlay.addEventListener('click', (event) => { if (event.target === overlay) { set(false); } });
+        overlay.addEventListener('keydown', (event) => { if (event.key === 'Escape') { set(false); } });
+    };
+
+
+    /* Form: steps, validation and submission to our REST endpoint. */
+    const form = (el) => {
+        if (!once(el, 'obxReady')) { return; }
+        let messages = {};
+        try { messages = JSON.parse(el.dataset.messages || '{}'); } catch (e) { messages = {}; }
+        const box = el.querySelector('.obx-form__message');
+        const custom = el.hasAttribute('novalidate');
+        const steps = Array.from(el.querySelectorAll('.obx-form__step'));
+        let current = 0;
+        const say = (text, ok) => {
+            if (!box) { return; }
+            box.textContent = text || '';
+            box.hidden = !text;
+            box.classList.toggle('is-success', !!ok);
+            box.classList.toggle('is-error', !ok);
+        };
+        const fieldError = (wrap, text) => {
+            const slot = wrap && wrap.querySelector('.obx-form__error');
+            if (!slot) { return; }
+            slot.textContent = text || '';
+            slot.hidden = !text;
+            wrap.classList.toggle('has-error', !!text);
+        };
+        const clear = (scope) => scope.querySelectorAll('.obx-form__field.has-error').forEach((w) => fieldError(w, ''));
+        const check = (scope) => {
+            let valid = true;
+            let first = null;
+            clear(scope);
+            scope.querySelectorAll('.obx-form__field').forEach((wrap) => {
+                const group = wrap.querySelector('.obx-form__group[data-required]');
+                if (group && !group.querySelector('input:checked')) { fieldError(wrap, messages.required_field_message); valid = false; first = first || group.querySelector('input'); return; }
+                wrap.querySelectorAll('input, select, textarea').forEach((input) => {
+                    if (input.type === 'file' && input.files) {
+                        const max = Number(input.dataset.maxSize) * 1048576;
+                        const files = Array.from(input.files);
+                        if (input.dataset.maxFiles && files.length > Number(input.dataset.maxFiles)) { input.setCustomValidity(messages.invalid_message || 'invalid'); }
+                        else if (max && files.some((f) => f.size > max)) { input.setCustomValidity(messages.invalid_message || 'invalid'); }
+                        else { input.setCustomValidity(''); }
+                    }
+                    if (!input.checkValidity()) {
+                        valid = false;
+                        first = first || input;
+                        fieldError(wrap, input.validity.valueMissing ? messages.required_field_message : (custom ? messages.invalid_message : input.validationMessage));
+                    }
+                });
+            });
+            if (first) { first.focus(); }
+            return valid;
+        };
+        const indicators = Array.from(el.querySelectorAll('.obx-form__indicator'));
+        const bar = el.querySelector('.obx-form__progress');
+        const show = (index) => {
+            current = index;
+            steps.forEach((step, i) => { step.hidden = i !== index; });
+            indicators.forEach((li, i) => { li.classList.toggle('is-active', i === index); li.classList.toggle('is-completed', i < index); });
+            if (bar) {
+                const pct = Math.round(((index + 1) / steps.length) * 100);
+                bar.setAttribute('aria-valuenow', String(pct));
+                const fill = bar.querySelector('.obx-form__progress-fill');
+                if (fill) { fill.style.width = pct + '%'; fill.textContent = pct + '%'; }
+            }
+            const focus = steps[index] && steps[index].querySelector('input:not([type=hidden]), select, textarea');
+            if (focus) { focus.focus(); }
+        };
+        el.addEventListener('click', (event) => {
+            if (event.target.closest('.obx-form__next')) { event.preventDefault(); if (check(steps[current])) { show(current + 1); } }
+            if (event.target.closest('.obx-form__previous')) { event.preventDefault(); show(current - 1); }
+        });
+        el.addEventListener('submit', (event) => {
+            event.preventDefault();
+            say('');
+            if (!check(el)) { return; }
+            const button = el.querySelector('.obx-form__submit');
+            el.classList.add('is-sending');
+            if (button) { button.disabled = true; }
+            fetch(el.action, { method: 'POST', body: new FormData(el), credentials: 'same-origin', headers: { Accept: 'application/json' } })
+                .then((response) => response.json().catch(() => ({ success: false, data: {} })))
+                .then((json) => {
+                    const data = json.data || {};
+                    if (json.success) {
+                        el.reset();
+                        if (steps.length) { show(0); }
+                        say(data.message || messages.success_message, true);
+                        el.dispatchEvent(new CustomEvent('obx:form:success', { bubbles: true, detail: data }));
+                        if (data.redirect_url) { window.location.href = data.redirect_url; }
+                        return;
+                    }
+                    let firstStep = -1;
+                    Object.entries(data.errors || {}).forEach(([id, text]) => {
+                        const wrap = el.querySelector('.obx-form__field--' + CSS.escape(id));
+                        fieldError(wrap, text);
+                        const step = wrap && wrap.closest('.obx-form__step');
+                        if (step && firstStep < 0) { firstStep = steps.indexOf(step); }
+                    });
+                    if (firstStep >= 0) { show(firstStep); }
+                    say(data.message || messages.error_message, false);
+                })
+                .catch(() => say(messages.server_message || messages.error_message, false))
+                .finally(() => { el.classList.remove('is-sending'); if (button) { button.disabled = false; } });
+        });
+    };
+
     const handlers = {
         '.obx-countdown': countdown, '.obx-headline': headline, '.obx-toc': toc, '.obx-progress': progress, '.obx-code': code,
+        '.obx-load-more': loadMore, '.obx-search-toggle': searchToggle, 'form[data-obx-form]': form,
     };
     const init = (root) => {
         Object.entries(handlers).forEach(([selector, fn]) => {
@@ -246,8 +450,7 @@
     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => init(document)); } else { init(document); }
     window.addEventListener('elementor/frontend/init', () => {
         if (!window.elementorFrontend || !window.elementorFrontend.hooks) { return; }
-        ['countdown', 'animated-headline', 'table-of-contents', 'progress-tracker', 'code-highlight'].forEach((name) => {
-            window.elementorFrontend.hooks.addAction(`frontend/element_ready/${name}.default`, ($scope) => init($scope[0] || $scope));
-        });
+        // «global» runs for every element, whatever its skin («posts.classic», «countdown.default»…).
+        window.elementorFrontend.hooks.addAction('frontend/element_ready/global', ($scope) => init($scope[0] || $scope));
     });
 })();

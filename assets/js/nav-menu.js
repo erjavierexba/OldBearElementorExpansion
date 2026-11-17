@@ -6,7 +6,12 @@
             nav.dataset.obxReady = '1';
             const toggle = nav.querySelector('.obx-nav__toggle');
             if (!toggle) { return; }
-            const setOpen = (open) => { nav.classList.toggle('is-open', open); toggle.setAttribute('aria-expanded', String(open)); };
+            const menu = nav.querySelector('.obx-nav__menu');
+            const setOpen = (open) => {
+                nav.classList.toggle('is-open', open);
+                if (menu) { menu.classList.toggle('is-panel', open); }
+                toggle.setAttribute('aria-expanded', String(open));
+            };
             toggle.addEventListener('click', () => setOpen(!nav.classList.contains('is-open')));
             nav.addEventListener('keydown', (event) => { if (event.key === 'Escape' && nav.classList.contains('is-open')) { setOpen(false); toggle.focus(); } });
             document.addEventListener('click', (event) => { if (!nav.contains(event.target)) { setOpen(false); } });

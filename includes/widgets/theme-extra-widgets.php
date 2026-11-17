@@ -2,140 +2,228 @@
 namespace OldBearExpansion\Widgets;
 
 use Elementor\Controls_Manager;
+use Elementor\Group_Control_Box_Shadow;
 use Elementor\Group_Control_Typography;
+use Elementor\Icons_Manager;
+use Elementor\Utils;
 use OldBearExpansion\Context;
 
 if (!defined('ABSPATH')) { exit; }
 
-/** Title of the current page, post, archive or search, whatever the view. */
-final class Page_Title extends Base {
-    public const PRO = 'theme-page-title';
-    public function get_title(): string { return 'Título de la página'; }
-    public function get_icon(): string { return 'eicon-archive-title'; }
-    public function get_keywords(): array { return ['title','titulo','page','pagina','heading']; }
-    protected function register_controls(): void {
-        $this->start_controls_section('content', ['label'=>'Título']);
-        $this->tag_control('h1');
-        $this->end_controls_section();
-        $this->text_style('.obx-page-title', 'Título');
-    }
-    protected function render(): void {
-        if (Context::template() || is_singular()) {
-            $post = Context::post();
-            $title = $post ? get_the_title($post) : '';
-        } elseif (is_404()) {
-            $title = 'Página no encontrada';
-        } else {
-            $title = Context::archive_title();
-        }
-        if ($title === '') { $this->placeholder('Título de la página'); return; }
-        printf('<%1$s class="obx-page-title">%2$s</%1$s>', $this->tag(), esc_html($title));
-    }
-}
-
-final class Author_Box extends Base {
+final class Author_Box extends Element {
     public const PRO = 'author-box';
+    protected const V03 = ['show_bio'=>'show_biography','name_tag'=>'author_name_tag','button'=>'link_text','avatar_size'=>'image_size','avatar_radius'=>'image_border_radius'];
     public function get_title(): string { return 'Caja de autor'; }
     public function get_icon(): string { return 'eicon-person'; }
     public function get_keywords(): array { return ['author','autor','bio','biografia','perfil']; }
-    protected function register_controls(): void {
-        $this->start_controls_section('content', ['label'=>'Autor']);
-        $this->add_control('show_avatar', ['label'=>'Avatar','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes']);
-        $this->add_control('layout', ['label'=>'Posición del avatar','type'=>Controls_Manager::SELECT,'options'=>['left'=>'Izquierda','top'=>'Arriba','right'=>'Derecha'],'default'=>'left','condition'=>['show_avatar'=>'yes']]);
-        $this->add_control('show_name', ['label'=>'Nombre','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes']);
-        $this->add_control('name_tag', ['label'=>'Etiqueta del nombre','type'=>Controls_Manager::SELECT,'options'=>['h3'=>'H3','h4'=>'H4','h5'=>'H5','p'=>'p','div'=>'div'],'default'=>'h4','condition'=>['show_name'=>'yes']]);
-        $this->add_control('show_bio', ['label'=>'Biografía','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes']);
-        $this->add_control('link_to', ['label'=>'Enlace','type'=>Controls_Manager::SELECT,'options'=>['posts'=>'Entradas del autor','website'=>'Web del autor','none'=>'Ninguno'],'default'=>'posts']);
-        $this->add_control('button', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'','placeholder'=>'Todas las entradas','condition'=>['link_to!'=>'none']]);
-        $this->end_controls_section();
-        $this->start_controls_section('avatar_style', ['label'=>'Avatar','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_avatar'=>'yes']]);
-        $this->add_responsive_control('avatar_size', ['label'=>'Tamaño','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['min'=>20,'max'=>300]],'default'=>['unit'=>'px','size'=>96],'selectors'=>['{{WRAPPER}} .obx-author__avatar img'=>'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};']]);
-        $this->add_control('avatar_radius', ['label'=>'Radio','type'=>Controls_Manager::SLIDER,'size_units'=>['%','px'],'default'=>['unit'=>'%','size'=>50],'selectors'=>['{{WRAPPER}} .obx-author__avatar img'=>'border-radius: {{SIZE}}{{UNIT}};']]);
-        $this->end_controls_section();
-        $this->text_style('.obx-author__name', 'Nombre', 'name', false);
-        $this->text_style('.obx-author__bio', 'Biografía', 'bio', false);
-        $this->button_style('.obx-author__button', 'Botón', 'button', ['button!'=>'']);
+    protected function is_dynamic_content(): bool { return true; }
+    public function get_script_depends(): array { return []; }
+
+    public static function wants_upgrade(string $name, array $settings): bool { return $name === self::PRO && (isset($settings['show_bio']) || isset($settings['name_tag']) || isset($settings['button']) || isset($settings['avatar_size'])); }
+    protected static function upgrade_settings(array $s): array {
+        if (isset($s['layout'])) { $s['layout'] = ['top'=>'above','left'=>'left','right'=>'right'][$s['layout']] ?? 'left'; }
+        if (isset($s['link_to'])) { $s['link_to'] = ['posts'=>'posts_archive','website'=>'website','none'=>''][$s['link_to']] ?? ''; }
+        $s['show_link'] = ($s['button'] ?? '') !== '' ? 'yes' : '';
+        return parent::upgrade_settings($s);
     }
+
+    protected function register_controls(): void {
+        $this->start_controls_section('section_author_info', ['label'=>'Autor']);
+        $this->add_control('source', ['label'=>'Origen','type'=>Controls_Manager::SELECT,'default'=>'current','options'=>['current'=>'Autor actual','custom'=>'Personalizado']]);
+        $this->add_control('show_avatar', ['label'=>'Foto de perfil','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['source'=>'current'],'separator'=>'before']);
+        $this->add_control('author_avatar', ['label'=>'Foto de perfil','type'=>Controls_Manager::MEDIA,'default'=>['url'=>Utils::get_placeholder_image_src()],'condition'=>['source'=>'custom'],'separator'=>'before']);
+        $this->add_control('show_name', ['label'=>'Nombre visible','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['source'=>'current'],'separator'=>'before']);
+        $this->add_control('author_name', ['label'=>'Nombre','type'=>Controls_Manager::TEXT,'default'=>'Nombre del autor','condition'=>['source'=>'custom'],'separator'=>'before']);
+        $this->add_control('author_name_tag', ['label'=>'Etiqueta HTML','type'=>Controls_Manager::SELECT,'default'=>'h4','options'=>self::heading_tags()]);
+        $this->add_control('link_to', ['label'=>'Enlace','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Ninguno','website'=>'Web','posts_archive'=>'Entradas del autor'],'condition'=>['source'=>'current'],'description'=>'Se aplica al nombre y a la foto.']);
+        $this->add_control('author_website', ['label'=>'Enlace','type'=>Controls_Manager::URL,'condition'=>['source'=>'custom'],'description'=>'Se aplica al nombre y a la foto.']);
+        $this->add_control('show_biography', ['label'=>'Biografía','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['source'=>'current'],'separator'=>'before']);
+        $this->add_control('author_bio', ['label'=>'Biografía','type'=>Controls_Manager::TEXTAREA,'default'=>'Escribe aquí una presentación breve del autor.','rows'=>3,'condition'=>['source'=>'custom'],'separator'=>'before']);
+        $this->add_control('show_link', ['label'=>'Botón «Todas las entradas»','type'=>Controls_Manager::SWITCHER,'default'=>'','condition'=>['source'=>'current']]);
+        $this->add_control('posts_url', ['label'=>'Enlace del archivo','type'=>Controls_Manager::URL,'condition'=>['source'=>'custom']]);
+        $this->add_control('link_text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'Todas las entradas','conditions'=>['relation'=>'or','terms'=>[['name'=>'show_link','operator'=>'===','value'=>'yes'],['name'=>'source','operator'=>'===','value'=>'custom']]]]);
+        $this->add_control('layout', ['label'=>'Posición de la foto','type'=>Controls_Manager::CHOOSE,'options'=>['left'=>['title'=>'Izquierda','icon'=>'eicon-h-align-left'],'above'=>['title'=>'Arriba','icon'=>'eicon-v-align-top'],'right'=>['title'=>'Derecha','icon'=>'eicon-h-align-right']],'separator'=>'before']);
+        $this->add_control('alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::align_options(),'selectors'=>self::css('.obx-author__text', 'text-align: {{VALUE}};')]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_image_style', ['label'=>'Foto','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('image_vertical_align', ['label'=>'Alineación vertical','type'=>Controls_Manager::CHOOSE,'options'=>['top'=>['title'=>'Arriba','icon'=>'eicon-v-align-top'],'middle'=>['title'=>'Centro','icon'=>'eicon-v-align-middle']],'selectors_dictionary'=>['top'=>'flex-start','middle'=>'center'],'selectors'=>self::css('.obx-author', 'align-items: {{VALUE}};'),'condition'=>['layout!'=>'above']]);
+        $this->slider('image_size', 'Tamaño', '.obx-author__avatar img', 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>200]]], true);
+        $this->slider('image_gap', 'Separación', '.obx-author', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]], true);
+        $this->add_control('image_border', ['label'=>'Borde','type'=>Controls_Manager::SWITCHER,'selectors'=>self::css('.obx-author__avatar img', 'border-style: solid;'),'separator'=>'before']);
+        $this->color('image_border_color', 'Color del borde', '.obx-author__avatar img', 'border-color', ['condition'=>['image_border'=>'yes']]);
+        $this->slider('image_border_width', 'Grosor del borde', '.obx-author__avatar img', 'border-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>20]],'condition'=>['image_border'=>'yes']], true);
+        $this->slider('image_border_radius', 'Radio del borde', '.obx-author__avatar img', 'border-radius: {{SIZE}}{{UNIT}};', ['size_units'=>['%','px','em','rem']], true);
+        $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'input_box_shadow','selector'=>'{{WRAPPER}} .obx-author__avatar img']);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_text_style', ['label'=>'Texto','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('heading_name_style', ['label'=>'Nombre','type'=>Controls_Manager::HEADING]);
+        $this->color('name_color', 'Color', '.obx-author__name, .obx-author__name a');
+        $this->typography('name_typography', '.obx-author__name');
+        $this->slider('name_gap', 'Separación', '.obx-author__name', 'margin-bottom: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]], true);
+        $this->add_control('heading_bio_style', ['label'=>'Biografía','type'=>Controls_Manager::HEADING,'separator'=>'before']);
+        $this->color('bio_color', 'Color', '.obx-author__bio');
+        $this->typography('bio_typography', '.obx-author__bio');
+        $this->slider('bio_gap', 'Separación', '.obx-author__bio', 'margin-bottom: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]], true);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_style_button', ['label'=>'Botón','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->color('button_text_color', 'Color del texto', '.obx-author__button');
+        $this->color('button_background_color', 'Fondo', '.obx-author__button', 'background-color');
+        $this->color('button_hover_color', 'Color al pasar el ratón', '.obx-author__button:hover', 'color');
+        $this->color('button_hover_background_color', 'Fondo al pasar el ratón', '.obx-author__button:hover', 'background-color');
+        $this->color('button_hover_border_color', 'Borde al pasar el ratón', '.obx-author__button:hover', 'border-color');
+        $this->typography('button_typography', '.obx-author__button', ['separator'=>'before']);
+        $this->slider('button_border_width', 'Grosor del borde', '.obx-author__button', 'border-width: {{SIZE}}{{UNIT}}; border-style: solid;', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>20]]]);
+        $this->slider('button_border_radius', 'Radio del borde', '.obx-author__button', 'border-radius: {{SIZE}}{{UNIT}};', ['range'=>['px'=>['max'=>100]]]);
+        $this->dimensions('button_text_padding', 'Relleno', '.obx-author__button', 'padding');
+        $this->add_control('button_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::HOVER_ANIMATION]);
+        $this->end_controls_section();
+    }
+
     protected function render(): void {
         $s = $this->get_settings_for_display();
-        $post = Context::post();
-        $author = $post ? (int) $post->post_author : (is_author() ? (int) get_queried_object_id() : 0);
-        if (!$author || !get_userdata($author)) { $this->placeholder('No hay autor que mostrar.'); return; }
-        $url = $s['link_to'] === 'posts' ? get_author_posts_url($author) : ($s['link_to'] === 'website' ? (string) get_the_author_meta('url', $author) : '');
-        $name = esc_html(get_the_author_meta('display_name', $author));
-        $layout = in_array($s['layout'], ['left','top','right'], true) ? $s['layout'] : 'left';
+        $custom = ($s['source'] ?? 'current') === 'custom';
+        if ($custom) {
+            $name = (string) ($s['author_name'] ?? '');
+            $bio = (string) ($s['author_bio'] ?? '');
+            $avatar = !empty($s['author_avatar']['url']) ? '<img src="' . esc_url($s['author_avatar']['url']) . '" alt="' . esc_attr($name) . '" loading="lazy">' : '';
+            $url = (string) ($s['author_website']['url'] ?? '');
+            $button_url = (string) ($s['posts_url']['url'] ?? '');
+            $show_button = $button_url !== '';
+        } else {
+            $post = Context::post();
+            $author = is_author() && !Context::template() ? (int) get_queried_object_id() : ($post ? (int) $post->post_author : 0);
+            if (!$author || !get_userdata($author)) { $this->placeholder('No hay autor que mostrar.'); return; }
+            $name = ($s['show_name'] ?? 'yes') === 'yes' ? (string) get_the_author_meta('display_name', $author) : '';
+            $bio = ($s['show_biography'] ?? 'yes') === 'yes' ? (string) get_the_author_meta('description', $author) : '';
+            $avatar = ($s['show_avatar'] ?? 'yes') === 'yes' ? (string) get_avatar($author, 300, '', get_the_author_meta('display_name', $author), ['loading'=>'lazy']) : '';
+            $link = (string) ($s['link_to'] ?? '');
+            $url = $link === 'posts_archive' ? get_author_posts_url($author) : ($link === 'website' ? (string) get_the_author_meta('url', $author) : '');
+            $button_url = get_author_posts_url($author);
+            $show_button = ($s['show_link'] ?? '') === 'yes';
+        }
+        $layout = in_array($s['layout'] ?? '', ['left','above','right'], true) ? $s['layout'] : 'left';
         echo '<div class="obx-author obx-author--' . esc_attr($layout) . '">';
-        if ($s['show_avatar'] === 'yes') {
-            $avatar = get_avatar($author, 300, '', $name, ['loading'=>'lazy']);
-            echo '<div class="obx-author__avatar">' . ($url ? '<a href="' . esc_url($url) . '" tabindex="-1" aria-hidden="true">' . $avatar . '</a>' : $avatar) . '</div>';
-        }
+        if ($avatar !== '') { echo '<div class="obx-author__avatar">' . ($url ? '<a href="' . esc_url($url) . '" tabindex="-1" aria-hidden="true">' . $avatar . '</a>' : $avatar) . '</div>'; }
         echo '<div class="obx-author__text">';
-        if ($s['show_name'] === 'yes') {
-            $tag = in_array($s['name_tag'], ['h3','h4','h5','p','div'], true) ? $s['name_tag'] : 'h4';
-            printf('<%1$s class="obx-author__name">%2$s</%1$s>', $tag, $url ? '<a href="' . esc_url($url) . '">' . $name . '</a>' : $name);
+        if ($name !== '') {
+            $tag = self::pick_tag($s['author_name_tag'] ?? '', 'h4');
+            printf('<%1$s class="obx-author__name">%2$s</%1$s>', $tag, $url ? '<a href="' . esc_url($url) . '">' . esc_html($name) . '</a>' : esc_html($name));
         }
-        if ($s['show_bio'] === 'yes' && get_the_author_meta('description', $author)) {
-            echo '<div class="obx-author__bio">' . wp_kses_post(wpautop(get_the_author_meta('description', $author))) . '</div>';
+        if ($bio !== '') { echo '<div class="obx-author__bio">' . wp_kses_post(wpautop($bio)) . '</div>'; }
+        if ($show_button && (string) ($s['link_text'] ?? '') !== '') {
+            $animation = ($s['button_hover_animation'] ?? '') ? ' elementor-animation-' . sanitize_html_class($s['button_hover_animation']) : '';
+            echo '<a class="obx-author__button elementor-button elementor-size-xs' . esc_attr($animation) . '" href="' . esc_url($button_url) . '">' . esc_html($s['link_text']) . '</a>';
         }
-        if ($url && $s['button'] !== '') { echo '<a class="obx-author__button" href="' . esc_url($url) . '">' . esc_html($s['button']) . '</a>'; }
         echo '</div></div>';
     }
 }
 
-final class Post_Navigation extends Base {
+final class Post_Navigation extends Element {
     public const PRO = 'post-navigation';
     public function get_title(): string { return 'Navegación de entradas'; }
     public function get_icon(): string { return 'eicon-post-navigation'; }
     public function get_keywords(): array { return ['navigation','navegacion','anterior','siguiente','previous','next']; }
+    protected function is_dynamic_content(): bool { return true; }
+    public function get_script_depends(): array { return []; }
+    public static function wants_upgrade(string $name, array $settings): bool { return false; }
+
     protected function register_controls(): void {
-        $this->start_controls_section('content', ['label'=>'Navegación']);
-        $this->add_control('show_label', ['label'=>'Etiqueta','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes']);
+        $this->start_controls_section('section_post_navigation_content', ['label'=>'Navegación']);
+        $this->add_control('show_label', ['label'=>'Etiqueta','type'=>Controls_Manager::SWITCHER,'default'=>'yes']);
         $this->add_control('prev_label', ['label'=>'Etiqueta anterior','type'=>Controls_Manager::TEXT,'default'=>'Anterior','condition'=>['show_label'=>'yes']]);
         $this->add_control('next_label', ['label'=>'Etiqueta siguiente','type'=>Controls_Manager::TEXT,'default'=>'Siguiente','condition'=>['show_label'=>'yes']]);
-        $this->add_control('show_title', ['label'=>'Título de la entrada','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes']);
-        $this->add_control('show_arrow', ['label'=>'Flechas','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes']);
-        $this->add_control('in_same_term', ['label'=>'Solo de la misma categoría','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'']);
+        $this->add_control('show_arrow', ['label'=>'Flechas','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before']);
+        $this->add_control('arrow', ['label'=>'Tipo de flecha','type'=>Controls_Manager::SELECT,'default'=>'fa fa-angle-left','options'=>['fa fa-angle-left'=>'Ángulo','fa fa-angle-double-left'=>'Doble ángulo','fa fa-chevron-left'=>'Galón','fa fa-chevron-circle-left'=>'Galón en círculo','fa fa-caret-left'=>'Triángulo','fa fa-arrow-left'=>'Flecha','fa fa-long-arrow-left'=>'Flecha larga','fa fa-arrow-circle-left'=>'Flecha en círculo','fa fa-arrow-circle-o-left'=>'Flecha en círculo (contorno)'],'condition'=>['show_arrow'=>'yes']]);
+        $this->add_control('show_title', ['label'=>'Título de la entrada','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before']);
+        $this->add_control('show_borders', ['label'=>'Separadores','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before']);
+        $this->add_control('in_same_term', ['label'=>'Solo del mismo término','type'=>Controls_Manager::SWITCHER,'default'=>'','separator'=>'before']);
+        foreach (get_post_types(['public'=>true], 'objects') as $type) {
+            $taxonomies = [];
+            foreach (get_object_taxonomies($type->name, 'objects') as $taxonomy) { if ($taxonomy->public && $taxonomy->hierarchical !== null) { $taxonomies[$taxonomy->name] = $taxonomy->label; } }
+            if (!$taxonomies) { continue; }
+            $this->add_control($type->name . '_taxonomy', ['label'=>'Taxonomía','type'=>Controls_Manager::SELECT,'default'=>(string) array_key_first($taxonomies),'options'=>$taxonomies,'condition'=>['in_same_term'=>'yes']]);
+        }
         $this->end_controls_section();
-        $this->text_style('.obx-postnav__label', 'Etiqueta', 'label', false);
-        $this->text_style('.obx-postnav__title', 'Título', 'title', false);
+
+        $this->start_controls_section('label_style', ['label'=>'Etiqueta','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_label'=>'yes']]);
+        $this->color('label_color', 'Color', '.obx-postnav__label');
+        $this->color('label_hover_color', 'Color al pasar el ratón', '.obx-postnav a:hover .obx-postnav__label');
+        $this->typography('label_typography', '.obx-postnav__label');
+        $this->end_controls_section();
+
+        $this->start_controls_section('title_style', ['label'=>'Título','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_title'=>'yes']]);
+        $this->color('text_color', 'Color', '.obx-postnav__title');
+        $this->color('hover_color', 'Color al pasar el ratón', '.obx-postnav a:hover .obx-postnav__title');
+        $this->typography('title_typography', '.obx-postnav__title');
+        $this->end_controls_section();
+
+        $this->start_controls_section('arrow_style', ['label'=>'Flecha','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_arrow'=>'yes']]);
+        $this->color('arrow_color', 'Color', '.obx-postnav__arrow');
+        $this->color('arrow_hover_color', 'Color al pasar el ratón', '.obx-postnav a:hover .obx-postnav__arrow');
+        $this->slider('arrow_size', 'Tamaño', '.obx-postnav__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>6,'max'=>300]]], true);
+        $this->slider('arrow_padding', 'Separación', '.obx-postnav', '--obx-arrow-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>50]]], true);
+        $this->end_controls_section();
+
+        $this->start_controls_section('borders_section_style', ['label'=>'Separadores','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_borders!'=>'']]);
+        $this->color('sep_color', 'Color', '.obx-postnav', '--obx-postnav-border');
+        $this->slider('borders_width', 'Grosor', '.obx-postnav', '--obx-postnav-border-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px'],'range'=>['px'=>['max'=>10]]]);
+        $this->slider('borders_spacing', 'Separación', '.obx-postnav', '--obx-postnav-border-spacing: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]]);
+        $this->end_controls_section();
     }
+
     private function link(?\WP_Post $post, string $dir, array $s): string {
-        if (!$post) { return '<span class="obx-postnav__' . $dir . '"></span>'; }
-        $arrow = $s['show_arrow'] === 'yes' ? '<span class="obx-postnav__arrow" aria-hidden="true">' . ($dir === 'prev' ? '←' : '→') . '</span>' : '';
+        if (!$post) { return '<span class="obx-postnav__' . $dir . ' is-empty"></span>'; }
+        $arrow = '';
+        if (($s['show_arrow'] ?? 'yes') === 'yes') {
+            $icon = (string) ($s['arrow'] ?? 'fa fa-angle-left');
+            if ($dir === 'next') { $icon = str_replace('left', 'right', $icon); }
+            $arrow = '<span class="obx-postnav__arrow" aria-hidden="true">' . (Icons_Manager::try_get_icon_html(['value'=>$icon,'library'=>'fa-solid'], ['aria-hidden'=>'true']) ?: ($dir === 'prev' ? '‹' : '›')) . '</span>';
+        }
         $text = '';
-        if ($s['show_label'] === 'yes') { $text .= '<span class="obx-postnav__label">' . esc_html($s[$dir . '_label']) . '</span>'; }
-        if ($s['show_title'] === 'yes') { $text .= '<span class="obx-postnav__title">' . esc_html(get_the_title($post)) . '</span>'; }
+        if (($s['show_label'] ?? 'yes') === 'yes') { $text .= '<span class="obx-postnav__label">' . esc_html((string) ($s[$dir . '_label'] ?? '')) . '</span>'; }
+        if (($s['show_title'] ?? 'yes') === 'yes') { $text .= '<span class="obx-postnav__title">' . esc_html(get_the_title($post)) . '</span>'; }
         $body = '<span class="obx-postnav__text">' . $text . '</span>';
         return '<a class="obx-postnav__' . $dir . '" href="' . esc_url(get_permalink($post)) . '" rel="' . $dir . '">' . ($dir === 'prev' ? $arrow . $body : $body . $arrow) . '</a>';
     }
+
     protected function render(): void {
         $s = $this->get_settings_for_display();
         $post = Context::post();
         if (!$post) { $this->placeholder('No hay ninguna entrada que mostrar.'); return; }
         $previous = $GLOBALS['post'] ?? null;
         $GLOBALS['post'] = $post;
-        $same = $s['in_same_term'] === 'yes';
-        $prev = get_adjacent_post($same, '', true);
-        $next = get_adjacent_post($same, '', false);
+        $same = ($s['in_same_term'] ?? '') === 'yes';
+        $taxonomy = (string) ($s[$post->post_type . '_taxonomy'] ?? 'category');
+        $taxonomy = taxonomy_exists($taxonomy) ? $taxonomy : 'category';
+        $prev = get_adjacent_post($same, '', true, $taxonomy);
+        $next = get_adjacent_post($same, '', false, $taxonomy);
         $GLOBALS['post'] = $previous;
         if (!$prev && !$next) { $this->placeholder('Esta entrada no tiene anterior ni siguiente.'); return; }
-        echo '<nav class="obx-postnav" aria-label="Entradas">' . $this->link($prev ?: null, 'prev', $s) . $this->link($next ?: null, 'next', $s) . '</nav>';
+        $borders = ($s['show_borders'] ?? 'yes') !== '';
+        echo '<nav class="obx-postnav' . ($borders ? ' obx-postnav--borders' : '') . '" aria-label="Entradas">' . $this->link($prev ?: null, 'prev', $s) . ($borders ? '<span class="obx-postnav__separator" aria-hidden="true"></span>' : '') . $this->link($next ?: null, 'next', $s) . '</nav>';
     }
 }
 
 final class Post_Comments extends Base {
     public const PRO = 'post-comments';
+    public const PRO_CATEGORY = 'theme-elements-single';
     public function get_title(): string { return 'Comentarios de la entrada'; }
     public function get_icon(): string { return 'eicon-comments'; }
     public function get_keywords(): array { return ['comments','comentarios','respuestas']; }
     protected function register_controls(): void {
-        $this->start_controls_section('content', ['label'=>'Comentarios']);
-        $this->add_control('info', ['type'=>Controls_Manager::RAW_HTML,'raw'=>'Usa la plantilla de comentarios del tema y respeta los ajustes de Ajustes → Comentarios.','content_classes'=>'elementor-panel-alert elementor-panel-alert-info']);
+        $this->start_controls_section('section_content', ['label'=>'Comentarios']);
+        $this->add_control('_skin', ['label'=>'Apariencia','type'=>Controls_Manager::SELECT,'default'=>'theme_comments','options'=>['theme_comments'=>'Tema'],'description'=>'Usa la plantilla de comentarios del tema y los ajustes de Ajustes → Comentarios.']);
+        $this->add_control('source_type', ['label'=>'Origen','type'=>Controls_Manager::SELECT,'default'=>'current_post','options'=>['current_post'=>'Entrada actual','custom'=>'Otra entrada']]);
+        $this->add_control('source_custom', ['label'=>'ID de la entrada','type'=>Controls_Manager::NUMBER,'min'=>1,'condition'=>['source_type'=>'custom']]);
         $this->end_controls_section();
     }
     protected function render(): void {
-        $post = Context::post();
-        if (!$post) { $this->placeholder('No hay ninguna entrada que mostrar.'); return; }
+        $s = $this->get_settings_for_display();
+        $post = ($s['source_type'] ?? 'current_post') === 'custom' && absint($s['source_custom'] ?? 0) ? get_post(absint($s['source_custom'])) : Context::post();
+        if (!$post || ($post->post_status !== 'publish' && !current_user_can('read_post', $post->ID))) { $this->placeholder('No hay ninguna entrada que mostrar.'); return; }
         if (!comments_open($post) && !get_comments_number($post)) { $this->placeholder('Los comentarios están cerrados en esta entrada.'); return; }
         if ($this->editing()) { $this->placeholder(sprintf('Aquí aparecerán los comentarios (%d) y el formulario.', get_comments_number($post))); return; }
         global $withcomments;
@@ -160,11 +248,13 @@ final class Breadcrumbs extends Base {
         $this->start_controls_section('content', ['label'=>'Migas de pan']);
         $this->add_control('home', ['label'=>'Texto de inicio','type'=>Controls_Manager::TEXT,'default'=>'Inicio']);
         $this->add_control('separator', ['label'=>'Separador','type'=>Controls_Manager::TEXT,'default'=>'›']);
+        $this->add_control('html_tag', ['label'=>'Etiqueta HTML','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Por defecto','p'=>'p','div'=>'div','nav'=>'nav','span'=>'span']]);
         $this->add_responsive_control('align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::align_options(),'selectors'=>['{{WRAPPER}} .obx-breadcrumbs ol'=>'justify-content: {{VALUE}};'],'selectors_dictionary'=>['left'=>'flex-start','center'=>'center','right'=>'flex-end']]);
         $this->end_controls_section();
         $this->text_style('.obx-breadcrumbs', 'Texto', 'text', false);
         $this->start_controls_section('links_style', ['label'=>'Enlaces','tab'=>Controls_Manager::TAB_STYLE]);
         $this->add_control('link_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-breadcrumbs a'=>'color: {{VALUE}};']]);
+        $this->add_control('link_hover_color', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-breadcrumbs a:hover'=>'color: {{VALUE}};']]);
         $this->end_controls_section();
     }
     /** @return array<int,array{0:string,1:string}> label => url pairs, the last one without url. */
@@ -205,6 +295,13 @@ final class Breadcrumbs extends Base {
     }
     protected function render(): void {
         $s = $this->get_settings_for_display();
+        $tag = in_array($s['html_tag'] ?? '', ['p','div','nav','span'], true) ? $s['html_tag'] : '';
+        // Same source as Elementor Pro's widget when Yoast SEO is installed.
+        if (function_exists('yoast_breadcrumb') && apply_filters('obx/breadcrumbs/use_yoast', true)) {
+            $tag = $tag ?: 'nav';
+            echo '<' . $tag . ' class="obx-breadcrumbs obx-breadcrumbs--yoast">' . yoast_breadcrumb('', '', false) . '</' . $tag . '>';
+            return;
+        }
         $items = self::trail($s['home'] !== '' ? $s['home'] : 'Inicio');
         echo '<nav class="obx-breadcrumbs" aria-label="Migas de pan"><ol itemscope itemtype="https://schema.org/BreadcrumbList">';
         $last = count($items) - 1;
@@ -270,43 +367,5 @@ final class Sitemap extends Base {
             echo '<ul class="obx-sitemap__list">' . $list . '</ul></section>'; // Core list markup.
         }
         echo '</div>';
-    }
-}
-
-/** Posts from any query, with the same cards as the archive widget. */
-final class Posts extends Archive_Posts {
-    public const NAME = '';
-    public const PRO = 'posts';
-    public const PRO_CATEGORY = 'pro-elements';
-    public function get_title(): string { return 'Entradas'; }
-    public function get_icon(): string { return 'eicon-post-list'; }
-    public function get_keywords(): array { return ['posts','entradas','blog','grid','rejilla','query','consulta']; }
-    protected function query_controls(): void {
-        $types = [];
-        foreach (get_post_types(['public'=>true], 'objects') as $type) { if ($type->name !== 'attachment') { $types[$type->name] = $type->labels->name; } }
-        $terms = [];
-        foreach (get_categories(['hide_empty'=>false]) as $term) { $terms[(string) $term->term_id] = $term->name; }
-        $this->start_controls_section('query', ['label'=>'Consulta']);
-        $this->add_control('post_type', ['label'=>'Tipo de contenido','type'=>Controls_Manager::SELECT,'options'=>$types,'default'=>'post']);
-        $this->add_control('categories', ['label'=>'Categorías','type'=>Controls_Manager::SELECT2,'multiple'=>true,'options'=>$terms,'label_block'=>true,'condition'=>['post_type'=>'post']]);
-        $this->add_control('posts_per_page', ['label'=>'Número de entradas','type'=>Controls_Manager::NUMBER,'min'=>1,'max'=>100,'default'=>6]);
-        $this->add_control('orderby', ['label'=>'Ordenar por','type'=>Controls_Manager::SELECT,'options'=>['date'=>'Fecha','title'=>'Título','modified'=>'Última modificación','menu_order'=>'Orden','comment_count'=>'Comentarios','rand'=>'Aleatorio'],'default'=>'date']);
-        $this->add_control('order', ['label'=>'Orden','type'=>Controls_Manager::SELECT,'options'=>['DESC'=>'Descendente','ASC'=>'Ascendente'],'default'=>'DESC']);
-        $this->add_control('offset', ['label'=>'Saltar','type'=>Controls_Manager::NUMBER,'min'=>0,'max'=>100,'default'=>0]);
-        $this->add_control('exclude_current', ['label'=>'Excluir la entrada actual','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes']);
-        $this->end_controls_section();
-    }
-    protected function query(): \WP_Query {
-        $s = $this->get_settings_for_display();
-        $type = post_type_exists((string) $s['post_type']) ? (string) $s['post_type'] : 'post';
-        $per_page = max(1, min(100, (int) $s['posts_per_page']));
-        $paged = $s['pagination'] === 'yes' ? max(1, (int) get_query_var('paged'), (int) get_query_var('page')) : 1;
-        $args = ['post_type'=>$type,'post_status'=>'publish','posts_per_page'=>$per_page,'ignore_sticky_posts'=>true,
-            'orderby'=>in_array($s['orderby'], ['date','title','modified','menu_order','comment_count','rand'], true) ? $s['orderby'] : 'date',
-            'order'=>$s['order'] === 'ASC' ? 'ASC' : 'DESC','offset'=>max(0, (int) $s['offset']) + ($paged - 1) * $per_page];
-        if ($type === 'post' && !empty($s['categories'])) { $args['category__in'] = array_map('absint', (array) $s['categories']); }
-        $current = Context::template() ? null : get_queried_object();
-        if ($s['exclude_current'] === 'yes' && $current instanceof \WP_Post) { $args['post__not_in'] = [$current->ID]; }
-        return new \WP_Query($args);
     }
 }

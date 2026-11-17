@@ -75,7 +75,7 @@ try {
     // A template saved with the old name keeps rendering through the same class.
     $document->save(['elements'=>[['id'=>$uid(),'elType'=>'container','isInner'=>false,'settings'=>[],'elements'=>[['id'=>$uid(),'elType'=>'widget','widgetType'=>'obx-post-title','settings'=>['tag'=>'h4'],'elements'=>[]]]]]]);
     $html = Elementor::$instance->frontend->get_builder_content_for_display($page);
-    $assert(str_contains($html, '<h4 class="obx-post-title">'), 'El nombre antiguo debe seguir renderizando.');
+    $assert((bool) preg_match('~<h4 class="elementor-heading-title [^"]*obx-post-title~', $html), 'El nombre antiguo debe seguir renderizando.');
 
     // Template widget refuses to include itself.
     $document->save(['elements'=>[['id'=>$uid(),'elType'=>'container','isInner'=>false,'settings'=>[],'elements'=>[['id'=>$uid(),'elType'=>'widget','widgetType'=>'template','settings'=>['template_id'=>(string) $page],'elements'=>[]]]]]]);

@@ -39,14 +39,14 @@ else {
 $row = ['flex_direction'=>'row','flex_justify_content'=>'space-between','flex_align_items'=>'center','flex_wrap'=>'wrap','padding'=>['unit'=>'px','top'=>'20','right'=>'20','bottom'=>'20','left'=>'20','isLinked'=>false]];
 $section = ['padding'=>['unit'=>'px','top'=>'60','right'=>'20','bottom'=>'60','left'=>'20','isLinked'=>false]];
 $templates = [
-    'header'=>['Cabecera demo', [$box([$widget('obx-site-title', ['tag'=>'p','tagline'=>'yes']), $widget('obx-nav-menu', ['menu'=>(string) $menu_id]), $widget('obx-search-form')], $row + ['css_classes'=>'obx-demo-header'])], 'general'],
-    'footer'=>['Pie demo', [$box([$widget('text-editor', ['editor'=>'<p>Pie de página creado con OldBear Expansion.</p>']), $widget('obx-site-title', ['tag'=>'p'])], $row + ['css_classes'=>'obx-demo-footer'])], 'general'],
-    'single'=>['Entrada demo', [$box([$widget('obx-post-title'), $widget('obx-post-info'), $widget('obx-featured-image'), $widget('obx-post-content')], $section + ['css_classes'=>'obx-demo-single'])], 'singular/post'],
-    'archive'=>['Archivo demo', [$box([$widget('obx-archive-title'), $widget('obx-archive-posts')], $section + ['css_classes'=>'obx-demo-archive'])], 'archive'],
-    'error-404'=>['404 demo', [$box([$widget('heading', ['title'=>'Página no encontrada','header_size'=>'h1']), $widget('text-editor', ['editor'=>'<p>Prueba a buscar lo que necesitas.</p>']), $widget('obx-search-form')], $section + ['css_classes'=>'obx-demo-404'])], 'not_found'],
+    'header'=>['Cabecera demo', [$box([$widget('theme-site-title', ['header_size'=>'p','tagline'=>'yes']), $widget('nav-menu', ['menu'=>(string) wp_get_nav_menu_object($menu_id)->slug]), $widget('search-form')], $row + ['css_classes'=>'obx-demo-header'])], 'general'],
+    'footer'=>['Pie demo', [$box([$widget('text-editor', ['editor'=>'<p>Pie de página creado con OldBear Expansion.</p>']), $widget('theme-site-title', ['header_size'=>'p'])], $row + ['css_classes'=>'obx-demo-footer'])], 'general'],
+    'single-post'=>['Entrada demo', [$box([$widget('theme-post-title'), $widget('post-info'), $widget('theme-post-featured-image'), $widget('theme-post-content')], $section + ['css_classes'=>'obx-demo-single'])], 'singular/post'],
+    'archive'=>['Archivo demo', [$box([$widget('theme-archive-title'), $widget('archive-posts')], $section + ['css_classes'=>'obx-demo-archive'])], 'archive'],
+    'error-404'=>['404 demo', [$box([$widget('heading', ['title'=>'Página no encontrada','header_size'=>'h1']), $widget('text-editor', ['editor'=>'<p>Prueba a buscar lo que necesitas.</p>']), $widget('search-form')], $section + ['css_classes'=>'obx-demo-404'])], 'not_found'],
 ];
 foreach ($templates as $location => [$title, $elements, $rule]) {
-    $document = Elementor::$instance->documents->create('obx-' . $location, ['post_title'=>$title,'post_status'=>'publish']);
+    $document = Elementor::$instance->documents->create($location, ['post_title'=>$title,'post_status'=>'publish']);
     if (is_wp_error($document)) { WP_CLI::error($document->get_error_message()); }
     $settings = $location === 'error-404' ? [] : ['obx_conditions'=>[['_id'=>$uid(),'mode'=>'include','rule'=>$rule,'object_id'=>'']]];
     if (!$document->save(['elements'=>$elements,'settings'=>$settings])) { WP_CLI::error('No se pudo guardar ' . $title); }

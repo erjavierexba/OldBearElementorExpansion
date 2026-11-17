@@ -1,0 +1,708 @@
+<?php
+namespace OldBearExpansion\Widgets;
+
+use Elementor\Controls_Manager;
+use Elementor\Group_Control_Box_Shadow;
+use Elementor\Group_Control_Css_Filter;
+use Elementor\Group_Control_Image_Size;
+use Elementor\Group_Control_Typography;
+use Elementor\Icons_Manager;
+use OldBearExpansion\Context;
+
+if (!defined('ABSPATH')) { exit; }
+
+/**
+ * Post grids with Elementor Pro's data layout: a `_skin` setting (classic, cards, full_content)
+ * and every layout/style key prefixed with the skin id ("classic_columns", "archive_cards_title_color").
+ */
+abstract class Posts_Base extends Base {
+    /** Prefix of the skin ids: '' for the Posts widget, 'archive_' for Archive Posts. */
+    protected const SKIN_PREFIX = '';
+    public const SKINS = ['classic'=>'Clásico','cards'=>'Tarjetas','full_content'=>'Contenido completo'];
+
+    /** IDs already shown on this page, for «Evitar duplicados». */
+    protected static array $shown = [];
+    /** Posts being rendered by the full content skin, to avoid recursion. */
+    private static array $rendering = [];
+
+    public function get_script_depends(): array { return ['obx-widgets']; }
+
+    public static function excerpt(\WP_Post $post, int $length, bool $trim_custom = false): string {
+        $length = max(1, $length ?: 25);
+        if (has_excerpt($post)) {
+            $text = wp_strip_all_tags(get_the_excerpt($post));
+            return $trim_custom ? wp_trim_words($text, $length) : $text;
+        }
+        return wp_trim_words(wp_strip_all_tags(strip_shortcodes(excerpt_remove_blocks($post->post_content))), $length);
+    }
+
+    /** Section(s) placed before the layout (the Posts widget adds its query). */
+    protected function query_controls(): void {}
+
+    abstract protected function query(): \WP_Query;
+
+    /** Query arg used for pagination; null means the main query's `paged`. */
+    protected function page_arg(): ?string { return null; }
+
+    protected function skin(): string {
+        $skin = (string) ($this->get_settings('_skin') ?: static::SKIN_PREFIX . 'classic');
+        return array_key_exists(substr($skin, strlen(static::SKIN_PREFIX)), self::SKINS) && str_starts_with($skin, static::SKIN_PREFIX) ? $skin : static::SKIN_PREFIX . 'classic';
+    }
+
+    protected function register_controls(): void {
+        $skins = [];
+        foreach (self::SKINS as $id => $label) { $skins[static::SKIN_PREFIX . $id] = $label; }
+        $this->start_controls_section('section_layout', ['label'=>'Diseño']);
+        $this->add_control('_skin', ['label'=>'Apariencia','type'=>Controls_Manager::SELECT,'default'=>static::SKIN_PREFIX . 'classic','options'=>$skins,'label_block'=>true]);
+        foreach (array_keys(self::SKINS) as $skin) { $this->layout_controls(static::SKIN_PREFIX . $skin, $skin); }
+        $this->end_controls_section();
+
+        $this->query_controls();
+        $this->pagination_controls();
+
+        foreach (array_keys(self::SKINS) as $skin) { $this->style_controls(static::SKIN_PREFIX . $skin, $skin); }
+        $this->pagination_style();
+    }
+
+    private function layout_controls(string $id, string $skin): void {
+        $c = ['_skin'=>$id];
+        $p = $id . '_';
+        if ($skin !== 'full_content') {
+            $this->add_responsive_control($p . 'columns', ['label'=>'Columnas','type'=>Controls_Manager::SELECT,'default'=>'3','tablet_default'=>'2','mobile_default'=>'1','options'=>array_combine(range(1, 6), range(1, 6)),'selectors'=>['{{WRAPPER}} .obx-posts'=>'--obx-columns: {{VALUE}};'],'condition'=>$c]);
+        }
+        if (static::SKIN_PREFIX === '') {
+            $this->add_control($p . 'posts_per_page', ['label'=>'Entradas por página','type'=>Controls_Manager::NUMBER,'default'=>6,'min'=>1,'max'=>100,'condition'=>$c]);
+        }
+        $positions = $skin === 'cards' ? ['top'=>'Arriba','none'=>'Ninguna'] : ['top'=>'Arriba','left'=>'Izquierda','right'=>'Derecha','none'=>'Ninguna'];
+        $this->add_control($p . 'thumbnail', ['label'=>'Imagen','type'=>Controls_Manager::SELECT,'default'=>'top','options'=>$positions,'condition'=>$c]);
+        $thumb = $c + [$p . 'thumbnail!'=>'none'];
+        $this->add_group_control(Group_Control_Image_Size::get_type(), ['name'=>$p . 'thumbnail_size','default'=>'medium','exclude'=>['custom'],'condition'=>$thumb]);
+        if ($skin !== 'full_content') {
+            $this->add_responsive_control($p . 'item_ratio', ['label'=>'Proporción de la imagen','type'=>Controls_Manager::SLIDER,'default'=>['size'=>0.66],'range'=>['px'=>['min'=>0.1,'max'=>2,'step'=>0.01]],'selectors'=>['{{WRAPPER}} .obx-post__thumb'=>'aspect-ratio: 1 / {{SIZE}};'],'condition'=>$thumb]);
+        }
+        if ($skin !== 'cards') {
+            $this->add_responsive_control($p . 'image_width', ['label'=>'Ancho de la imagen','type'=>Controls_Manager::SLIDER,'size_units'=>['%','px'],'default'=>['size'=>100,'unit'=>'%'],'range'=>['%'=>['min'=>10,'max'=>100],'px'=>['min'=>10,'max'=>600]],'selectors'=>['{{WRAPPER}} .obx-post__thumb-link'=>'width: {{SIZE}}{{UNIT}};'],'condition'=>$thumb]);
+        }
+        if ($skin === 'cards') {
+            $this->add_control($p . 'masonry', ['type'=>Controls_Manager::HIDDEN,'default'=>'']);
+        }
+        $this->add_control($p . 'show_title', ['label'=>'Título','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','separator'=>'before','condition'=>$c]);
+        $this->add_control($p . 'title_tag', ['label'=>'Etiqueta del título','type'=>Controls_Manager::SELECT,'default'=>'h3','options'=>['h1'=>'H1','h2'=>'H2','h3'=>'H3','h4'=>'H4','h5'=>'H5','h6'=>'H6','div'=>'div','span'=>'span','p'=>'p'],'condition'=>$c + [$p . 'show_title'=>'yes']]);
+        if ($skin !== 'full_content') {
+            $this->add_control($p . 'show_excerpt', ['label'=>'Extracto','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','condition'=>$c]);
+            $this->add_control($p . 'excerpt_length', ['label'=>'Palabras del extracto','type'=>Controls_Manager::NUMBER,'default'=>25,'condition'=>$c + [$p . 'show_excerpt'=>'yes']]);
+            $this->add_control($p . 'apply_to_custom_excerpt', ['label'=>'Recortar también los extractos manuales','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'no','condition'=>$c + [$p . 'show_excerpt'=>'yes']]);
+        }
+        $this->add_control($p . 'meta_data', ['label'=>'Metadatos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'default'=>['date','comments'],'options'=>['author'=>'Autor','date'=>'Fecha','time'=>'Hora','comments'=>'Comentarios','modified'=>'Fecha de modificación'],'separator'=>'before','condition'=>$c]);
+        $this->add_control($p . 'meta_separator', ['label'=>'Separador','type'=>Controls_Manager::TEXT,'default'=>$skin === 'cards' ? '•' : ($skin === 'full_content' ? '///' : '|'),'selectors'=>['{{WRAPPER}} .obx-post__meta > span + span::before'=>'content: "{{VALUE}}";'],'condition'=>$c + [$p . 'meta_data!'=>[]]]);
+        if ($skin !== 'full_content') {
+            $this->add_control($p . 'show_read_more', ['label'=>'Leer más','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','separator'=>'before','condition'=>$c]);
+            $this->add_control($p . 'read_more_text', ['label'=>'Texto de «Leer más»','type'=>Controls_Manager::TEXT,'default'=>'Leer más »','condition'=>$c + [$p . 'show_read_more'=>'yes']]);
+            $this->add_control($p . 'open_new_tab', ['label'=>'Abrir en una pestaña nueva','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'no','condition'=>$c]);
+        }
+        if ($skin === 'cards') {
+            $this->add_control($p . 'show_badge', ['label'=>'Distintivo','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','separator'=>'before','condition'=>$c]);
+            $taxonomies = [];
+            foreach (get_taxonomies(['public'=>true,'show_in_nav_menus'=>true], 'objects') as $taxonomy) { $taxonomies[$taxonomy->name] = $taxonomy->label; }
+            $this->add_control($p . 'badge_taxonomy', ['label'=>'Taxonomía del distintivo','type'=>Controls_Manager::SELECT2,'label_block'=>true,'default'=>'category','options'=>$taxonomies,'condition'=>$c + [$p . 'show_badge'=>'yes']]);
+            $this->add_control($p . 'show_avatar', ['label'=>'Avatar del autor','type'=>Controls_Manager::SWITCHER,'return_value'=>'show-avatar','default'=>'show-avatar','condition'=>$c + [$p . 'thumbnail!'=>'none']]);
+        }
+    }
+
+    private function style_controls(string $id, string $skin): void {
+        $c = ['_skin'=>$id];
+        $p = $id . '_';
+        $this->start_controls_section($p . 'section_design_layout', ['label'=>'Diseño','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$c]);
+        if ($skin !== 'full_content') {
+            $this->add_responsive_control($p . 'column_gap', ['label'=>'Separación entre columnas','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'default'=>['size'=>30],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-posts'=>'column-gap: {{SIZE}}{{UNIT}};']]);
+        }
+        $this->add_responsive_control($p . 'row_gap', ['label'=>'Separación entre filas','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'default'=>['size'=>35],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-posts'=>'row-gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_control($p . 'alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::align_options(),'selectors'=>['{{WRAPPER}} .obx-post__text'=>'text-align: {{VALUE}};']]);
+        $this->end_controls_section();
+
+        $box = $skin === 'cards' ? '.obx-post__card' : '.obx-post';
+        $this->start_controls_section($p . 'section_design_box', ['label'=>$skin === 'cards' ? 'Tarjeta' : 'Caja','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$c]);
+        if ($skin === 'cards') {
+            $this->add_control($p . 'card_bg_color', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post__card'=>'background-color: {{VALUE}};']]);
+            $this->add_control($p . 'card_border_color', ['label'=>'Color del borde','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post__card'=>'border-color: {{VALUE}};']]);
+            $this->add_control($p . 'card_border_width', ['label'=>'Grosor del borde','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>15]],'selectors'=>['{{WRAPPER}} .obx-post__card'=>'border-width: {{SIZE}}{{UNIT}}; border-style: solid;']]);
+            $this->add_control($p . 'card_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','custom'],'range'=>['px'=>['max'=>200]],'selectors'=>['{{WRAPPER}} .obx-post__card'=>'border-radius: {{SIZE}}{{UNIT}};']]);
+            $this->add_control($p . 'card_padding', ['label'=>'Relleno horizontal','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-post__text, {{WRAPPER}} .obx-post__meta-footer'=>'padding-left: {{SIZE}}{{UNIT}}; padding-right: {{SIZE}}{{UNIT}};']]);
+            $this->add_control($p . 'card_vertical_padding', ['label'=>'Relleno vertical','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-post__card'=>'padding-top: {{SIZE}}{{UNIT}}; padding-bottom: {{SIZE}}{{UNIT}};']]);
+            $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>$p . 'box_shadow','selector'=>'{{WRAPPER}} .obx-post__card']);
+            $this->add_control($p . 'hover_effect', ['label'=>'Efecto al pasar el ratón','type'=>Controls_Manager::SELECT,'default'=>'gradient','options'=>['none'=>'Ninguno','gradient'=>'Degradado']]);
+            $this->add_control($p . 'meta_border_color', ['label'=>'Color del borde de los metadatos','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post__meta-footer'=>'border-top-color: {{VALUE}};']]);
+        } else {
+            $this->add_control($p . 'box_border_width', ['label'=>'Grosor del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-post'=>'border-style: solid; border-width: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
+            $this->add_control($p . 'box_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','custom'],'range'=>['px'=>['max'=>200]],'selectors'=>['{{WRAPPER}} .obx-post'=>'border-radius: {{SIZE}}{{UNIT}}; overflow: hidden;']]);
+            $this->add_responsive_control($p . 'box_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-post'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
+            $this->add_responsive_control($p . 'content_padding', ['label'=>'Relleno del contenido','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-post__text'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
+            $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>$p . 'box_shadow','selector'=>'{{WRAPPER}} .obx-post']);
+            $this->add_control($p . 'box_bg_color', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post'=>'background-color: {{VALUE}};']]);
+            $this->add_control($p . 'box_border_color', ['label'=>'Color del borde','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post'=>'border-color: {{VALUE}};']]);
+        }
+        $this->end_controls_section();
+
+        $this->start_controls_section($p . 'section_design_image', ['label'=>'Imagen','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$c + [$p . 'thumbnail!'=>'none']]);
+        $this->add_control($p . 'img_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-post__thumb'=>'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
+        $this->add_responsive_control($p . 'image_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-post'=>'--obx-image-spacing: {{SIZE}}{{UNIT}};']]);
+        $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>$p . 'thumbnail_filters','selector'=>'{{WRAPPER}} .obx-post__thumb img']);
+        $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>$p . 'thumbnail_hover_filters','label'=>'Filtros al pasar el ratón','selector'=>'{{WRAPPER}} .obx-post:hover .obx-post__thumb img']);
+        $this->end_controls_section();
+
+        if ($skin === 'cards') {
+            $this->start_controls_section($p . 'section_design_badge', ['label'=>'Distintivo','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$c + [$p . 'show_badge'=>'yes']]);
+            $this->add_control($p . 'badge_position', ['label'=>'Posición','type'=>Controls_Manager::CHOOSE,'default'=>'right','options'=>['left'=>['title'=>'Izquierda','icon'=>'eicon-h-align-left'],'right'=>['title'=>'Derecha','icon'=>'eicon-h-align-right']],'selectors_dictionary'=>['left'=>'left: 0; right: auto','right'=>'right: 0; left: auto'],'selectors'=>['{{WRAPPER}} .obx-post__badge'=>'{{VALUE}};']]);
+            $this->add_control($p . 'badge_bg_color', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post__badge'=>'background-color: {{VALUE}};']]);
+            $this->add_control($p . 'badge_color', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post__badge'=>'color: {{VALUE}};']]);
+            $this->add_control($p . 'badge_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-post__badge'=>'border-radius: {{SIZE}}{{UNIT}};']]);
+            $this->add_control($p . 'badge_size', ['label'=>'Tamaño','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['min'=>5,'max'=>50]],'selectors'=>['{{WRAPPER}} .obx-post__badge'=>'font-size: {{SIZE}}{{UNIT}};']]);
+            $this->add_control($p . 'badge_margin', ['label'=>'Margen','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-post__badge'=>'margin: {{SIZE}}{{UNIT}};']]);
+            $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>$p . 'badge_typography','selector'=>'{{WRAPPER}} .obx-post__badge']);
+            $this->end_controls_section();
+        }
+
+        $this->start_controls_section($p . 'section_design_content', ['label'=>'Contenido','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$c]);
+        foreach (['title'=>['Título','.obx-post__title, {{WRAPPER}} .obx-post__title a'],'meta'=>['Metadatos','.obx-post__meta'],'excerpt'=>['Extracto','.obx-post__excerpt'],'read_more'=>['Leer más','.obx-post__read-more']] as $part => [$label, $selector]) {
+            if ($skin === 'full_content' && in_array($part, ['excerpt','read_more'], true)) { continue; }
+            $this->add_control($p . 'heading_' . $part . '_style', ['label'=>$label,'type'=>Controls_Manager::HEADING,'separator'=>'before']);
+            $this->add_control($p . $part . '_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} ' . $selector=>'color: {{VALUE}};']]);
+            if ($part === 'meta') { $this->add_control($p . 'meta_separator_color', ['label'=>'Color del separador','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post__meta > span + span::before'=>'color: {{VALUE}};']]); }
+            $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>$p . $part . '_typography','selector'=>'{{WRAPPER}} ' . $selector]);
+            $this->add_responsive_control($p . $part . '_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-post__' . str_replace('_', '-', $part)=>'margin-bottom: {{SIZE}}{{UNIT}};']]);
+        }
+        if ($skin === 'full_content') {
+            $this->add_control($p . 'heading_content_style', ['label'=>'Texto','type'=>Controls_Manager::HEADING,'separator'=>'before']);
+            $this->add_control($p . 'content_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post__content'=>'color: {{VALUE}};']]);
+            $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>$p . 'content_typography','selector'=>'{{WRAPPER}} .obx-post__content']);
+        }
+        $this->end_controls_section();
+    }
+
+    private function pagination_controls(): void {
+        $this->start_controls_section('section_pagination', ['label'=>'Paginación']);
+        $this->add_control('pagination_type', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Ninguna','numbers'=>'Números','prev_next'=>'Anterior/Siguiente','numbers_and_prev_next'=>'Números + Anterior/Siguiente','load_more_on_click'=>'Botón «Cargar más»','load_more_infinite_scroll'=>'Desplazamiento infinito']]);
+        $numbers = ['pagination_type'=>['numbers','numbers_and_prev_next','prev_next']];
+        $this->add_control('pagination_page_limit', ['label'=>'Límite de páginas','type'=>Controls_Manager::NUMBER,'default'=>'5','condition'=>['pagination_type!'=>'']]);
+        $this->add_control('pagination_numbers_shorten', ['label'=>'Acortar','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','condition'=>['pagination_type'=>['numbers','numbers_and_prev_next']]]);
+        $this->add_control('pagination_prev_label', ['label'=>'Texto «Anterior»','type'=>Controls_Manager::TEXT,'default'=>'&laquo; Anterior','condition'=>['pagination_type'=>['prev_next','numbers_and_prev_next']]]);
+        $this->add_control('pagination_next_label', ['label'=>'Texto «Siguiente»','type'=>Controls_Manager::TEXT,'default'=>'Siguiente &raquo;','condition'=>['pagination_type'=>['prev_next','numbers_and_prev_next']]]);
+        $this->add_control('pagination_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::align_options(),'selectors'=>['{{WRAPPER}} .obx-pagination'=>'text-align: {{VALUE}}; justify-content: {{VALUE}};'],'condition'=>$numbers]);
+        $this->add_control('text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'Cargar más','condition'=>['pagination_type'=>'load_more_on_click']]);
+        $this->add_control('load_more_no_posts_custom_message', ['label'=>'Mensaje al terminar','type'=>Controls_Manager::TEXT,'default'=>'No hay más entradas','label_block'=>true,'condition'=>['pagination_type'=>['load_more_on_click','load_more_infinite_scroll']]]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_nothing_found', ['label'=>'Sin resultados']);
+        $this->add_control('nothing_found_message', ['label'=>'Mensaje','type'=>Controls_Manager::TEXTAREA,'default'=>static::SKIN_PREFIX ? 'Parece que no encontramos lo que buscas.' : '']);
+        $this->end_controls_section();
+    }
+
+    private function pagination_style(): void {
+        $this->start_controls_section('section_pagination_style', ['label'=>'Paginación','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['pagination_type!'=>'']]);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'pagination_typography','selector'=>'{{WRAPPER}} .obx-pagination']);
+        $this->add_control('pagination_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers:not(.dots)'=>'color: {{VALUE}};']]);
+        $this->add_control('pagination_hover_color', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination a.page-numbers:hover'=>'color: {{VALUE}};']]);
+        $this->add_control('pagination_active_color', ['label'=>'Color activo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers.current'=>'color: {{VALUE}};']]);
+        $this->add_responsive_control('pagination_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'default'=>['size'=>10],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination'=>'gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('pagination_spacing_top', ['label'=>'Distancia','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination, {{WRAPPER}} .obx-load-more'=>'margin-top: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('load_more_color', ['label'=>'Color del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click'],'separator'=>'before']);
+        $this->add_control('load_more_background_color', ['label'=>'Fondo del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'background-color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click']]);
+        $this->end_controls_section();
+    }
+
+    protected function current_page(): int {
+        $arg = $this->page_arg();
+        if ($arg !== null) { return max(1, absint($_GET[$arg] ?? 1)); } // phpcs:ignore WordPress.Security.NonceVerification -- read-only page number.
+        return max(1, (int) get_query_var('paged'), (int) get_query_var('page'));
+    }
+
+    protected function render(): void {
+        $s = $this->get_settings_for_display();
+        $id = $this->skin();
+        $skin = substr($id, strlen(static::SKIN_PREFIX));
+        $v = static fn(string $key, $default = '') => $s[$id . '_' . $key] ?? $default;
+        $query = $this->query();
+        if (!$query->have_posts()) {
+            $message = (string) ($s['nothing_found_message'] ?? '');
+            if ($message !== '') { echo '<div class="obx-posts-nothing-found">' . wp_kses_post($message) . '</div>'; }
+            elseif ($this->editing()) { $this->placeholder('No hay entradas que coincidan con la consulta.'); }
+            return;
+        }
+        $thumbnail = (string) $v('thumbnail', 'top');
+        $size = (string) $v('thumbnail_size_size', 'medium');
+        $tag = in_array($v('title_tag', 'h3'), ['h1','h2','h3','h4','h5','h6','div','span','p'], true) ? $v('title_tag', 'h3') : 'h3';
+        $meta = array_intersect((array) $v('meta_data', []), ['author','date','time','comments','modified']);
+        $target = $v('open_new_tab') === 'yes' ? ' target="_blank" rel="noopener"' : '';
+
+        $classes = ['obx-posts','obx-posts--' . $skin,'obx-posts--thumb-' . $thumbnail];
+        if ($skin === 'cards') {
+            $classes[] = 'obx-posts--hover-' . ($v('hover_effect', 'gradient') === 'none' ? 'none' : 'gradient');
+            if ($v('show_avatar', 'show-avatar') === 'show-avatar') { $classes[] = 'obx-posts--show-avatar'; }
+        }
+        echo '<div class="' . esc_attr(implode(' ', $classes)) . '">';
+        foreach ($query->posts as $post) {
+            self::$shown[] = $post->ID;
+            $url = esc_url(get_permalink($post));
+            echo '<article class="obx-post ' . esc_attr(implode(' ', get_post_class('', $post))) . '">';
+            if ($skin === 'cards') { echo '<div class="obx-post__card">'; }
+            if ($thumbnail !== 'none' && has_post_thumbnail($post)) {
+                echo '<a class="obx-post__thumb-link" href="' . $url . '"' . $target . ' tabindex="-1" aria-hidden="true"><div class="obx-post__thumb">' . get_the_post_thumbnail($post, $size ?: 'medium', ['loading'=>'lazy','alt'=>'']) . '</div></a>';
+                if ($skin === 'cards' && $v('show_badge') === 'yes') { $this->badge($post, (string) $v('badge_taxonomy', 'category')); }
+                if ($skin === 'cards' && $v('show_avatar') === 'show-avatar') { echo '<div class="obx-post__avatar">' . get_avatar((int) $post->post_author, 128, '', '') . '</div>'; }
+            } elseif ($skin === 'cards' && $v('show_badge') === 'yes') {
+                $this->badge($post, (string) $v('badge_taxonomy', 'category'));
+            }
+            echo '<div class="obx-post__text">';
+            if ($v('show_title', 'yes') === 'yes') { echo '<' . $tag . ' class="obx-post__title"><a href="' . $url . '"' . $target . '>' . esc_html(get_the_title($post)) . '</a></' . $tag . '>'; }
+            if ($skin !== 'cards') { $this->meta($post, $meta); }
+            if ($skin === 'full_content') {
+                echo '<div class="obx-post__content">' . $this->full_content($post) . '</div>'; // Filtered post content.
+            } else {
+                if ($v('show_excerpt', 'yes') === 'yes') { echo '<div class="obx-post__excerpt"><p>' . esc_html(self::excerpt($post, (int) $v('excerpt_length', 25), $v('apply_to_custom_excerpt') === 'yes')) . '</p></div>'; }
+                if ($v('show_read_more', 'yes') === 'yes' && $v('read_more_text') !== '') { echo '<a class="obx-post__read-more" href="' . $url . '"' . $target . ' aria-label="' . esc_attr(sprintf('Leer más sobre %s', get_the_title($post))) . '">' . esc_html($v('read_more_text')) . '</a>'; }
+            }
+            echo '</div>';
+            if ($skin === 'cards' && $meta) { echo '<div class="obx-post__meta-footer">'; $this->meta($post, $meta); echo '</div>'; }
+            if ($skin === 'cards') { echo '</div>'; }
+            echo '</article>';
+        }
+        echo '</div>';
+        $this->pagination($s, $query);
+    }
+
+    private function badge(\WP_Post $post, string $taxonomy): void {
+        $terms = taxonomy_exists($taxonomy) ? get_the_terms($post, $taxonomy) : false;
+        if (is_array($terms) && $terms) { echo '<div class="obx-post__badge">' . esc_html($terms[0]->name) . '</div>'; }
+    }
+
+    private function meta(\WP_Post $post, array $meta): void {
+        if (!$meta) { return; }
+        echo '<div class="obx-post__meta">';
+        foreach ($meta as $item) {
+            echo match ($item) {
+                'author' => '<span class="obx-post__author">' . esc_html(get_the_author_meta('display_name', (int) $post->post_author)) . '</span>',
+                'date' => '<span class="obx-post__date"><time datetime="' . esc_attr(get_the_date('c', $post)) . '">' . esc_html(get_the_date('', $post)) . '</time></span>',
+                'time' => '<span class="obx-post__time">' . esc_html(get_the_time('', $post)) . '</span>',
+                'comments' => '<span class="obx-post__comments">' . esc_html(self::comments_label((int) get_comments_number($post))) . '</span>',
+                'modified' => '<span class="obx-post__modified"><time datetime="' . esc_attr(get_the_modified_date('c', $post)) . '">' . esc_html(get_the_modified_date('', $post)) . '</time></span>',
+                default => '',
+            };
+        }
+        echo '</div>';
+    }
+
+    public static function comments_label(int $count): string {
+        return $count === 0 ? 'Sin comentarios' : sprintf(_n('%d comentario', '%d comentarios', $count, 'oldbear-expansion'), $count);
+    }
+
+    private function full_content(\WP_Post $post): string {
+        if (in_array($post->ID, self::$rendering, true) || (int) get_queried_object_id() === $post->ID || post_password_required($post)) {
+            return '<p>' . esc_html(self::excerpt($post, 55)) . '</p>';
+        }
+        self::$rendering[] = $post->ID;
+        $elementor = \Elementor\Plugin::$instance;
+        $document = $elementor->documents->get($post->ID);
+        if ($document && $document->is_built_with_elementor()) {
+            $html = $elementor->frontend->get_builder_content_for_display($post->ID, true);
+        } else {
+            $GLOBALS['post'] = $post;
+            setup_postdata($post);
+            $html = apply_filters('the_content', $post->post_content);
+            wp_reset_postdata();
+        }
+        array_pop(self::$rendering);
+        return (string) $html;
+    }
+
+    private function pagination(array $s, \WP_Query $query): void {
+        $type = (string) ($s['pagination_type'] ?? '');
+        $limit = absint($s['pagination_page_limit'] ?? 5);
+        $total = (int) $query->max_num_pages;
+        if ($limit) { $total = min($total, $limit); }
+        if ($type === '' || $total < 2) { return; }
+        $current = min($this->current_page(), $total);
+        $arg = $this->page_arg();
+        $base = str_replace('999999999', '%#%', $arg !== null ? add_query_arg($arg, 999999999) : get_pagenum_link(999999999, false));
+        $format = '';
+        $link = static fn(int $page) => str_replace('%#%', (string) $page, $base);
+
+        if (str_starts_with($type, 'load_more')) {
+            if ($current >= $total) { return; }
+            $infinite = $type === 'load_more_infinite_scroll';
+            echo '<div class="obx-load-more" data-next="' . esc_attr($link($current + 1)) . '" data-page="' . esc_attr((string) $current) . '" data-max="' . esc_attr((string) $total) . '" data-mode="' . ($infinite ? 'scroll' : 'click') . '" data-done="' . esc_attr((string) ($s['load_more_no_posts_custom_message'] ?? '')) . '">';
+            echo $infinite ? '<span class="obx-load-more__spinner" aria-hidden="true"></span>' : '<button type="button" class="obx-load-more__button elementor-button">' . esc_html(($s['text'] ?? '') ?: 'Cargar más') . '</button>';
+            echo '<p class="obx-load-more__message" role="status" hidden></p></div>';
+            return;
+        }
+        $prev = wp_kses_post((string) ($s['pagination_prev_label'] ?? ''));
+        $next = wp_kses_post((string) ($s['pagination_next_label'] ?? ''));
+        $parts = [];
+        if ($type !== 'numbers') {
+            $parts[] = $current > 1 ? '<a class="page-numbers prev" href="' . esc_url($link($current - 1)) . '">' . $prev . '</a>' : '<span class="page-numbers prev" aria-disabled="true">' . $prev . '</span>';
+        }
+        if ($type !== 'prev_next') {
+            $shorten = ($s['pagination_numbers_shorten'] ?? '') === 'yes';
+            $numbers = paginate_links(['base'=>$base,'format'=>$format,'total'=>$total,'current'=>$current,'show_all'=>!$shorten,'end_size'=>1,'mid_size'=>1,'prev_next'=>false,'type'=>'array']);
+            $parts = array_merge($parts, (array) $numbers);
+        }
+        if ($type !== 'numbers') {
+            $parts[] = $current < $total ? '<a class="page-numbers next" href="' . esc_url($link($current + 1)) . '">' . $next . '</a>' : '<span class="page-numbers next" aria-disabled="true">' . $next . '</span>';
+        }
+        echo '<nav class="obx-pagination" aria-label="Paginación">' . implode('', $parts) . '</nav>'; // Escaped above.
+    }
+}
+
+/** Posts of the current archive, search or blog page. */
+final class Archive_Posts extends Posts_Base {
+    public const CATEGORY = 'obx-archive';
+    public const NAME = 'obx-archive-posts';
+    public const PRO = 'archive-posts';
+    protected const SKIN_PREFIX = 'archive_';
+    public function get_title(): string { return 'Entradas del archivo'; }
+    public function get_icon(): string { return 'eicon-archive-posts'; }
+    public function get_keywords(): array { return ['posts','entradas','archive','archivo','loop','grid']; }
+    protected function query(): \WP_Query { return Context::query(); }
+
+    protected static function upgrade_settings(array $s): array { return self::upgrade_cards($s, 'archive_classic_'); }
+
+    /** Settings of the original obx-archive-posts widget → classic skin keys. */
+    public static function upgrade_cards(array $s, string $p): array {
+        $map = ['columns'=>$p . 'columns','columns_tablet'=>$p . 'columns_tablet','columns_mobile'=>$p . 'columns_mobile','title_tag'=>$p . 'title_tag','show_excerpt'=>$p . 'show_excerpt','excerpt_length'=>$p . 'excerpt_length',
+            'read_more'=>$p . 'read_more_text','empty'=>'nothing_found_message','card_bg'=>$p . 'box_bg_color','card_padding'=>$p . 'content_padding','title_color'=>$p . 'title_color','meta_color'=>$p . 'meta_color','excerpt_color'=>$p . 'excerpt_color','more_color'=>$p . 'read_more_color'];
+        if (array_key_exists('show_image', $s)) { $s[$p . 'thumbnail'] = $s['show_image'] === 'yes' ? 'top' : 'none'; unset($s['show_image']); }
+        if (isset($s['image_size'])) { $s[$p . 'thumbnail_size_size'] = $s['image_size']; unset($s['image_size']); }
+        if (array_key_exists('show_date', $s)) { $s[$p . 'meta_data'] = $s['show_date'] === 'yes' ? ['date'] : []; unset($s['show_date']); }
+        elseif (!isset($s[$p . 'meta_data'])) { $s[$p . 'meta_data'] = ['date']; }
+        if (array_key_exists('pagination', $s) || !isset($s['pagination_type'])) { $s['pagination_type'] = ($s['pagination'] ?? 'yes') === 'yes' ? 'numbers' : ''; unset($s['pagination']); }
+        if (isset($s['read_more']) && $s['read_more'] === '') { $s[$p . 'show_read_more'] = ''; }
+        if (isset($s['gap'])) { $s[$p . 'column_gap'] = $s['gap']; $s[$p . 'row_gap'] = $s['gap']; unset($s['gap']); }
+        if (isset($s['card_radius']) && is_array($s['card_radius'])) { $s[$p . 'box_border_radius'] = ['unit'=>$s['card_radius']['unit'] ?? 'px','size'=>(float) ($s['card_radius']['top'] ?? 0)]; unset($s['card_radius']); }
+        $s = self::rename($s, $map);
+        foreach (['title'=>'title','meta'=>'meta','excerpt'=>'excerpt','more'=>'read_more'] as $old => $new) { $s = self::rename_prefix($s, $old . '_typography_', $p . $new . '_typography_'); }
+        $s = self::rename_prefix($s, 'card_border_', $p . 'box_border_');
+        $s['_skin'] = rtrim(substr($p, 0, -1), '_');
+        return $s;
+    }
+}
+
+/** Posts from any query. */
+final class Posts extends Posts_Base {
+    public const PRO = 'posts';
+    public const PRO_CATEGORY = 'pro-elements';
+    public function get_title(): string { return 'Entradas'; }
+    public function get_icon(): string { return 'eicon-post-list'; }
+    public function get_keywords(): array { return ['posts','entradas','blog','grid','rejilla','query','consulta']; }
+
+    /** v0.3 saved this widget with its own keys under the Pro name. */
+    protected static function is_legacy(array $s): bool { return !isset($s['_skin']) && (isset($s['post_type']) || isset($s['posts_per_page']) || isset($s['show_image'])); }
+
+    protected static function upgrade_settings(array $s): array {
+        if (!self::is_legacy($s)) { return $s; }
+        $s = Archive_Posts::upgrade_cards($s, 'classic_');
+        $s = self::rename($s, ['post_type'=>'posts_post_type','posts_per_page'=>'classic_posts_per_page','offset'=>'posts_offset']);
+        if (isset($s['orderby'])) { $s['posts_orderby'] = ['date'=>'post_date','title'=>'post_title','modified'=>'modified'][$s['orderby']] ?? $s['orderby']; unset($s['orderby']); }
+        if (isset($s['order'])) { $s['posts_order'] = strtolower((string) $s['order']); unset($s['order']); }
+        if (!empty($s['categories'])) { $s['posts_include'] = ['terms']; $s['posts_include_term_ids'] = array_map('strval', (array) $s['categories']); }
+        unset($s['categories']);
+        $s['posts_exclude'] = (($s['exclude_current'] ?? 'yes') === 'yes') ? ['current_post'] : [];
+        unset($s['exclude_current']);
+        return $s;
+    }
+
+    public static function wants_upgrade(string $name, array $settings): bool { return $name === self::PRO && self::is_legacy($settings); }
+
+    protected function page_arg(): ?string { return 'e-page-' . $this->get_id(); }
+
+    protected function query_controls(): void {
+        $types = [];
+        foreach (get_post_types(['public'=>true], 'objects') as $type) { if (!in_array($type->name, ['attachment','elementor_library','e-landing-page'], true)) { $types[$type->name] = $type->labels->name; } }
+        $types += ['by_id'=>'Selección manual','current_query'=>'Consulta actual','related'=>'Relacionadas'];
+        $terms = [];
+        foreach (get_taxonomies(['public'=>true,'show_ui'=>true], 'objects') as $taxonomy) {
+            if ($taxonomy->name === 'post_format') { continue; }
+            foreach (get_terms(['taxonomy'=>$taxonomy->name,'hide_empty'=>false,'number'=>200]) ?: [] as $term) {
+                if ($term instanceof \WP_Term) { $terms[(string) $term->term_id] = $taxonomy->labels->singular_name . ': ' . $term->name; }
+            }
+        }
+        $authors = [];
+        foreach (get_users(['capability'=>['edit_posts'],'number'=>200,'fields'=>['ID','display_name']]) as $user) { $authors[(string) $user->ID] = $user->display_name; }
+        $posts = [];
+        foreach (get_posts(['post_type'=>array_keys(array_diff_key($types, array_flip(['by_id','current_query','related']))),'numberposts'=>200,'orderby'=>'date','post_status'=>'publish']) as $post) { $posts[(string) $post->ID] = get_the_title($post) ?: '#' . $post->ID; }
+        $taxonomies = [];
+        foreach (get_taxonomies(['public'=>true,'show_ui'=>true], 'objects') as $taxonomy) { $taxonomies[$taxonomy->name] = $taxonomy->labels->name; }
+
+        $plain = ['posts_post_type!'=>['by_id','current_query','related']];
+        $this->start_controls_section('section_query', ['label'=>'Consulta']);
+        $this->add_control('posts_post_type', ['label'=>'Origen','type'=>Controls_Manager::SELECT,'default'=>'post','options'=>$types]);
+        $this->add_control('posts_posts_ids', ['label'=>'Entradas','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>['posts_post_type'=>'by_id']]);
+        $this->add_control('archive_query_note', ['type'=>Controls_Manager::RAW_HTML,'raw'=>'Muestra las entradas de la página en la que se use (archivo, búsqueda o blog).','content_classes'=>'elementor-panel-alert elementor-panel-alert-info','condition'=>['posts_post_type'=>'current_query']]);
+        $this->add_control('posts_related_taxonomies', ['label'=>'Relacionadas por','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$taxonomies,'default'=>['category','post_tag'],'condition'=>['posts_post_type'=>'related']]);
+        $this->add_control('posts_include', ['label'=>'Incluir solo','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>['terms'=>'Términos','authors'=>'Autores'],'condition'=>$plain]);
+        $this->add_control('posts_include_term_ids', ['label'=>'Términos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$terms,'condition'=>$plain + ['posts_include'=>'terms']]);
+        $this->add_control('posts_include_authors', ['label'=>'Autores','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$authors,'condition'=>$plain + ['posts_include'=>'authors']]);
+        $this->add_control('posts_exclude', ['label'=>'Excluir','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>['current_post'=>'Entrada actual','manual_selection'=>'Selección manual','terms'=>'Términos','authors'=>'Autores'],'condition'=>['posts_post_type!'=>['by_id','current_query']]]);
+        $this->add_control('posts_exclude_ids', ['label'=>'Entradas excluidas','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>['posts_exclude'=>'manual_selection']]);
+        $this->add_control('posts_exclude_term_ids', ['label'=>'Términos excluidos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$terms,'condition'=>['posts_exclude'=>'terms']]);
+        $this->add_control('posts_exclude_authors', ['label'=>'Autores excluidos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$authors,'condition'=>['posts_exclude'=>'authors']]);
+        $this->add_control('posts_avoid_duplicates', ['label'=>'Evitar duplicados','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','description'=>'Omite las entradas que ya muestran otros widgets de esta página.','condition'=>['posts_post_type!'=>'current_query']]);
+        $this->add_control('posts_offset', ['label'=>'Saltar','type'=>Controls_Manager::NUMBER,'default'=>0,'min'=>0,'condition'=>$plain]);
+        $this->add_control('posts_select_date', ['label'=>'Fecha','type'=>Controls_Manager::SELECT,'default'=>'anytime','options'=>['anytime'=>'Cualquiera','today'=>'Último día','week'=>'Última semana','month'=>'Último mes','quarter'=>'Último trimestre','year'=>'Último año','exact'=>'Personalizada'],'condition'=>$plain,'separator'=>'before']);
+        $this->add_control('posts_date_after', ['label'=>'Después de','type'=>Controls_Manager::DATE_TIME,'condition'=>$plain + ['posts_select_date'=>'exact']]);
+        $this->add_control('posts_date_before', ['label'=>'Antes de','type'=>Controls_Manager::DATE_TIME,'condition'=>$plain + ['posts_select_date'=>'exact']]);
+        $this->add_control('posts_orderby', ['label'=>'Ordenar por','type'=>Controls_Manager::SELECT,'default'=>'post_date','options'=>['post_date'=>'Fecha','post_title'=>'Título','menu_order'=>'Orden del menú','modified'=>'Última modificación','comment_count'=>'Número de comentarios','rand'=>'Aleatorio'],'condition'=>['posts_post_type!'=>'current_query']]);
+        $this->add_control('posts_order', ['label'=>'Orden','type'=>Controls_Manager::SELECT,'default'=>'desc','options'=>['asc'=>'Ascendente','desc'=>'Descendente'],'condition'=>['posts_post_type!'=>'current_query']]);
+        $this->add_control('posts_ignore_sticky_posts', ['label'=>'Ignorar entradas fijadas','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','condition'=>['posts_post_type'=>'post']]);
+        $this->add_control('posts_query_id', ['label'=>'ID de consulta','type'=>Controls_Manager::TEXT,'default'=>'','description'=>'Permite modificar la consulta desde código con la acción elementor/query/{ID}.','separator'=>'before']);
+        $this->add_control('posts_related_fallback', ['label'=>'Si no hay relacionadas','type'=>Controls_Manager::SELECT,'default'=>'fallback_none','options'=>['fallback_none'=>'No mostrar nada','fallback_by_id'=>'Selección manual','fallback_recent'=>'Entradas recientes'],'condition'=>['posts_post_type'=>'related']]);
+        $this->add_control('posts_fallback_ids', ['label'=>'Entradas de reserva','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>['posts_post_type'=>'related','posts_related_fallback'=>'fallback_by_id']]);
+        $this->end_controls_section();
+    }
+
+    /** @return int[] */
+    private static function ints($value): array { return array_values(array_filter(array_map('absint', (array) $value))); }
+
+    protected function query(): \WP_Query {
+        $s = $this->get_settings_for_display();
+        $source = (string) ($s['posts_post_type'] ?? 'post');
+        if ($source === 'current_query') { return Context::query(); }
+        $skin = $this->skin();
+        $per_page = max(1, min(100, (int) ($s[$skin . '_posts_per_page'] ?? 6) ?: 6));
+        $paged = ($s['pagination_type'] ?? '') !== '' ? $this->current_page() : 1;
+        $orderby = (string) ($s['posts_orderby'] ?? 'post_date');
+        $orderby = ['post_date'=>'date','date'=>'date','post_title'=>'title','title'=>'title','menu_order'=>'menu_order','modified'=>'modified','post_modified'=>'modified','comment_count'=>'comment_count','rand'=>'rand'][$orderby] ?? 'date';
+        $args = ['post_status'=>'publish','posts_per_page'=>$per_page,'orderby'=>$orderby,'order'=>strtolower((string) ($s['posts_order'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC','ignore_sticky_posts'=>true];
+        $current = Context::template() ? null : get_queried_object();
+        $exclude = (array) ($s['posts_exclude'] ?? []);
+        $not_in = [];
+
+        if ($source === 'by_id') {
+            $ids = self::ints($s['posts_posts_ids'] ?? []);
+            $args += ['post_type'=>'any','post__in'=>$ids ?: [0],'orderby'=>$args['orderby']];
+        } elseif ($source === 'related') {
+            $post = Context::post();
+            $args['post_type'] = $post ? $post->post_type : 'post';
+            $tax_query = ['relation'=>'OR'];
+            foreach ((array) ($s['posts_related_taxonomies'] ?? []) as $taxonomy) {
+                if (!$post || !taxonomy_exists((string) $taxonomy)) { continue; }
+                $ids = wp_get_post_terms($post->ID, (string) $taxonomy, ['fields'=>'ids']);
+                if (!is_wp_error($ids) && $ids) { $tax_query[] = ['taxonomy'=>(string) $taxonomy,'terms'=>$ids]; }
+            }
+            if (count($tax_query) > 1) { $args['tax_query'] = $tax_query; } else { $args['post__in'] = [0]; }
+            if ($post) { $not_in[] = $post->ID; }
+        } else {
+            $args['post_type'] = post_type_exists($source) ? $source : 'post';
+            $args['ignore_sticky_posts'] = $source !== 'post' || ($s['posts_ignore_sticky_posts'] ?? 'yes') === 'yes';
+            $include = (array) ($s['posts_include'] ?? []);
+            $tax_query = [];
+            if (in_array('terms', $include, true) && ($terms = self::ints($s['posts_include_term_ids'] ?? []))) { $tax_query = array_merge($tax_query, self::term_clauses($terms, 'IN')); }
+            if (in_array('terms', $exclude, true) && ($terms = self::ints($s['posts_exclude_term_ids'] ?? []))) { $tax_query = array_merge($tax_query, self::term_clauses($terms, 'NOT IN')); }
+            if ($tax_query) { $args['tax_query'] = ['relation'=>'AND'] + $tax_query; }
+            if (in_array('authors', $include, true) && ($authors = self::ints($s['posts_include_authors'] ?? []))) { $args['author__in'] = $authors; }
+            $offset = max(0, (int) ($s['posts_offset'] ?? 0));
+            if ($offset) { $args['offset'] = $offset + ($paged - 1) * $per_page; }
+            $date = (string) ($s['posts_select_date'] ?? 'anytime');
+            $since = ['today'=>'-1 day','week'=>'-1 week','month'=>'-1 month','quarter'=>'-3 month','year'=>'-1 year'][$date] ?? null;
+            if ($since) { $args['date_query'] = [['after'=>$since,'inclusive'=>true]]; }
+            if ($date === 'exact') { $args['date_query'] = [array_filter(['after'=>$s['posts_date_after'] ?? '','before'=>$s['posts_date_before'] ?? '','inclusive'=>true])]; }
+        }
+        if ($source !== 'by_id') {
+            if (in_array('current_post', $exclude, true) && $current instanceof \WP_Post) { $not_in[] = $current->ID; }
+            if (in_array('manual_selection', $exclude, true)) { $not_in = array_merge($not_in, self::ints($s['posts_exclude_ids'] ?? [])); }
+            if (in_array('authors', $exclude, true) && ($authors = self::ints($s['posts_exclude_authors'] ?? []))) { $args['author__not_in'] = $authors; }
+            if (($s['posts_avoid_duplicates'] ?? '') === 'yes') { $not_in = array_merge($not_in, self::$shown); }
+        }
+        if ($not_in) { $args['post__not_in'] = array_values(array_unique($not_in)); }
+        $args['paged'] = $paged;
+
+        $query = new \WP_Query();
+        $query_id = sanitize_key((string) ($s['posts_query_id'] ?? ''));
+        // Elementor Pro's custom query hook, so existing snippets keep working.
+        $widget = $this;
+        $hook = $query_id !== '' ? static function($q) use ($query_id, $query, $widget) { if ($q === $query) { do_action('elementor/query/' . $query_id, $q, $widget); } } : null;
+        if ($hook) { add_action('pre_get_posts', $hook); }
+        $query->query($args);
+        if ($hook) { remove_action('pre_get_posts', $hook); }
+
+        if (!$query->have_posts() && $source === 'related') {
+            $fallback = (string) ($s['posts_related_fallback'] ?? 'fallback_none');
+            if ($fallback === 'fallback_recent') { $query = new \WP_Query(['post_type'=>$args['post_type'],'posts_per_page'=>$per_page,'post__not_in'=>$args['post__not_in'] ?? [],'ignore_sticky_posts'=>true]); }
+            if ($fallback === 'fallback_by_id') { $query = new \WP_Query(['post_type'=>'any','post__in'=>self::ints($s['posts_fallback_ids'] ?? []) ?: [0],'posts_per_page'=>$per_page]); }
+        }
+        return $query;
+    }
+
+    /** Groups term IDs by taxonomy into tax_query clauses. */
+    private static function term_clauses(array $ids, string $operator): array {
+        $by_taxonomy = [];
+        foreach ($ids as $id) {
+            $term = get_term($id);
+            if ($term instanceof \WP_Term) { $by_taxonomy[$term->taxonomy][] = $id; }
+        }
+        $clauses = [];
+        foreach ($by_taxonomy as $taxonomy => $terms) { $clauses[] = ['taxonomy'=>$taxonomy,'field'=>'term_id','terms'=>$terms,'operator'=>$operator]; }
+        return $clauses;
+    }
+}
+
+/** Meta list of the current post (Elementor Pro «Post Info»). */
+final class Post_Info extends Base {
+    public const NAME = 'obx-post-info';
+    public const PRO = 'post-info';
+    public const PRO_CATEGORY = 'theme-elements-single';
+    public function get_title(): string { return 'Información de la entrada'; }
+    public function get_icon(): string { return 'eicon-post-info'; }
+    public function get_keywords(): array { return ['meta','fecha','autor','categorias','info','post']; }
+    public function get_style_depends(): array { return ['obx-frontend','elementor-icons-fa-regular','elementor-icons-fa-solid']; }
+
+    public const DATE_FORMATS = ['default'=>'Predeterminado','0'=>'F j, Y','1'=>'Y-m-d','2'=>'m/d/Y','3'=>'d/m/Y','custom'=>'Personalizado'];
+    public const TIME_FORMATS = ['default'=>'Predeterminado','0'=>'g:i a','1'=>'g:i A','2'=>'H:i','custom'=>'Personalizado'];
+    private const ICONS = ['author'=>'far fa-user-circle','date'=>'fas fa-calendar','time'=>'far fa-clock','comments'=>'far fa-comment-dots','terms'=>'fas fa-tags','custom'=>'fas fa-info-circle'];
+
+    protected function register_controls(): void {
+        $taxonomies = [];
+        foreach (get_taxonomies(['public'=>true,'show_ui'=>true], 'objects') as $taxonomy) { if ($taxonomy->name !== 'post_format') { $taxonomies[$taxonomy->name] = $taxonomy->label; } }
+        $this->start_controls_section('section_icon', ['label'=>'Metadatos']);
+        $this->add_control('view', ['label'=>'Disposición','type'=>Controls_Manager::CHOOSE,'default'=>'inline','options'=>['traditional'=>['title'=>'Predeterminada','icon'=>'eicon-editor-list-ul'],'inline'=>['title'=>'En línea','icon'=>'eicon-ellipsis-h']],'render_type'=>'template','label_block'=>false]);
+
+        $r = new \Elementor\Repeater();
+        $r->add_control('type', ['label'=>'Tipo','type'=>Controls_Manager::SELECT,'default'=>'date','options'=>['author'=>'Autor','date'=>'Fecha','time'=>'Hora','comments'=>'Comentarios','terms'=>'Términos','custom'=>'Personalizado']]);
+        $r->add_control('date_format', ['label'=>'Formato de fecha','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>self::DATE_FORMATS,'condition'=>['type'=>'date']]);
+        $r->add_control('custom_date_format', ['label'=>'Formato personalizado','type'=>Controls_Manager::TEXT,'default'=>'F j, Y','condition'=>['type'=>'date','date_format'=>'custom']]);
+        $r->add_control('time_format', ['label'=>'Formato de hora','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>self::TIME_FORMATS,'condition'=>['type'=>'time']]);
+        $r->add_control('custom_time_format', ['label'=>'Formato personalizado','type'=>Controls_Manager::TEXT,'default'=>'g:i a','condition'=>['type'=>'time','time_format'=>'custom']]);
+        $r->add_control('taxonomy', ['label'=>'Taxonomía','type'=>Controls_Manager::SELECT2,'label_block'=>true,'default'=>[],'options'=>$taxonomies,'condition'=>['type'=>'terms']]);
+        $r->add_control('text_prefix', ['label'=>'Texto previo','type'=>Controls_Manager::TEXT,'condition'=>['type!'=>'custom']]);
+        $r->add_control('show_avatar', ['label'=>'Avatar','type'=>Controls_Manager::SWITCHER,'condition'=>['type'=>'author']]);
+        $r->add_responsive_control('avatar_size', ['label'=>'Tamaño del avatar','type'=>Controls_Manager::SLIDER,'selectors'=>['{{WRAPPER}} {{CURRENT_ITEM}} .obx-post-info__avatar'=>'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};'],'condition'=>['show_avatar'=>'yes']]);
+        $r->add_control('comments_custom_strings', ['label'=>'Textos personalizados','type'=>Controls_Manager::SWITCHER,'default'=>false,'condition'=>['type'=>'comments']]);
+        $r->add_control('string_no_comments', ['label'=>'Sin comentarios','type'=>Controls_Manager::TEXT,'placeholder'=>'Sin comentarios','condition'=>['comments_custom_strings'=>'yes','type'=>'comments']]);
+        $r->add_control('string_one_comment', ['label'=>'Un comentario','type'=>Controls_Manager::TEXT,'placeholder'=>'1 comentario','condition'=>['comments_custom_strings'=>'yes','type'=>'comments']]);
+        $r->add_control('string_comments', ['label'=>'Varios comentarios','type'=>Controls_Manager::TEXT,'placeholder'=>'%s comentarios','condition'=>['comments_custom_strings'=>'yes','type'=>'comments']]);
+        $r->add_control('custom_text', ['label'=>'Texto','type'=>Controls_Manager::TEXT,'dynamic'=>['active'=>true],'label_block'=>true,'condition'=>['type'=>'custom']]);
+        $r->add_control('link', ['label'=>'Enlace','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['type!'=>['time','custom']]]);
+        $r->add_control('custom_url', ['label'=>'Enlace personalizado','type'=>Controls_Manager::URL,'dynamic'=>['active'=>true],'condition'=>['type'=>'custom']]);
+        $r->add_control('show_icon', ['label'=>'Icono','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>['none'=>'Ninguno','default'=>'Predeterminado','custom'=>'Personalizado'],'condition'=>['show_avatar!'=>'yes']]);
+        $r->add_control('selected_icon', ['label'=>'Elegir icono','type'=>Controls_Manager::ICONS,'fa4compatibility'=>'icon','condition'=>['show_icon'=>'custom','show_avatar!'=>'yes']]);
+        $this->add_control('icon_list', ['label'=>'','type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),
+            'default'=>[['type'=>'author','selected_icon'=>['value'=>'far fa-user-circle','library'=>'fa-regular']],['type'=>'date','selected_icon'=>['value'=>'fas fa-calendar','library'=>'fa-solid']],['type'=>'time','selected_icon'=>['value'=>'far fa-clock','library'=>'fa-regular']],['type'=>'comments','selected_icon'=>['value'=>'far fa-comment-dots','library'=>'fa-regular']]],
+            'title_field'=>'{{{ type }}}']);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_icon_list', ['label'=>'Lista','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_responsive_control('space_between', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('icon_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>['start'=>['title'=>'Inicio','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'end'=>['title'=>'Final','icon'=>'eicon-h-align-right']],'selectors_dictionary'=>['left'=>'flex-start','start'=>'flex-start','right'=>'flex-end','end'=>'flex-end','center'=>'center'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'justify-content: {{VALUE}};']]);
+        $this->add_control('divider', ['label'=>'Separador','type'=>Controls_Manager::SWITCHER,'label_off'=>'No','label_on'=>'Sí','selectors'=>['{{WRAPPER}} .obx-post-info > li:not(:last-child)::after'=>'content: ""']]);
+        $this->add_control('divider_style', ['label'=>'Estilo','type'=>Controls_Manager::SELECT,'default'=>'solid','options'=>['solid'=>'Sólido','double'=>'Doble','dotted'=>'Puntos','dashed'=>'Guiones'],'condition'=>['divider'=>'yes'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'--obx-divider-style: {{VALUE}};']]);
+        $this->add_control('divider_weight', ['label'=>'Grosor','type'=>Controls_Manager::SLIDER,'default'=>['size'=>1],'range'=>['px'=>['min'=>1,'max'=>20]],'condition'=>['divider'=>'yes'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'--obx-divider-weight: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('divider_width', ['label'=>'Ancho','type'=>Controls_Manager::SLIDER,'size_units'=>['%','px'],'default'=>['unit'=>'%'],'condition'=>['divider'=>'yes','view!'=>'inline'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'--obx-divider-width: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('divider_height', ['label'=>'Altura','type'=>Controls_Manager::SLIDER,'size_units'=>['%','px'],'default'=>['unit'=>'%'],'range'=>['px'=>['min'=>1,'max'=>100],'%'=>['min'=>1,'max'=>100]],'condition'=>['divider'=>'yes','view'=>'inline'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'--obx-divider-height: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('divider_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'default'=>'#ddd','condition'=>['divider'=>'yes'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'--obx-divider-color: {{VALUE}};']]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_icon_style', ['label'=>'Icono','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('icon_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post-info__icon i'=>'color: {{VALUE}};','{{WRAPPER}} .obx-post-info__icon svg'=>'fill: {{VALUE}};']]);
+        $this->add_responsive_control('icon_size', ['label'=>'Tamaño','type'=>Controls_Manager::SLIDER,'default'=>['size'=>14],'range'=>['px'=>['min'=>6]],'selectors'=>['{{WRAPPER}} .obx-post-info__icon'=>'--obx-icon-size: {{SIZE}}{{UNIT}};']]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_text_style', ['label'=>'Texto','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('text_indent', ['label'=>'Sangría','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-post-info__text'=>'padding-inline-start: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('text_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post-info__text, {{WRAPPER}} .obx-post-info__text a'=>'color: {{VALUE}};']]);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'icon_typography','selector'=>'{{WRAPPER}} .obx-post-info > li']);
+        $this->end_controls_section();
+    }
+
+    protected static function upgrade_settings(array $s): array {
+        $items = [];
+        foreach (['author'=>'author','date'=>'date','modified'=>'date','terms'=>'terms','comments'=>'comments'] as $old => $type) {
+            $default = in_array($old, ['date','author','terms'], true) ? 'yes' : '';
+            if (($s['show_' . $old] ?? $default) !== 'yes') { continue; }
+            $item = ['_id'=>substr(md5($old), 0, 7),'type'=>$type,'show_icon'=>'none','link'=>($s['link'] ?? 'yes') === 'yes' ? 'yes' : ''];
+            if ($old === 'terms') { $item['taxonomy'] = [$s['taxonomy'] ?? 'category']; }
+            if ($old === 'modified') { $item['text_prefix'] = 'Actualizado:'; $item['obx_modified'] = 'yes'; }
+            $items[] = $item;
+            unset($s['show_' . $old]);
+        }
+        unset($s['taxonomy'], $s['link']);
+        $s['icon_list'] = $items;
+        $s['divider'] = 'yes';
+        if (isset($s['text_align'])) { $s['icon_align'] = ['left'=>'start','right'=>'end','center'=>'center'][$s['text_align']] ?? 'start'; unset($s['text_align']); }
+        unset($s['text_hover'], $s['separator']);
+        return self::rename_prefix($s, 'text_typography_', 'icon_typography_');
+    }
+
+    protected function render(): void {
+        $s = $this->get_settings_for_display();
+        $post = Context::post();
+        if (!$post) { $this->placeholder('La información de la entrada aparecerá aquí.'); return; }
+        $items = '';
+        foreach ((array) ($s['icon_list'] ?? []) as $item) { $items .= $this->item($item, $post); }
+        if ($items === '') { return; }
+        $view = ($s['view'] ?? 'inline') === 'traditional' ? 'traditional' : 'inline';
+        echo '<ul class="obx-post-info obx-post-info--' . $view . (($s['divider'] ?? '') === 'yes' ? ' obx-post-info--divider' : '') . '">' . $items . '</ul>'; // Escaped per item.
+    }
+
+    private function item(array $item, \WP_Post $post): string {
+        $type = (string) ($item['type'] ?? '');
+        $link = ($item['link'] ?? 'yes') === 'yes';
+        $url = '';
+        $avatar = '';
+        switch ($type) {
+            case 'author':
+                $text = esc_html(get_the_author_meta('display_name', (int) $post->post_author));
+                $url = get_author_posts_url((int) $post->post_author);
+                if (($item['show_avatar'] ?? '') === 'yes') { $avatar = get_avatar((int) $post->post_author, 96, '', '', ['class'=>'obx-post-info__avatar']); }
+                break;
+            case 'date':
+                $format = self::format((string) ($item['date_format'] ?? 'default'), (string) ($item['custom_date_format'] ?? ''), self::DATE_FORMATS, (string) get_option('date_format'));
+                $modified = ($item['obx_modified'] ?? '') === 'yes';
+                $text = '<time datetime="' . esc_attr($modified ? get_the_modified_date('c', $post) : get_the_date('c', $post)) . '">' . esc_html($modified ? get_the_modified_date($format, $post) : get_the_date($format, $post)) . '</time>';
+                $url = get_day_link((int) get_the_date('Y', $post), (int) get_the_date('m', $post), (int) get_the_date('d', $post));
+                break;
+            case 'time':
+                $text = esc_html(get_the_time(self::format((string) ($item['time_format'] ?? 'default'), (string) ($item['custom_time_format'] ?? ''), self::TIME_FORMATS, (string) get_option('time_format')), $post));
+                $link = false;
+                break;
+            case 'comments':
+                if (!comments_open($post) && !get_comments_number($post)) { return ''; }
+                $count = (int) get_comments_number($post);
+                if (($item['comments_custom_strings'] ?? '') === 'yes') {
+                    $string = $count === 0 ? ($item['string_no_comments'] ?? '') : ($count === 1 ? ($item['string_one_comment'] ?? '') : ($item['string_comments'] ?? ''));
+                    $text = esc_html($string !== '' ? sprintf(str_replace('%s', '%1$s', $string), $count) : Posts_Base::comments_label($count));
+                } else {
+                    $text = esc_html(Posts_Base::comments_label($count));
+                }
+                $url = get_comments_link($post);
+                break;
+            case 'terms':
+                $taxonomy = (string) (is_array($item['taxonomy'] ?? null) ? (reset($item['taxonomy']) ?: '') : ($item['taxonomy'] ?? ''));
+                $terms = taxonomy_exists($taxonomy) ? get_the_terms($post, $taxonomy) : false;
+                if (!is_array($terms) || !$terms) { return ''; }
+                $text = implode(', ', array_map(static fn($t) => $link ? '<a href="' . esc_url(get_term_link($t)) . '">' . esc_html($t->name) . '</a>' : esc_html($t->name), $terms));
+                $link = false;
+                break;
+            case 'custom':
+                $text = esc_html((string) ($item['custom_text'] ?? ''));
+                if ($text === '') { return ''; }
+                $url = (string) ($item['custom_url']['url'] ?? '');
+                $link = $url !== '';
+                break;
+            default:
+                return '';
+        }
+        $prefix = (string) ($item['text_prefix'] ?? '');
+        $inner = ($prefix !== '' ? '<span class="obx-post-info__prefix">' . esc_html($prefix) . '</span> ' : '') . $text;
+        $icon = '';
+        if ($avatar === '' && ($item['show_icon'] ?? 'default') !== 'none') {
+            $choice = ($item['show_icon'] ?? 'default') === 'custom' && !empty($item['selected_icon']['value']) ? $item['selected_icon'] : ['value'=>self::ICONS[$type],'library'=>str_starts_with(self::ICONS[$type], 'far') ? 'fa-regular' : 'fa-solid'];
+            $icon = Icons_Manager::try_get_icon_html($choice, ['aria-hidden'=>'true']);
+        }
+        $body = ($avatar ?: ($icon ? '<span class="obx-post-info__icon">' . $icon . '</span>' : '')) . '<span class="obx-post-info__text">' . $inner . '</span>';
+        if ($link && $url) { $body = '<a href="' . esc_url($url) . '">' . $body . '</a>'; }
+        return '<li class="obx-post-info__item obx-post-info__item--' . esc_attr($type) . ' elementor-repeater-item-' . esc_attr((string) ($item['_id'] ?? '')) . '">' . $body . '</li>';
+    }
+
+    private static function format(string $choice, string $custom, array $options, string $fallback): string {
+        if ($choice === 'custom') { return $custom !== '' ? $custom : $fallback; }
+        return $choice !== 'default' && isset($options[$choice]) ? $options[$choice] : $fallback;
+    }
+}
