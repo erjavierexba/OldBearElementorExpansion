@@ -37,6 +37,7 @@ final class Clean_Mode {
         add_action('admin_head', [self::class, 'remove_upgrade_menu']);
         if (defined('ELEMENTOR_VERSION')) {
             add_filter('transient_elementor_remote_info_api_data_' . ELEMENTOR_VERSION, [self::class, 'remote_info']);
+            \OldBearExpansion\ThemeBuilder\Module::filter_remote_info([self::class, 'remote_info']);
         }
     }
 

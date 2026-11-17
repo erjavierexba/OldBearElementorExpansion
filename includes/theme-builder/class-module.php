@@ -63,6 +63,7 @@ final class Module {
         if (!Plugin::pro_active() && defined('ELEMENTOR_VERSION')) {
             // Elementor lists Pro widgets as locked promotions; drop the ones we provide.
             add_filter('transient_elementor_remote_info_api_data_' . ELEMENTOR_VERSION, [self::class, 'drop_promotions']);
+            self::filter_remote_info([self::class, 'drop_promotions']);
         }
     }
 
@@ -72,6 +73,20 @@ final class Module {
         $names = [];
         foreach (\OldBearExpansion\Widgets\Base::registry() as $class) { $names = array_merge($names, array_filter(array_merge([$class::PRO], $class::ALIASES))); }
         return $names;
+    }
+
+    /**
+     * Applies $callback to Elementor's remote info also when it has just been downloaded:
+     * on that first request Elementor uses the response directly, without reading the transient.
+     */
+    public static function filter_remote_info(callable $callback): void {
+        add_filter('http_response', static function ($response, $args, $url) use ($callback) {
+            $prefix = class_exists('\Elementor\Api') && isset(\Elementor\Api::$api_info_url) ? (string) \Elementor\Api::$api_info_url : 'https://my.elementor.com/api/v2/info/';
+            if (!is_string($url) || !str_starts_with($url, $prefix) || !is_array($response)) { return $response; }
+            $data = json_decode((string) wp_remote_retrieve_body($response), true);
+            if (is_array($data)) { $response['body'] = (string) wp_json_encode($callback($data)); }
+            return $response;
+        }, 10, 3);
     }
 
     public static function drop_promotions($data) {
