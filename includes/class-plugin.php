@@ -15,23 +15,32 @@ final class Plugin {
             add_action('admin_notices', [self::class, 'version_notice']);
             return;
         }
-        if (defined('ELEMENTOR_PRO_VERSION')) {
-            add_action('admin_notices', [self::class, 'pro_notice']);
-            return;
-        }
         require_once DIR . '/includes/class-context.php';
         require_once DIR . '/includes/theme-builder/class-conditions.php';
         require_once DIR . '/includes/theme-builder/class-documents.php';
         require_once DIR . '/includes/theme-builder/class-locations.php';
         require_once DIR . '/includes/theme-builder/class-admin.php';
         require_once DIR . '/includes/theme-builder/class-module.php';
+        if (self::pro_active()) {
+            // Coexistence: Elementor Pro owns the Theme Builder; our widgets stay available.
+            ThemeBuilder\Module::boot_widgets();
+            add_action('admin_notices', [self::class, 'pro_notice']);
+            return;
+        }
         ThemeBuilder\Module::boot();
         require_once DIR . '/includes/compat.php';
+        require_once DIR . '/includes/clean/class-clean-mode.php';
+        Clean\Clean_Mode::boot();
+    }
+
+    public static function pro_active(): bool {
+        return (bool) apply_filters('obx/pro_active', defined('ELEMENTOR_PRO_VERSION'));
     }
 
     public static function pro_notice(): void {
-        if (current_user_can('activate_plugins')) {
-            echo '<div class="notice notice-info"><p><strong>OldBear Expansion</strong> está en pausa porque Elementor Pro está activo: ambos ofrecen Theme Builder.</p></div>';
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        if (current_user_can('activate_plugins') && $screen && in_array($screen->id, ['plugins','dashboard'], true)) {
+            echo '<div class="notice notice-info"><p><strong>OldBear Expansion</strong> convive con Elementor Pro: el Theme Builder de Pro tiene prioridad y los widgets de OldBear siguen disponibles en el editor.</p></div>';
         }
     }
 

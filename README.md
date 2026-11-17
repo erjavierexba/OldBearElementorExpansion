@@ -9,18 +9,22 @@
 | Fase | Funcionalidad | Estado |
 | --- | --- | --- |
 | 1 | Theme Builder: cabecera, pie, entrada individual, archivo y 404, con condiciones | ✅ v0.1.0 |
+| 1b | Modo limpio y convivencia con Elementor Pro | ✅ v0.2.0 |
 | 2 | Etiquetas dinámicas en los widgets nativos | Pendiente |
 | 3 | Loop Grid con plantilla de tarjeta | Pendiente |
 | 4 | Formularios | Pendiente |
 | 5 | Popups | Pendiente |
 | 6 | Extras: CSS personalizado, cabecera fija, efectos de scroll, carrusel… | Pendiente |
+| 7 | Interoperabilidad: abrir sitios diseñados con Elementor Pro (tipos de plantilla, condiciones y widgets guardados) | Pendiente |
+
+**Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 
 ## Requisitos
 
 - WordPress 6.5+ y PHP 8.1+.
 - Elementor Free 3.20+ (probado con 3.34.2).
 - Un **tema clásico** (Hello Elementor, Astra, GeneratePress, OldBearStudios…). Los temas de bloques no usan `header.php`/`footer.php`.
-- Si Elementor Pro está activo, el plugin se pone en pausa para no duplicar el Theme Builder.
+- Con Elementor Pro activo, el plugin **convive**: el Theme Builder de Pro tiene prioridad y los widgets de OldBear siguen disponibles en el editor.
 
 ## Uso
 
@@ -59,6 +63,16 @@ En el editor, las plantillas de entrada y archivo se previsualizan con contenido
 - Si ningún otro plugin la define, se ofrece la función `elementor_theme_do_location()`, que usan temas como Hello Elementor o Astra.
 - Filtros disponibles: `obx/location/template_id` (forzar o anular una plantilla) y `obx/skip_link_target` (destino del enlace «Saltar al contenido»).
 
+## Modo limpio
+
+Activado por defecto (**Ajustes → OldBear Expansion**). Oculta los anuncios de Elementor Pro sin desactivar ninguna función gratuita:
+
+- widgets bloqueados «Pro» del panel, avisos del navegador y del panel, y la barra «Actualizar ahora» del editor;
+- secciones de solo promoción en Avanzado y en los ajustes de página (CSS personalizado, atributos, condiciones de visualización, efectos de scroll y ratón, sticky);
+- entradas de menú de Pro («Ventanas emergentes», «Elementos personalizados», «Actualizar», «Mejorar plan») y el enlace «Obtener Elementor Pro» en Plugins.
+
+La entrada **Maquetador de temas** de Elementor abre el Theme Builder de este plugin. Se desengancha el módulo de promociones de Elementor quitando solo los ganchos de esa instancia; el filtro `obx/clean_mode` permite desactivarlo por código.
+
 ## Desarrollo
 
 ```bash
@@ -77,6 +91,7 @@ oldbear-elementor-expansion.php    Cabecera del plugin y arranque
 includes/class-plugin.php          Comprobaciones (Elementor, versión, Pro) y carga de módulos
 includes/class-context.php         Entrada/consulta real o de vista previa para los widgets
 includes/compat.php                elementor_theme_do_location() para temas compatibles
+includes/clean/                    Modo limpio (anuncios de Pro) y página de ajustes
 includes/theme-builder/            Tipos de documento, condiciones, ubicaciones y pantalla de administración
 includes/widgets/                  Widgets de sitio, entrada y archivo
 templates/                         header.php, footer.php y location.php que imprime el plugin

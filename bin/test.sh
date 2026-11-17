@@ -24,4 +24,19 @@ check /hola-desde-la-madriguera/ 200 'obx-demo-single' 'elementor-widget-obx-pos
 check '/?s=madriguera' 200 'obx-demo-archive' 'Resultados de búsqueda'
 check /category/diario/ 200 'obx-demo-archive' 'obx-posts'
 check /no-existe-esta-pagina/ 404 'obx-demo-404'
+
+# Clean mode: no locked Pro widgets are injected into the editor config.
+wp eval 'echo json_encode(\Elementor\Api::get_promotion_widgets());' | grep -qx '\[\]' || { echo "FALLO: el modo limpio no vacía los widgets promocionales"; exit 1; }
+echo "OK modo limpio"
+
+# Coexistence with Elementor Pro (simulated through the obx/pro_active filter).
+docker compose run --rm -T cli sh -c "mkdir -p wp-content/mu-plugins && printf '%s\n' '<?php' \"add_filter('obx/pro_active', '__return_true');\" > wp-content/mu-plugins/obx-simulate-pro.php"
+trap 'docker compose run --rm -T cli rm -f wp-content/mu-plugins/obx-simulate-pro.php >/dev/null 2>&1; rm -rf "$tmp"' EXIT
+wp eval '$w = \Elementor\Plugin::$instance->widgets_manager->get_widget_types(); exit(isset($w["obx-nav-menu"]) && !\Elementor\Plugin::$instance->documents->get_document_type("obx-header", false) ? 0 : 1);' \
+    || { echo "FALLO: con Pro activo deben quedar los widgets y ceder el Theme Builder"; exit 1; }
+got="$(fetch /hola-desde-la-madriguera/)"
+test "$got" = 200 && ! grep -q 'id="obx-header"' "$tmp/page.html" && ! grep -qE 'Fatal error|Warning:' "$tmp/page.html" \
+    || { echo "FALLO: convivencia con Pro"; exit 1; }
+docker compose run --rm -T cli rm -f wp-content/mu-plugins/obx-simulate-pro.php >/dev/null 2>&1
+echo "OK convivencia con Elementor Pro (simulada)"
 echo "Todas las comprobaciones HTTP han pasado."

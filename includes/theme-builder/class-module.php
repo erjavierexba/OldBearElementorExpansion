@@ -19,11 +19,17 @@ final class Module {
 
     public static function boot(): void {
         add_action('elementor/documents/register', [self::class, 'documents']);
+        self::boot_widgets();
+        Locations::boot();
+        Admin::boot();
+    }
+
+    /** Widgets and assets only: also used when Elementor Pro handles the Theme Builder. */
+    public static function boot_widgets(): void {
         add_action('elementor/elements/categories_registered', [self::class, 'categories']);
         add_action('elementor/widgets/register', [self::class, 'widgets']);
         add_action('init', [self::class, 'assets'], 5);
-        Locations::boot();
-        Admin::boot();
+        add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); });
     }
 
     public static function documents($manager): void {

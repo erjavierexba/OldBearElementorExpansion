@@ -15,8 +15,17 @@ final class Admin {
         add_action('manage_elementor_library_posts_custom_column', [self::class, 'column'], 10, 2);
     }
 
+    /** With clean mode, Elementor's own «Theme Builder» menu entry points here, so ours stays hidden. */
+    private static function hidden(): bool {
+        return class_exists(\OldBearExpansion\Clean\Clean_Mode::class) && \OldBearExpansion\Clean\Clean_Mode::enabled();
+    }
+
+    public static function url(): string {
+        return self::hidden() ? admin_url('admin.php?page=' . self::PAGE) : admin_url('edit.php?post_type=elementor_library&page=' . self::PAGE);
+    }
+
     public static function menu(): void {
-        add_submenu_page('edit.php?post_type=elementor_library', 'Theme Builder', 'Theme Builder', 'edit_posts', self::PAGE, [self::class, 'page'], 1);
+        add_submenu_page(self::hidden() ? '' : 'edit.php?post_type=elementor_library', 'Theme Builder', 'Theme Builder', 'edit_posts', self::PAGE, [self::class, 'page'], 1);
     }
 
     public static function columns(array $columns): array {
