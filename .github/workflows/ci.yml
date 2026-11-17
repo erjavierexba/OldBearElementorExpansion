@@ -1,0 +1,37 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  wordpress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        elementor: ["3.34.2"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript
+        run: node --check assets/js/nav-menu.js
+      - name: Start WordPress, Elementor and demo content
+        env:
+          OBX_ELEMENTOR_VERSION: ${{ matrix.elementor }}
+        run: bash bin/setup.sh
+      - name: Lint, integration and HTTP tests
+        run: bash bin/test.sh
+      - name: Build plugin ZIP
+        run: bash bin/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oldbear-elementor-expansion
+          path: dist/*.zip
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail=200 wordpress
+      - name: Stop
+        if: always()
+        run: docker compose down -v
