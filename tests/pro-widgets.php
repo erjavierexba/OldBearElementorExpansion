@@ -29,6 +29,28 @@ foreach (Base::registry() as $class) {
     }
 }
 
+// The editor panel loads every widget's controls through the get_widgets_config AJAX action;
+// a misplaced control makes Elementor wp_die() there and the panel spins forever.
+$die = static function () { return static function ($message) { throw new RuntimeException(is_string($message) ? $message : 'wp_die'); }; };
+add_filter('wp_die_handler', $die, PHP_INT_MAX);
+add_filter('wp_die_ajax_handler', $die, PHP_INT_MAX);
+// WP-CLI counts as frontend, where Elementor skips that check: run it as the editor does.
+$frontend = new ReflectionProperty(\Elementor\Core\Frontend\Performance::class, 'is_frontend');
+$frontend->setAccessible(true);
+$was_frontend = $frontend->getValue();
+$frontend->setValue(null, false);
+foreach (Base::registry() as $class) {
+    foreach ($class::names() as $name) {
+        $widget = $types[$name] ?? null;
+        if (!$widget) { continue; }
+        try { $config = $widget->get_stack(false); } catch (RuntimeException $e) { $assert(false, "{$name}: " . $e->getMessage()); }
+        $assert(!empty($config['controls']), "{$name} no expone controles al editor.");
+    }
+}
+$frontend->setValue(null, $was_frontend);
+remove_filter('wp_die_handler', $die, PHP_INT_MAX);
+remove_filter('wp_die_ajax_handler', $die, PHP_INT_MAX);
+
 // Elementor no longer offers a locked promotion for widgets we provide.
 $raw = get_option('_transient_elementor_remote_info_api_data_' . ELEMENTOR_VERSION);
 if (is_array($raw) && !empty($raw['pro_widgets'])) {

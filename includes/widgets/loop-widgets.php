@@ -122,9 +122,10 @@ final class Loop_Grid extends Element {
 
         Query::controls($this, 'post_query_');
         $this->pagination_controls(false);
-        $this->add_control('pagination_individual_divider', ['type'=>Controls_Manager::HIDDEN]);
 
         $this->start_controls_section('section_nothing_found', ['label'=>'Sin resultados']);
+        // Pro data key; every control must live inside a section or Elementor rejects the widgets config.
+        $this->add_control('pagination_individual_divider', ['type'=>Controls_Manager::HIDDEN]);
         $this->add_control('nothing_found_message_text', ['label'=>'Mensaje','type'=>Controls_Manager::TEXTAREA,'default'=>'Parece que no hay nada aquí.']);
         $this->end_controls_section();
 
