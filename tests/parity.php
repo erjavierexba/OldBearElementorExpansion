@@ -899,6 +899,42 @@ try {
         $assert(str_contains(\OldBearExpansion\ThemeBuilder\Module::menu_breakpoints_css(), '.e-n-menu-tablet{--n-menu-wrapper-display:none}'), 'Menú: el botón sustituye a la barra por debajo del punto de ruptura.');
     }
 
+    // Global widget: `widget` library template plus `global` elements with `templateID`, as Pro stores them.
+    $GW = \OldBearExpansion\Extras\Global_Widgets::class;
+    $local = Elementor::$instance->templates_manager->get_source('local');
+    $gw_tpl = (int) $local->save_item(['type'=>'widget','title'=>'Aviso global','content'=>[$widget('heading', ['title'=>'Texto global','title_color'=>'#ff0000'])]]);
+    $created[] = $gw_tpl;
+    $assert($gw_tpl > 0 && get_post_meta($gw_tpl, '_elementor_template_widget_type', true) === 'heading' && $GW::is_widget_template($gw_tpl), 'Widget global: la plantilla `widget` guarda su tipo de widget.');
+    $gw_doc = Elementor::$instance->documents->get($gw_tpl);
+    $assert($gw_doc instanceof \OldBearExpansion\Extras\Global_Widget_Document && $gw_doc::get_property('show_in_library') === false && $gw_doc::get_property('is_editable') === false && get_post_status($gw_tpl) === 'publish', 'Widget global: documento `widget` oculto en la biblioteca y no editable por separado.');
+    $gw_list = $GW::templates();
+    $assert(isset($gw_list[$gw_tpl]) && $gw_list[$gw_tpl]['widgetType'] === 'heading' && $gw_list[$gw_tpl]['title'] === 'Aviso global', 'Widget global: el editor recibe la lista de widgets globales.');
+    $gw_from_pro = ['id'=>$uid(),'elType'=>'widget','widgetType'=>'global','templateID'=>$gw_tpl,'settings'=>[],'elements'=>[]];
+    $gw_from_editor = ['id'=>$uid(),'elType'=>'widget','widgetType'=>'heading','templateID'=>$gw_tpl,'settings'=>['title'=>'Copia local'],'elements'=>[]];
+    $gw_page = $save('page', 'Paridad widget global', [$container([$gw_from_pro, $gw_from_editor])]);
+    $stored = json_decode((string) get_post_meta($gw_page, '_elementor_data', true), true);
+    $stored = $stored[0]['elements'] ?? [];
+    $assert(count($stored) === 2 && ($stored[0]['widgetType'] ?? '') === 'global' && ($stored[1]['widgetType'] ?? '') === 'global' && (int) ($stored[1]['templateID'] ?? 0) === $gw_tpl && !isset($stored[1]['originalWidgetType']) && ($stored[1]['settings']['title'] ?? '') === 'Texto global', 'Widget global: se guarda como `global` con `templateID` y los ajustes de la plantilla.');
+    $raw = Elementor::$instance->documents->get($gw_page)->get_elements_raw_data(null, true);
+    $raw = $raw[0]['elements'][0] ?? [];
+    $assert(($raw['widgetType'] ?? '') === 'heading' && (int) ($raw['templateID'] ?? 0) === $gw_tpl && ($raw['settings']['title'] ?? '') === 'Texto global', 'Widget global: el editor lo carga como el widget original con `templateID`.');
+    $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($gw_page);
+    $assert(substr_count($html, 'Texto global') === 2 && !str_contains($html, 'Copia local') && (bool) preg_match('/class="[^"]*elementor-widget-global[^"]*elementor-global-' . $gw_tpl . ' elementor-widget-heading"[^>]*data-widget_type="heading.default"/', $html), 'Widget global: se pinta con la plantilla y las clases de Pro.');
+    $gw_css = \Elementor\Core\Files\CSS\Post::create($gw_page);
+    $gw_css->update();
+    $assert((bool) preg_match('/\.elementor-' . $gw_page . ' (\.elementor-element)?\.elementor-global-' . $gw_tpl . ' \.elementor-heading-title\{color:#ff0000/', (string) $gw_css->get_content()), 'Widget global: el CSS de la página usa el selector `.elementor-global-N`.');
+    $GW::remember_included_post($gw_page, $stored ? [['elements'=>$stored]] : []);
+    $assert(isset(get_post_meta($gw_tpl, '_elementor_global_widget_included_posts', true)[$gw_page]), 'Widget global: la plantilla recuerda las páginas que la usan.');
+    update_post_meta($gw_page, '_elementor_css', ['status'=>'file']);
+    $local->update_item(['id'=>$gw_tpl,'type'=>'widget','content'=>[['id'=>(string) $gw_tpl,'elType'=>'widget','widgetType'=>'heading','settings'=>['title'=>'Texto cambiado'],'elements'=>[]]]]);
+    $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($gw_page);
+    $assert(!get_post_meta($gw_page, '_elementor_css', true) && substr_count($html, 'Texto cambiado') === 2, 'Widget global: al cambiar la plantilla cambian todas sus copias y se regenera su CSS.');
+    wp_trash_post($gw_tpl);
+    $GW::forget($gw_tpl);
+    $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($gw_page);
+    $assert(!str_contains($html, 'Texto cambiado') && !str_contains($html, 'elementor-widget-global'), 'Widget global: con la plantilla en la papelera no se pinta.');
+
+
     $assert(!$errors, 'Avisos PHP: ' . implode(' | ', array_slice($errors, 0, 4)));
 } finally {
     $frontend->setValue(null, $was_frontend);

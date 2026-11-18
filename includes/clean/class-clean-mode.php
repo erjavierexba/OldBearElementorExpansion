@@ -128,7 +128,7 @@ final class Clean_Mode {
     public static function editor_styles(): void {
         wp_register_style('obx-clean', false, [], \OldBearExpansion\VERSION);
         wp_enqueue_style('obx-clean');
-        wp_add_inline_style('obx-clean', '#elementor-navigator__footer__promotion,#elementor-panel-get-pro-elements,#elementor-panel-get-pro-elements-sticky,.elementor-panel-heading-promotion,.e-link-promotion,.elementor-nerd-box,.elementor-control-type-promotion_control,#elementor-notice-bar,.elementor-panel-editor-sticky-promotion,.elementor-tags-list__teaser,.elementor-panel-category-items .elementor-element--promotion,.elementor-element-wrapper.elementor-element--promotion{display:none!important}.elementor-navigator-list__promotion{padding-bottom:0!important}');
+        wp_add_inline_style('obx-clean', '#elementor-navigator__footer__promotion,#elementor-panel-get-pro-elements,#elementor-panel-get-pro-elements-sticky,.elementor-panel-heading-promotion,.e-link-promotion,.elementor-nerd-box:not(#elementor-global-widget-locked-header):not(#elementor-panel-global-widget-no-templates),.elementor-control-type-promotion_control,#elementor-notice-bar,.elementor-panel-editor-sticky-promotion,.elementor-tags-list__teaser,.elementor-panel-category-items .elementor-element--promotion,.elementor-element-wrapper.elementor-element--promotion{display:none!important}.elementor-navigator-list__promotion{padding-bottom:0!important}');
     }
 
     public static function admin_styles(): void {

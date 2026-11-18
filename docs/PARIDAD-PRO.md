@@ -139,20 +139,20 @@ Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_ch
 ### 3.7 Otras piezas de Pro
 
 - [ ] Shortcode `[elementor-template id="…"]`.
-- [ ] Widget global: documento `widget` y widget `global`.
+- [x] Widget global: documento `widget` (plantilla con el widget y `_elementor_template_widget_type`) y widget `global` con `templateID`, guardados como Pro. En el editor: pestaña «Globales», «Guardar como global» en el menú contextual, panel bloqueado con «Editar» y «Desvincular», las copias de la página cambian a la vez y al publicar se actualiza la plantilla; la web regenera el CSS de las páginas que la usan (`_elementor_global_widget_included_posts`).
 - [ ] Notas del editor (módulo `notes`).
 - [ ] Fuentes de Adobe (Typekit) e importación de paquetes de iconos (Fontello, IcoMoon, Fontastic). Hoy solo hay SVG sueltos.
 - [ ] Comandos WP-CLI de Pro (`wp elementor-pro theme-builder clear-conditions`, etc.).
 - [ ] Editor v4 de Pro: interacciones, variables de Pro, Collection Loop y formulario atómico (`e-form-*`). Dependen de los experimentos del editor nuevo; se abordan cuando ese editor sea el predeterminado.
 - Fuera de alcance: licencia, biblioteca en la nube, capturas de plantillas (servicio remoto) y avisos o planes de Pro.
 
-## 4. Widgets ausentes (49; quedan 39)
+## 4. Widgets ausentes (49; quedan 38)
 
 Los widgets nuevos usan en el HTML los nombres de clase, ID y variables CSS de Pro (`e-n-menu`, `e-off-canvas`, `--n-menu-*`, `--e-off-canvas-*`, envoltorio `elementor-widget-n-menu`), así el CSS personalizado de las webs que vienen de Pro sigue funcionando. Los widgets anteriores (`obx-…`) se migran en el punto 4.
 
 | Prioridad | Widgets |
 | --- | --- |
-| Alta | `global` |
+| ✅ | `global`: ver §3.7 (widget global). Se pinta con las clases de Pro (`elementor-widget-global elementor-global-N elementor-widget-{tipo}`) y el CSS usa el selector `.elementor-global-N`. |
 | ✅ | `mega-menu` (Menú): todas las claves de Pro (elementos con título, enlace, icono, ID y contenido desplegable; ancho completo o ajustado y su posición, disposición horizontal o desplegable, punto de ruptura, abrir al pasar el ratón o al hacer clic, animación, botón del menú, desplazamiento horizontal y todos los estilos por estado). Cada elemento tiene su contenedor dentro del `<li>`, también en el editor (repetidores intercalados de Elementor). El contenido a ancho completo ocupa el contenedor de estiramiento del kit o la página; el ajustado se coloca junto a su título sin salirse de la pantalla y se abre hacia arriba si no cabe. Elemento actual por URL y anclas activas mientras su sección está en pantalla. |
 | ✅ | `off-canvas`: widget anidado con un contenedor, con las claves de Pro (posición, ancho, altura, animaciones de entrada y salida, duración, capa, no cerrar con la capa o Esc, bloquear el desplazamiento, etiqueta HTML, fondo, borde y sombra). En el editor se ve abierto mientras «Modo de edición» está activo; en la web se abre con la acción `off-canvas`, devuelve el foco al cerrar y mantiene el teclado dentro del panel. |
 | ~~Alta (WooCommerce)~~ | ✅ 0.10.0: `wc-add-to-cart`, `wc-products`, `wc-categories`, `wc-elements`, `woocommerce-notices`, `woocommerce-purchase-summary`, `wc-archive-products`, `wc-single-elements` |
