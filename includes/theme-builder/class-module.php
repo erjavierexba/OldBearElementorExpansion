@@ -152,6 +152,8 @@ final class Module {
         require_once DIR . '/includes/widgets/carousel-widgets.php';
         require_once DIR . '/includes/widgets/nested-widgets.php';
         require_once DIR . '/includes/widgets/media-widgets.php';
+        // Elementor includes its widget files itself (no require_once): ours extending them wait for them.
+        if (class_exists('\\Elementor\\Widget_Image', false) && !class_exists('\\OldBearExpansion\\Widgets\\Hotspot', false)) { require DIR . '/includes/widgets/image-widgets.php'; }
         require_once DIR . '/includes/widgets/loop-widgets.php';
         require_once DIR . '/includes/widgets/woocommerce-widgets.php';
         require_once DIR . '/includes/widgets/woocommerce-products.php';
@@ -214,6 +216,7 @@ final class Module {
         wp_register_script('obx-nav-menu', Plugin::url('assets/js/nav-menu.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-mega-menu', Plugin::url('assets/js/mega-menu.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-off-canvas', Plugin::url('assets/js/off-canvas.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
+        wp_register_script('obx-hotspot', Plugin::url('assets/js/hotspot.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-widgets', Plugin::url('assets/js/widgets.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
     }
 }

@@ -954,3 +954,53 @@ body.e-off-canvas__no-scroll{overflow:hidden}
 .e-n-menu[data-layout=dropdown] :is(.e-n-menu-item>.e-con,.e-n-menu-content>.e-con){position:static;width:100%;max-width:100%;margin-block-start:var(--n-menu-title-distance-from-content)}
 .elementor-widget-n-menu.elementor-loading{pointer-events:none}
 @media (prefers-reduced-motion:reduce){.e-n-menu :is(.e-n-menu-item>.e-con,.e-n-menu-content>.e-con).animated{animation:none}}
+
+/* Hotspot: Pro's classes and variables (--hotspot-*, --tooltip-*, --container-*). */
+.elementor-widget-hotspot{display:flex;justify-content:var(--background-align)}
+.elementor-widget-hotspot>.elementor-widget-container{position:relative;display:flex;width:var(--container-width);max-width:var(--container-max-width);height:var(--container-height)}
+.elementor-widget-hotspot>.elementor-widget-container>img{display:block;width:var(--image-width,auto);height:var(--container-height);opacity:var(--opacity,1)}
+.e-hotspot{position:absolute;z-index:1;display:flex;align-items:center;justify-content:center;color:inherit;text-decoration:none}
+.e-hotspot:hover,.e-hotspot:focus-within{z-index:2}
+.e-hotspot--position-left.e-hotspot--position-top{transform:translate(calc(-1 * var(--hotspot-translate-x)),calc(-1 * var(--hotspot-translate-y)))}
+.e-hotspot--position-right.e-hotspot--position-top{transform:translate(var(--hotspot-translate-x),calc(-1 * var(--hotspot-translate-y)))}
+.e-hotspot--position-left.e-hotspot--position-bottom{transform:translate(calc(-1 * var(--hotspot-translate-x)),var(--hotspot-translate-y))}
+.e-hotspot--position-right.e-hotspot--position-bottom{transform:translate(var(--hotspot-translate-x),var(--hotspot-translate-y))}
+.e-hotspot__button{position:relative;display:grid;grid-auto-flow:column;align-items:center;justify-content:center;min-width:var(--hotspot-min-width);min-height:var(--hotspot-min-height);padding:var(--hotspot-padding,4px);border-radius:var(--hotspot-border-radius,3px);background-color:var(--hotspot-box-color);color:var(--hotspot-color);font-size:var(--hotspot-size,18px);line-height:1;cursor:pointer;box-sizing:border-box}
+.e-hotspot__button:focus-visible{outline:2px solid var(--hotspot-color);outline-offset:2px}
+.e-hotspot__icon{display:flex;grid-row:1}
+.e-hotspot__icon svg{width:1em;height:1em;fill:currentColor}
+.e-hotspot__label{grid-row:1;font-size:16px;white-space:nowrap}
+.e-hotspot--icon .e-hotspot__button{background-color:transparent;padding:0}
+.e-hotspot--circle .e-hotspot__button{width:var(--hotspot-size,18px);height:var(--hotspot-size,18px);min-width:var(--hotspot-min-width,var(--hotspot-size,18px));min-height:var(--hotspot-min-height,var(--hotspot-size,18px));padding:0;border-radius:50%;background-color:transparent}
+.e-hotspot__outer-circle,.e-hotspot__inner-circle{position:absolute;inset:0;border-radius:50%;background-color:var(--hotspot-color)}
+.e-hotspot__outer-circle{opacity:.5}
+.e-hotspot--soft-beat{animation:e-hotspot-soft-beat .7s ease-in-out infinite alternate}
+.e-hotspot--expand::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background-color:var(--hotspot-box-color);animation:e-hotspot-expand 2s infinite}
+.e-hotspot--circle .e-hotspot--expand::before{content:none}
+.e-hotspot--circle .e-hotspot--expand .e-hotspot__outer-circle{animation:e-hotspot-expand 2s infinite}
+.e-hotspot--overlay::before{content:"";position:absolute;inset:calc(-1 * var(--hotspot-padding,4px));z-index:-1;border-radius:inherit;background-color:var(--hotspot-box-color);opacity:.3;transition:opacity .3s}
+.e-hotspot--overlay:hover::before{opacity:1}
+.e-hotspot--circle .e-hotspot--overlay::before{content:none}
+.e-hotspot--circle .e-hotspot--overlay .e-hotspot__outer-circle{transform:scale(1.6);opacity:.3;transition:opacity .3s}
+.e-hotspot--circle .e-hotspot--overlay:hover .e-hotspot__outer-circle{opacity:1}
+@keyframes e-hotspot-soft-beat{from{transform:scale(1)}to{transform:scale(1.1)}}
+@keyframes e-hotspot-expand{from{transform:scale(1);opacity:.7}to{transform:scale(1.5);opacity:0}}
+@keyframes obx-hotspot-in{from{opacity:0;transform:scale(.5)}to{opacity:1}}
+.e-hotspot__tooltip{position:absolute;z-index:3;display:block;box-sizing:border-box;min-width:var(--tooltip-min-width);max-width:var(--tooltip-max-width);padding:var(--tooltip-padding,8px);border-radius:var(--tooltip-border-radius);background-color:var(--tooltip-color);color:var(--tooltip-text-color,#fff);text-align:var(--tooltip-align);white-space:var(--white-space,nowrap);opacity:0;visibility:hidden;pointer-events:none;transition:opacity var(--tooltip-transition-duration,.5s),transform var(--tooltip-transition-duration,.5s),visibility var(--tooltip-transition-duration,.5s)}
+.e-hotspot__tooltip p:last-child{margin-bottom:0}
+.e-hotspot--tooltip-position{top:calc(100% + 5px)}
+.e-hotspot .e-hotspot__tooltip.e-hotspot--active,.e-hotspot .e-hotspot__tooltip.e-hotspot--show-tooltip{opacity:1;visibility:visible;pointer-events:auto;transform:none}
+.e-hotspot--fade-grow{transform:scale(.5)}
+.e-hotspot__direction-mask{position:absolute;z-index:3;overflow:hidden;pointer-events:none}
+.e-hotspot__direction-mask:has(.e-hotspot--active){pointer-events:auto}
+.e-hotspot__direction-mask>.e-hotspot__tooltip{position:relative;inset:auto}
+.e-hotspot--slide-direction{opacity:1}
+.e-hotspot--slide-direction:is(.e-hotspot--tooltip-animation-from-top,.e-hotspot--override-tooltip-animation-from-top){transform:translateY(calc(-100% - 1px))}
+.e-hotspot--slide-direction:is(.e-hotspot--tooltip-animation-from-bottom,.e-hotspot--override-tooltip-animation-from-bottom){transform:translateY(calc(100% + 1px))}
+.e-hotspot--slide-direction:is(.e-hotspot--tooltip-animation-from-left,.e-hotspot--override-tooltip-animation-from-left){transform:translate(calc(-100% - 1px))}
+.e-hotspot--slide-direction:is(.e-hotspot--tooltip-animation-from-right,.e-hotspot--override-tooltip-animation-from-right){transform:translate(calc(100% + 1px))}
+.e-hotspot--fade-direction:is(.e-hotspot--tooltip-animation-from-top,.e-hotspot--override-tooltip-animation-from-top){transform:translateY(-10px)}
+.e-hotspot--fade-direction:is(.e-hotspot--tooltip-animation-from-bottom,.e-hotspot--override-tooltip-animation-from-bottom){transform:translateY(10px)}
+.e-hotspot--fade-direction:is(.e-hotspot--tooltip-animation-from-left,.e-hotspot--override-tooltip-animation-from-left){transform:translate(-10px)}
+.e-hotspot--fade-direction:is(.e-hotspot--tooltip-animation-from-right,.e-hotspot--override-tooltip-animation-from-right){transform:translate(10px)}
+@media (prefers-reduced-motion:reduce){.e-hotspot--soft-beat,.e-hotspot--expand::before,.e-hotspot--expand .e-hotspot__outer-circle{animation:none}}

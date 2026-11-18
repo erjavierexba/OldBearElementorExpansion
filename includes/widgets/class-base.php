@@ -40,6 +40,8 @@ abstract class Base extends Widget_Base {
             Woo_Product_Upsell::class, Woo_Archive_Description::class, Woo_Archive_Products::class, Woo_Products::class,
             Woo_Cart::class, Woo_Checkout::class, Woo_My_Account::class, Woo_Purchase_Summary::class, Woo_Notices::class,
             Woo_Add_To_Cart::class, Woo_Categories::class, Woo_Pages::class, Woo_Single_Elements::class, Woo_Products_Deprecated::class,
+            // Built on Elementor widgets that exist only once Elementor has loaded its own.
+            ...array_filter([Hotspot::class], static fn($class) => class_exists($class, false)),
         ];
     }
 
@@ -221,4 +223,16 @@ abstract class Base extends Widget_Base {
     protected static function align_options(): array {
         return ['left'=>['title'=>'Izquierda','icon'=>'eicon-text-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-text-align-center'],'right'=>['title'=>'Derecha','icon'=>'eicon-text-align-right']];
     }
+}
+
+/** Pro widgets built on an Elementor widget other than our Element base: same registry contract. */
+trait Pro_Widget {
+    public static function names(): array { return [self::PRO]; }
+    /** Saved with Pro's keys from the start: nothing to convert. */
+    public static function wants_upgrade(string $name, array $settings): bool { return false; }
+    public static function convert(string $name, array $settings): array { return $settings; }
+    public static function available(): bool { return true; }
+    public function get_name(): string { return self::PRO; }
+    public function get_categories(): array { return ['pro-elements']; }
+    public function get_custom_help_url() { return \OldBearExpansion\Admin\Branding::URL . '#readme'; }
 }

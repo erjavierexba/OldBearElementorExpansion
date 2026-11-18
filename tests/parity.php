@@ -899,6 +899,26 @@ try {
         $assert(str_contains(\OldBearExpansion\ThemeBuilder\Module::menu_breakpoints_css(), '.e-n-menu-tablet{--n-menu-wrapper-display:none}'), 'Menú: el botón sustituye a la barra por debajo del punto de ruptura.');
     }
 
+    // Hotspot: Elementor's Image widget with points and tooltips, Pro's markup and keys.
+    $hs_type = Elementor::$instance->widgets_manager->get_widget_types('hotspot');
+    $assert($hs_type instanceof \Elementor\Widget_Image && $hs_type->get_name() === 'hotspot', 'Hotspot: widget registrado con el nombre de Pro sobre el widget Imagen.');
+    if ($hs_type) {
+        $hs = $hs_type->get_controls();
+        foreach (['image','image_size','hotspot','hotspot_animation','hotspot_sequenced_animation','tooltip_position','tooltip_trigger','tooltip_animation','style_hotspot_color','style_tooltip_color'] as $key) { $assert(isset($hs[$key]), "Hotspot: control {$key}."); }
+        $assert(!isset($hs['link_to']) && !isset($hs['caption_source']) && ($hs['hotspot_animation']['default'] ?? '') === 'e-hotspot--expand' && ($hs['tooltip_trigger']['default'] ?? '') === 'click' && ($hs['tooltip_position']['default'] ?? '') === 'top' && isset($hs['hotspot']['fields']['hotspot_offset_x'], $hs['hotspot']['fields']['hotspot_tooltip_text_wrap']), 'Hotspot: sin enlace ni pie de imagen, con los valores por defecto de Pro.');
+        $img = ['url'=>\Elementor\Utils::get_placeholder_image_src(),'id'=>''];
+        $hs_page = $save('page', 'Paridad hotspot', [$container([$widget('hotspot', ['image'=>$img,'tooltip_animation'=>'e-hotspot--slide-direction','hotspot'=>[
+            ['_id'=>'h1','hotspot_tooltip_content'=>'<p>Punto redondo</p>','hotspot_offset_x'=>['unit'=>'%','size'=>20],'hotspot_offset_y'=>['unit'=>'%','size'=>30],'hotspot_horizontal'=>'left','hotspot_vertical'=>'top'],
+            ['_id'=>'h2','hotspot_label'=>'Tienda','hotspot_link'=>['url'=>'https://example.com/','is_external'=>'','nofollow'=>''],'hotspot_tooltip_content'=>'No se ve con clic','hotspot_horizontal'=>'right','hotspot_vertical'=>'bottom','hotspot_offset_x'=>['unit'=>'%','size'=>10],'hotspot_offset_y'=>['unit'=>'%','size'=>10]],
+            ['_id'=>'h3','hotspot_label'=>'Con tooltip propio','hotspot_icon'=>['value'=>'fas fa-star','library'=>'fa-solid'],'hotspot_tooltip_content'=>'Texto','hotspot_tooltip_position'=>'yes','hotspot_position'=>'left','hotspot_offset_x'=>['unit'=>'%','size'=>50],'hotspot_offset_y'=>['unit'=>'%','size'=>50]],
+        ]])])]);
+        $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($hs_page);
+        $assert((bool) preg_match('/<img [^>]*src="[^"]*placeholder/', $html) && str_contains($html, 'class="e-hotspot elementor-repeater-item-h1 e-hotspot--position-left e-hotspot--position-top e-hotspot--circle"') && str_contains($html, '<div class="e-hotspot__button e-hotspot--expand"><div class="e-hotspot__outer-circle"></div><div class="e-hotspot__inner-circle"></div></div>'), 'Hotspot: imagen y punto redondo con las clases de Pro.');
+        $assert(str_contains($html, '<div class="e-hotspot__direction-mask e-hotspot--tooltip-position"><div class="e-hotspot__tooltip e-hotspot--slide-direction"><p>Punto redondo</p></div></div>') && str_contains($html, 'e-hotspot__tooltip e-hotspot--slide-direction e-hotspot--override-tooltip-animation-from-left'), 'Hotspot: tooltips con máscara para animaciones por dirección y su lado propio.');
+        $assert((bool) preg_match('/<a class="e-hotspot elementor-repeater-item-h2 e-hotspot--position-right e-hotspot--position-bottom e-hotspot--link e-hotspot--no-tooltip" href="https:\/\/example.com\/">/', $html) && !str_contains($html, '>No se ve con clic<') && str_contains($html, '<div class="e-hotspot__label">Tienda</div>') && (bool) preg_match('/<div class="e-hotspot__icon">(<i [^>]*fa-star[^>]*><\/i>|<svg [^>]*e-fas-star.*?<\/svg>)<\/div><div class="e-hotspot__label">Con tooltip propio<\/div>/s', $html), 'Hotspot: enlaces sin tooltip con clic, icono y etiqueta.');
+        $assert(str_contains((string) wp_scripts()->query('obx-hotspot')->src, 'hotspot.js'), 'Hotspot: script del navegador registrado.');
+    }
+
     // Global widget: `widget` library template plus `global` elements with `templateID`, as Pro stores them.
     $GW = \OldBearExpansion\Extras\Global_Widgets::class;
     $local = Elementor::$instance->templates_manager->get_source('local');

@@ -146,7 +146,7 @@ Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_ch
 - [ ] Editor v4 de Pro: interacciones, variables de Pro, Collection Loop y formulario atómico (`e-form-*`). Dependen de los experimentos del editor nuevo; se abordan cuando ese editor sea el predeterminado.
 - Fuera de alcance: licencia, biblioteca en la nube, capturas de plantillas (servicio remoto) y avisos o planes de Pro.
 
-## 4. Widgets ausentes (49; quedan 38)
+## 4. Widgets ausentes (49; quedan 37)
 
 Los widgets nuevos usan en el HTML los nombres de clase, ID y variables CSS de Pro (`e-n-menu`, `e-off-canvas`, `--n-menu-*`, `--e-off-canvas-*`, envoltorio `elementor-widget-n-menu`), así el CSS personalizado de las webs que vienen de Pro sigue funcionando. Los widgets anteriores (`obx-…`) se migran en el punto 4.
 
@@ -156,7 +156,8 @@ Los widgets nuevos usan en el HTML los nombres de clase, ID y variables CSS de P
 | ✅ | `mega-menu` (Menú): todas las claves de Pro (elementos con título, enlace, icono, ID y contenido desplegable; ancho completo o ajustado y su posición, disposición horizontal o desplegable, punto de ruptura, abrir al pasar el ratón o al hacer clic, animación, botón del menú, desplazamiento horizontal y todos los estilos por estado). Cada elemento tiene su contenedor dentro del `<li>`, también en el editor (repetidores intercalados de Elementor). El contenido a ancho completo ocupa el contenedor de estiramiento del kit o la página; el ajustado se coloca junto a su título sin salirse de la pantalla y se abre hacia arriba si no cabe. Elemento actual por URL y anclas activas mientras su sección está en pantalla. |
 | ✅ | `off-canvas`: widget anidado con un contenedor, con las claves de Pro (posición, ancho, altura, animaciones de entrada y salida, duración, capa, no cerrar con la capa o Esc, bloquear el desplazamiento, etiqueta HTML, fondo, borde y sombra). En el editor se ve abierto mientras «Modo de edición» está activo; en la web se abre con la acción `off-canvas`, devuelve el foco al cerrar y mantiene el teclado dentro del panel. |
 | ~~Alta (WooCommerce)~~ | ✅ 0.10.0: `wc-add-to-cart`, `wc-products`, `wc-categories`, `wc-elements`, `woocommerce-notices`, `woocommerce-purchase-summary`, `wc-archive-products`, `wc-single-elements` |
-| Media | `hotspot`, `lottie`, `portfolio`, `reviews`, `video-playlist` |
+| ✅ | `hotspot`: sobre el widget Imagen de Elementor, como Pro (mismas claves de imagen y estilos); puntos redondos, con icono y/o etiqueta, enlace, posición en % por dispositivo, tamaño propio, animaciones (latido, expandir, superposición) y entrada en secuencia; tooltip al hacer clic, al pasar el ratón o siempre visible, con animaciones por dirección y posición propia por punto. Marcado y variables de Pro (`e-hotspot…`, `--hotspot-*`, `--tooltip-*`). |
+| Media | `lottie`, `portfolio`, `reviews`, `video-playlist` |
 | Media | Botones flotantes de Pro: `contact-buttons-var-1`, `-3` a `-10`, `floating-bars-var-2` y `-3` |
 | Media | Link in bio de Pro: `link-in-bio-var-2` a `-7` |
 | Baja | `paypal-button`, `stripe-button` (requieren pasarela) y los de Facebook: `facebook-button`, `facebook-comments`, `facebook-embed`, `facebook-page` |
