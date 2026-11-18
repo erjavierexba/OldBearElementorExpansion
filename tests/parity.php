@@ -333,6 +333,11 @@ try {
     $assert(str_contains($html, 'href="' . home_url('/') . '"') && str_contains($html, 'elementor-animation-grow'), 'theme-site-logo: enlace a la portada por defecto y animación al pasar el ratón.');
     $html = $render(['__widget'=>'theme-post-featured-image','image'=>['url'=>'https://example.org/f.png'],'link_to'=>'file','open_lightbox'=>'no']);
     $assert(str_contains($html, 'data-elementor-open-lightbox="no"') && str_contains($html, 'href="https://example.org/f.png"'), 'theme-post-featured-image: archivo con la opción de caja de luz.');
+    // 0.11.0 Gallery: filter pointer animations, normal/hover tabs, overlay and content hover animations.
+    $gc = Elementor::$instance->widgets_manager->get_widget_types('gallery')->get_controls();
+    foreach (['animation_line','animation_framed','animation_background','animation_text','image_tabs','overlay_background_tabs','background_overlay_hover_animation','background_overlay_animation_duration','content_animation_duration','content_sequenced_animation','filter_bar_colors','galleries_title_color_hover_pointer_bg'] as $key) { $assert(isset($gc[$key]), "gallery: falta {$key}."); }
+    $assert(isset($gc['content_hover_animation']['options']['enter-from-bottom'], $gc['background_overlay_hover_animation']['options']['exit-zoom-out']) && !isset($gc['content_hover_animation']['options']['slide-in-up']) && ($gc['overlay_background_hover_color']['default'] ?? '') === 'rgba(0,0,0,0.5)' && ($gc['animation_text']['default'] ?? '') === 'grow', 'gallery: animaciones y valores de Pro.');
+    $assert((\OldBearExpansion\Widgets\Gallery::convert('gallery', ['content_hover_animation'=>'slide-in-up'])['content_hover_animation'] ?? '') === 'enter-from-bottom', 'gallery: las animaciones antiguas pasan a las de Pro.');
     $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
     $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);
     $assert(wp_list_pluck($kids, 'term_id') === [$sub['term_id']], 'Bucle de términos: hijos de un término.');
