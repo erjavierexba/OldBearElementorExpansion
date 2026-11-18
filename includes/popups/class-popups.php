@@ -134,7 +134,7 @@ final class Popups {
     public static function page(): void {
         if (!current_user_can('edit_posts')) { return; }
         $posts = get_posts(['post_type'=>'elementor_library','post_status'=>['publish','draft','private'],'posts_per_page'=>-1,'meta_key'=>'_elementor_template_type','meta_value'=>'popup']);
-        echo '<div class="wrap"><h1>Ventanas emergentes</h1><p>Diseña ventanas con Elementor y decide dónde aparecen mediante sus condiciones y disparadores.</p>';
+        echo '<div class="wrap">' . \OldBearExpansion\Admin\Branding::heading('Ventanas emergentes') . '<p>Diseña ventanas con Elementor y decide dónde aparecen mediante sus condiciones y disparadores.</p>';
         if ($posts) { echo '<table class="widefat striped"><thead><tr><th>Plantilla</th><th>Estado</th><th></th></tr></thead><tbody>'; foreach ($posts as $post) { echo '<tr><td>' . esc_html($post->post_title) . '</td><td>' . esc_html($post->post_status) . '</td><td><a class="button" href="' . esc_url(admin_url('post.php?post=' . $post->ID . '&action=elementor')) . '">Editar con Elementor</a></td></tr>'; } echo '</tbody></table>'; }
         echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-top:16px"><input type="hidden" name="action" value="obx_new_popup">'; wp_nonce_field('obx_new_popup'); echo '<button class="button button-primary">Añadir ventana emergente</button></form></div>';
     }

@@ -1,8 +1,12 @@
+<p align="center"><img src="assets/img/oldbear-128.png" width="96" height="96" alt="OldBear Expansion"></p>
+
 # OldBearElementorExpansion
 
 **OldBear Expansion for Elementor** amplía Elementor Free con las herramientas de diseño de sitio completo: Theme Builder con condiciones de visualización y widgets de tema. Es código propio (GPL-2.0), construido sobre la API pública de Elementor. No usa ni contiene código de Elementor Pro y no requiere licencia.
 
 > «Elementor» es una marca de Elementor Ltd. Este proyecto es independiente y no está afiliado a Elementor Ltd.
+
+Para que nadie lo confunda con Elementor Pro, el oso de OldBear aparece en la esquina de cada widget de la expansión en el panel del editor y en sus pantallas (Theme Builder, Ventanas emergentes, Ajustes). El enlace «¿Necesitas ayuda?» de esos widgets lleva a esta documentación, y la web publica `<meta name="generator" content="OldBear Expansion for Elementor …">` (se puede quitar con el filtro `obx/generator_tag`).
 
 ## Estado
 

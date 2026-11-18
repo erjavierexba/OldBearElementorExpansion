@@ -88,7 +88,7 @@ final class Admin {
     public static function page(): void {
         if (!current_user_can('edit_posts')) { return; }
         $index = Locations::index();
-        echo '<div class="wrap"><h1>Theme Builder</h1><p>Diseña con Elementor la cabecera, el pie, las entradas, los archivos y la página 404 de todo el sitio. Cada plantilla se muestra según sus condiciones de visualización (Ajustes de la plantilla → Condiciones de visualización).</p>';
+        echo '<div class="wrap">' . \OldBearExpansion\Admin\Branding::heading('Theme Builder') . '<p>Diseña con Elementor la cabecera, el pie, las entradas, los archivos y la página 404 de todo el sitio. Cada plantilla se muestra según sus condiciones de visualización (Ajustes de la plantilla → Condiciones de visualización).</p>';
         foreach (Module::LOCATIONS as $location => $class) {
             echo '<h2 style="margin-top:32px">' . esc_html($class::get_plural_title()) . '</h2>';
             $posts = get_posts(['post_type'=>'elementor_library','post_status'=>['publish','draft','private'],'posts_per_page'=>-1,'meta_query'=>[['key'=>'_elementor_template_type','value'=>Module::types_for($location),'compare'=>'IN']]]);

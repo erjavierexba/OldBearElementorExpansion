@@ -135,7 +135,7 @@ final class Module {
         return $data;
     }
 
-    private static function load_widgets(): void {
+    public static function load_widgets(): void {
         require_once DIR . '/includes/widgets/class-base.php';
         require_once DIR . '/includes/widgets/class-query.php';
         require_once DIR . '/includes/widgets/theme-widgets.php';

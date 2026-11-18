@@ -272,6 +272,7 @@ final class Nested_Carousel extends Widget_Nested_Base {
     public function get_style_depends(): array { return ['obx-frontend']; }
     public function get_script_depends(): array { return ['obx-widgets']; }
     public function show_in_panel(): bool { return true; }
+    public function get_custom_help_url() { return \OldBearExpansion\Admin\Branding::URL . '#readme'; }
     public function has_widget_inner_wrapper(): bool { return false; }
     protected function editing(): bool { return \OldBearExpansion\Context::is_editor(); }
     protected function placeholder(string $message): void { if ($this->editing()) { echo '<div class="obx-placeholder">' . esc_html($message) . '</div>'; } }

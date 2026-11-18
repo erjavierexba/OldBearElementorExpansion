@@ -96,6 +96,8 @@ abstract class Base extends Widget_Base {
     }
 
     public function get_style_depends(): array { return ['obx-frontend']; }
+    /** «Need help?» in the widget panel leads to this plugin's documentation, not Elementor Pro's. */
+    public function get_custom_help_url() { return \OldBearExpansion\Admin\Branding::URL . '#readme'; }
     protected function is_dynamic_content(): bool { return true; }
     public function has_widget_inner_wrapper(): bool { return false; }
 

@@ -106,6 +106,16 @@ try {
     // Template widget refuses to include itself.
     $document->save(['elements'=>[['id'=>$uid(),'elType'=>'container','isInner'=>false,'settings'=>[],'elements'=>[['id'=>$uid(),'elType'=>'widget','widgetType'=>'template','settings'=>['template_id'=>(string) $page],'elements'=>[]]]]]]);
     $assert(is_string(Elementor::$instance->frontend->get_builder_content_for_display($page)), 'El widget Plantilla no debe fallar con IDs no válidos.');
+
+    // OldBear's mark: badges in the widget panel, help links, admin headings and generator tag.
+    $names = \OldBearExpansion\Admin\Branding::widget_names();
+    $assert(in_array('posts', $names, true) && in_array('woocommerce-cart', $names, true) && in_array('nested-carousel', $names, true) && !in_array('heading', $names, true), 'Branding: insignia en los widgets de la expansión y solo en ellos.');
+    $assert(str_starts_with((string) ($types['posts']->get_config()['help_url'] ?? ''), \OldBearExpansion\Admin\Branding::URL) && str_starts_with((string) ($types['nested-carousel']->get_config()['help_url'] ?? ''), \OldBearExpansion\Admin\Branding::URL), 'Branding: «¿Necesitas ayuda?» lleva a la documentación de la expansión.');
+    $heading = \OldBearExpansion\Admin\Branding::heading('Theme Builder');
+    $assert(str_contains($heading, 'oldbear-32.png') && str_contains($heading, 'oldbear-64.png 2x') && str_contains($heading, 'OldBear Expansion'), 'Branding: logo y nombre en las pantallas de administración.');
+    $assert(is_readable(\OldBearExpansion\DIR . '/assets/img/oldbear-32.png') && is_readable(\OldBearExpansion\DIR . '/assets/img/oldbear-128.png'), 'Branding: imágenes del logo.');
+    ob_start(); \OldBearExpansion\Admin\Branding::generator(); $meta = (string) ob_get_clean();
+    $assert($meta === '<meta name="generator" content="OldBear Expansion for Elementor ' . \OldBearExpansion\VERSION . '">' . "\n", 'Branding: etiqueta generator.');
 } finally {
     restore_error_handler();
     wp_reset_postdata();

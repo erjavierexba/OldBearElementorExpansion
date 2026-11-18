@@ -127,6 +127,7 @@ final class Site_Editor {
             'rules'=>$rules,
             'assets'=>ELEMENTOR_ASSETS_URL . 'images/app/site-editor/',
             'templates_url'=>admin_url('edit.php?post_type=elementor_library&tabs_group=theme'),
+            'brand'=>['name'=>\OldBearExpansion\Admin\Branding::NAME,'logo'=>\OldBearExpansion\Admin\Branding::logo_url(64),'url'=>\OldBearExpansion\Admin\Branding::URL],
         ];
     }
 

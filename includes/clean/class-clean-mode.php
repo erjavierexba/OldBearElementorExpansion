@@ -147,7 +147,7 @@ final class Clean_Mode {
 
     public static function render_settings(): void {
         if (!current_user_can('manage_options')) { return; }
-        echo '<div class="wrap"><h1>OldBear Expansion for Elementor</h1><form method="post" action="options.php">';
+        echo '<div class="wrap">' . \OldBearExpansion\Admin\Branding::heading('OldBear Expansion for Elementor') . '<form method="post" action="options.php">';
         settings_fields('obx_settings');
         echo '<table class="form-table"><tr><th scope="row">Modo limpio</th><td><input type="hidden" name="' . esc_attr(self::OPTION) . '" value="0"><label><input type="checkbox" name="' . esc_attr(self::OPTION) . '" value="1" ' . checked((bool) get_option(self::OPTION, 1), true, false) . '> Ocultar los anuncios y funciones bloqueadas de Elementor Pro</label><p class="description">No desactiva ninguna función gratuita de Elementor. Su entrada «Maquetador de temas» abre el Theme Builder de este plugin.</p></td></tr></table>';
         submit_button();

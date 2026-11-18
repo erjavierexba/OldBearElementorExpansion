@@ -168,7 +168,10 @@
 	function PageHeader(props) {
 		return h(ui.Grid, { container: true, className: 'page-header obx-site-editor__header', justify: 'space-between', alignItems: 'start' },
 			h(ui.Grid, { item: true, sm: 8 },
-				h('h1', { className: 'eps-h1' }, props.title),
+				h('h1', { className: 'eps-h1 obx-brand-title' },
+					cfg.brand ? h('img', { src: cfg.brand.logo, alt: cfg.brand.name, width: 32, height: 32, className: 'obx-brand-title__logo' }) : null,
+					props.title,
+					cfg.brand ? h('a', { href: cfg.brand.url, target: '_blank', rel: 'noopener', className: 'obx-brand-title__by' }, cfg.brand.name) : null),
 				props.text ? h(ui.Text, null, props.text) : null),
 			props.action ? h(ui.Grid, { item: true, container: true, justify: 'end', sm: 4 }, props.action) : null);
 	}

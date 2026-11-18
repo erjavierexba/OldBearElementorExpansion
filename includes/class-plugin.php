@@ -26,6 +26,8 @@ final class Plugin {
         require_once DIR . '/includes/theme-builder/class-module.php';
         require_once DIR . '/includes/class-converter.php';
         Converter::boot();
+        require_once DIR . '/includes/admin/class-branding.php';
+        Admin\Branding::boot();
         if (self::pro_active()) {
             // Coexistence: Elementor Pro owns the Theme Builder; our widgets stay available.
             ThemeBuilder\Module::boot_widgets();
