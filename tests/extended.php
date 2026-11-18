@@ -75,7 +75,7 @@ try{
 
     $media=$save('page','Prueba medios',[$container([
         $widget('slides',['slides'=>[['_id'=>'a1','heading'=>'Diapositiva segura','description'=>'Descripción','button_text'=>'Entrar','link'=>['url'=>'https://example.org/']]],'navigation'=>'none']),
-        $widget('media-carousel',['slides'=>[['_id'=>'m1','image'=>['url'=>'https://example.org/image.jpg'],'video_url'=>['url'=>'https://example.org/video.mp4']]],'show_arrows'=>'','pagination'=>''])
+        $widget('media-carousel',['slides'=>[['_id'=>'m1','image'=>['url'=>'https://example.org/image.jpg'],'type'=>'video','video'=>['url'=>'https://example.org/video.mp4']]],'show_arrows'=>'','pagination'=>''])
     ])]);
     $html=(string)Elementor::$instance->frontend->get_builder_content_for_display($media);
     $assert(str_contains($html,'obx-slides')&&str_contains($html,'Diapositiva segura'),'Diapositivas debe renderizar contenido y enlace.');

@@ -610,7 +610,9 @@
         const paint = () => {
             // Visible slides are marked .is-active (fade transition, content animation, Ken Burns).
             const from = Math.min(page * perStep(), Math.max(0, slides().length - perView()));
-            slides().forEach((slide, i) => slide.classList.toggle('is-active', i >= from && i < from + perView()));
+            const center = from + Math.floor((perView() - 1) / 2);
+            slides().forEach((slide, i) => { slide.classList.toggle('is-active', i >= from && i < from + perView()); slide.classList.toggle('is-center', i === center); });
+            el.dispatchEvent(new CustomEvent('obx:change', { detail: page }));
             if (!pagination) { return; }
             const total = pages();
             if (pagination.classList.contains('obx-carousel__pagination--bullets')) {
@@ -639,6 +641,7 @@
         const stop = () => { clearInterval(timer); timer = null; };
         const start = () => { stop(); if (options.autoplay && !stopped && pages() > 1) { timer = setInterval(() => go(page + 1), options.autoplaySpeed || 5000); } };
         const interact = () => { if (options.pauseOnInteraction) { stopped = true; stop(); } };
+        el.addEventListener('obx:go', (event) => { interact(); go(Number(event.detail) || 0); });
         el.querySelectorAll(':scope > .obx-carousel__arrow').forEach((arrow) => {
             pressable(arrow);
             arrow.addEventListener('click', () => { interact(); go(page + (arrow.classList.contains('obx-carousel__arrow--next') ? 1 : -1)); });
@@ -785,10 +788,34 @@
         grid.addEventListener('load', schedule, true);
         window.addEventListener('resize', schedule);
     };
+    /* Media carousel «slideshow»: the thumbnail strip under the main slide. */
+    const mediaThumbs = (strip) => {
+        if (!once(strip, 'obxThumbs')) { return; }
+        const main = strip.previousElementSibling;
+        const track = strip.querySelector(':scope > .obx-carousel__track');
+        if (!main || !track || !main.classList.contains('obx-media')) { return; }
+        let options = {};
+        try { options = JSON.parse(strip.dataset.carousel || '{}'); } catch (e) { options = {}; }
+        const thumbs = Array.from(track.children);
+        const pick = (thumb) => main.dispatchEvent(new CustomEvent('obx:go', { detail: thumbs.indexOf(thumb) }));
+        thumbs.forEach((thumb) => {
+            thumb.addEventListener('click', () => pick(thumb));
+            thumb.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); pick(thumb); } });
+        });
+        const mark = (index) => {
+            thumbs.forEach((thumb, i) => { thumb.classList.toggle('is-current', i === index); thumb.setAttribute('aria-current', i === index ? 'true' : 'false'); });
+            const thumb = thumbs[index];
+            if (!thumb) { return; }
+            const left = options.centered ? thumb.offsetLeft - thumbs[0].offsetLeft - (track.clientWidth - thumb.offsetWidth) / 2 : Math.min(Math.max(track.scrollLeft, thumb.offsetLeft - thumbs[0].offsetLeft + thumb.offsetWidth - track.clientWidth), thumb.offsetLeft - thumbs[0].offsetLeft);
+            track.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+        };
+        main.addEventListener('obx:change', (event) => mark(Number(event.detail) || 0));
+        mark(0);
+    };
     const handlers = {
         '.obx-countdown': countdown, '.obx-headline': headline, '.obx-toc': toc, '.obx-progress': progress, '.obx-code': code,
         '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, '.obx-search[data-live]': liveSearch, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters, '[data-obx-menu-cart]': menuCart, '[data-obx-animations]': wooAnimations, '.obx-woo-cart--auto-update': wooCartAuto,
-        '.obx-posts--masonry': masonry,
+        '.obx-posts--masonry': masonry, '.obx-media__thumbs': mediaThumbs,
     };
     const init = (root) => {
         Object.entries(handlers).forEach(([selector, fn]) => {

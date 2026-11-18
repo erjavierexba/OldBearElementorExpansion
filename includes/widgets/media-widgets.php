@@ -8,6 +8,7 @@ use Elementor\Group_Control_Image_Size;
 use Elementor\Group_Control_Text_Shadow;
 use Elementor\Icons_Manager;
 use Elementor\Repeater;
+use Elementor\Utils;
 
 if (!defined('ABSPATH')) { exit; }
 
@@ -199,50 +200,179 @@ final class Slides extends Element {
 final class Media_Carousel extends Element {
     use Carousel;
     public const PRO = 'media-carousel';
+    /** Keys of this widget before 0.11.0. */
+    private const OLD_KEYS = ['thumbnail_size','thumbnail_custom_dimension','link_to','open_lightbox','image_stretch','image_border_border','image_border_width','image_border_color','border_radius','arrows_hover_color'];
+    private const ICONS = ['search-plus'=>'fas fa-search-plus','plus-circle'=>'fas fa-plus-circle','eye'=>'far fa-eye','link'=>'fas fa-link'];
     public function get_title(): string { return 'Carrusel de medios'; }
     public function get_icon(): string { return 'eicon-media-carousel'; }
-    public function get_keywords(): array { return ['media','medios','image','video','carousel','carrusel']; }
+    public function get_keywords(): array { return ['media','medios','image','imagen','video','vídeo','carousel','carrusel','slideshow','coverflow']; }
+    public function get_style_depends(): array { return array_merge(parent::get_style_depends(), ['elementor-icons']); }
+
+    public static function wants_upgrade(string $name, array $settings): bool {
+        if ($name !== self::PRO) { return false; }
+        if (array_intersect_key($settings, array_flip(self::OLD_KEYS))) { return true; }
+        foreach ((array) ($settings['slides'] ?? []) as $slide) { if (is_array($slide) && (isset($slide['video_url']) || isset($slide['link']))) { return true; } }
+        return false;
+    }
+
+    protected static function upgrade_settings(array $s): array {
+        $link_to = (string) ($s['link_to'] ?? 'file');
+        $lightbox = (string) ($s['open_lightbox'] ?? 'default') !== 'no';
+        foreach ((array) ($s['slides'] ?? []) as $i => $slide) {
+            if (!is_array($slide)) { continue; }
+            if (!empty($slide['video_url']['url'])) { $slide['type'] = 'video'; $slide['video'] = $slide['video_url']; }
+            elseif ($link_to === 'custom' && !empty($slide['link']['url'])) { $slide['image_link_to_type'] = 'custom'; $slide['image_link_to'] = $slide['link']; }
+            elseif ($link_to === 'file' && $lightbox) { $slide['image_link_to_type'] = 'file'; }
+            unset($slide['video_url'], $slide['link']);
+            $s['slides'][$i] = $slide;
+        }
+        $s = self::rename($s, ['thumbnail_size'=>'image_size_size','thumbnail_custom_dimension'=>'image_size_custom_dimension','image_border_width'=>'slide_border_size','image_border_color'=>'slide_border_color']);
+        if (isset($s['border_radius']['top']) && $s['border_radius']['top'] !== '' && !isset($s['slide_border_radius'])) { $s['slide_border_radius'] = ['unit'=>$s['border_radius']['unit'] ?? 'px','size'=>(float) $s['border_radius']['top'],'sizes'=>[]]; }
+        foreach (['link_to','open_lightbox','image_stretch','image_border_border','border_radius','arrows_hover_color'] as $key) { unset($s[$key]); }
+        return $s;
+    }
 
     protected function register_controls(): void {
-        $this->start_controls_section('section_slides', ['label'=>'Medios']);
+        $not_slideshow = ['skin!'=>'slideshow'];
+        $numbers = [''=>'Por defecto'] + array_combine(array_map('strval', range(1, 10)), array_map('strval', range(1, 10)));
+        $this->start_controls_section('section_slides', ['label'=>'Diapositivas']);
+        $this->add_control('skin', ['label'=>'Apariencia','type'=>Controls_Manager::SELECT,'default'=>'carousel','options'=>['carousel'=>'Carrusel','slideshow'=>'Presentación','coverflow'=>'Coverflow'],'prefix_class'=>'obx-media--skin-','render_type'=>'template']);
+        $this->add_control('slides_name', ['label'=>'Nombre del carrusel','type'=>Controls_Manager::TEXT,'default'=>'Diapositivas','description'=>'Nombre accesible del carrusel.']);
         $r = new Repeater();
+        $r->add_control('type', ['label'=>'Tipo','type'=>Controls_Manager::CHOOSE,'default'=>'image','options'=>['image'=>['title'=>'Imagen','icon'=>'eicon-image-bold'],'video'=>['title'=>'Vídeo','icon'=>'eicon-video-camera']],'toggle'=>false]);
         $r->add_control('image', ['label'=>'Imagen','type'=>Controls_Manager::MEDIA,'dynamic'=>['active'=>true]]);
-        $r->add_control('video_url', ['label'=>'Vídeo (URL)','type'=>Controls_Manager::URL,'dynamic'=>['active'=>true]]);
-        $r->add_control('link', ['label'=>'Enlace','type'=>Controls_Manager::URL,'dynamic'=>['active'=>true]]);
-        $this->add_control('slides', ['type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'default'=>[],'title_field'=>'Medio #{{{ _id }}}']);
-        $this->add_group_control(Group_Control_Image_Size::get_type(), ['name'=>'thumbnail','default'=>'large']);
-        $this->add_control('skin', ['label'=>'Apariencia','type'=>Controls_Manager::SELECT,'default'=>'carousel','options'=>['carousel'=>'Carrusel','slideshow'=>'Presentación','coverflow'=>'Portadas'],'prefix_class'=>'obx-media--skin-']);
-        $this->add_control('link_to', ['label'=>'Enlazar a','type'=>Controls_Manager::SELECT,'default'=>'file','options'=>['none'=>'Nada','file'=>'Archivo multimedia','custom'=>'Enlace personalizado']]);
-        $this->add_control('open_lightbox', ['label'=>'Caja de luz','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>['default'=>'Por defecto','yes'=>'Sí','no'=>'No'],'condition'=>['link_to'=>'file']]);
+        $r->add_control('image_link_to_type', ['label'=>'Enlace','type'=>Controls_Manager::SELECT,'options'=>[''=>'Ninguno','file'=>'Archivo multimedia','custom'=>'URL personalizada'],'condition'=>['type'=>'image']]);
+        $r->add_control('image_link_to', ['label'=>'URL','type'=>Controls_Manager::URL,'dynamic'=>['active'=>true],'show_label'=>false,'condition'=>['type'=>'image','image_link_to_type'=>'custom']]);
+        $r->add_control('video', ['label'=>'Enlace del vídeo','type'=>Controls_Manager::URL,'placeholder'=>'https://www.youtube.com/watch?v=…','dynamic'=>['active'=>true],'condition'=>['type'=>'video']]);
+        $placeholder = ['url'=>Utils::get_placeholder_image_src()];
+        $this->add_control('slides', ['label'=>'Diapositivas','type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'default'=>array_fill(0, 5, ['image'=>$placeholder]),'title_field'=>'<# print( "video" === type ? "Vídeo" : "Imagen" ) #>']);
+        $this->add_control('effect', ['label'=>'Efecto','type'=>Controls_Manager::SELECT,'default'=>'slide','options'=>['slide'=>'Deslizar','fade'=>'Fundido','cube'=>'Cubo'],'condition'=>['skin!'=>'coverflow'],'frontend_available'=>true,'separator'=>'before']);
+        $this->add_responsive_control('slideshow_height', ['label'=>'Altura','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','vh','custom'],'range'=>['px'=>['min'=>20,'max'=>1000]],'selectors'=>self::css('.obx-media .obx-media__item', 'height: {{SIZE}}{{UNIT}};'),'condition'=>['skin'=>'slideshow']]);
+        $this->add_responsive_control('slides_per_view', ['label'=>'Diapositivas visibles','type'=>Controls_Manager::SELECT,'options'=>$numbers,'selectors'=>['{{WRAPPER}} .obx-media'=>'--obx-slides: {{VALUE}};'],'condition'=>['effect'=>'slide'] + $not_slideshow,'frontend_available'=>true]);
+        $this->add_responsive_control('slideshow_slides_per_view', ['label'=>'Miniaturas visibles','type'=>Controls_Manager::SELECT,'options'=>$numbers,'selectors'=>['{{WRAPPER}} .obx-media__thumbs'=>'--obx-slides: {{VALUE}};'],'condition'=>['skin'=>'slideshow'],'frontend_available'=>true]);
+        $this->add_control('thumbs_ratio', ['label'=>'Proporción de las miniaturas','type'=>Controls_Manager::SELECT,'default'=>'219','options'=>['169'=>'16:9','219'=>'21:9','43'=>'4:3','11'=>'1:1'],'prefix_class'=>'obx-media--thumbs-ratio-','condition'=>['skin'=>'slideshow']]);
+        $this->add_control('centered_slides', ['label'=>'Miniatura activa centrada','type'=>Controls_Manager::SWITCHER,'condition'=>['skin'=>'slideshow'],'frontend_available'=>true]);
+        $this->add_responsive_control('slides_to_scroll', ['label'=>'Diapositivas por avance','type'=>Controls_Manager::SELECT,'options'=>$numbers,'description'=>'Cuántas diapositivas avanza cada paso.','selectors'=>['{{WRAPPER}} .obx-media'=>'--obx-scroll: {{VALUE}};'],'condition'=>['effect'=>'slide'] + $not_slideshow,'frontend_available'=>true]);
+        $this->add_responsive_control('height', ['label'=>'Altura','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','vh','custom'],'range'=>['px'=>['min'=>100,'max'=>1000]],'selectors'=>self::css('.obx-media .obx-media__item', 'height: {{SIZE}}{{UNIT}};'),'condition'=>$not_slideshow]);
+        $this->add_responsive_control('width', ['label'=>'Ancho','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vw','custom'],'default'=>['unit'=>'%'],'range'=>['px'=>['min'=>100,'max'=>1140],'%'=>['min'=>50,'max'=>100]],'selectors'=>self::css('.obx-media', 'width: {{SIZE}}{{UNIT}};'),'condition'=>$not_slideshow]);
         $this->end_controls_section();
 
-        $this->start_controls_section('section_carousel_options', ['label'=>'Carrusel']);
-        $this->carousel_controls(['show'=>'slides_per_view','scroll'=>'slides_to_scroll','gap'=>'space_between','arrows'=>'show_arrows','loop'=>'loop'], ['show'=>'3','show_tablet'=>'2','show_mobile'=>'1']);
-        $this->add_control('image_stretch', ['label'=>'Estirar imagen','type'=>Controls_Manager::SWITCHER]);
+        $this->start_controls_section('section_additional_options', ['label'=>'Opciones adicionales']);
+        $this->add_control('show_arrows', ['label'=>'Flechas','type'=>Controls_Manager::SWITCHER,'default'=>'yes','prefix_class'=>'obx-media--arrows-','render_type'=>'template','frontend_available'=>true]);
+        $this->add_control('pagination', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'bullets','options'=>[''=>'Ninguna','bullets'=>'Puntos','fraction'=>'Fracción','progressbar'=>'Barra de progreso'],'condition'=>$not_slideshow,'frontend_available'=>true]);
+        $this->add_control('speed', ['label'=>'Duración de la transición (ms)','type'=>Controls_Manager::NUMBER,'default'=>500,'frontend_available'=>true]);
+        $this->add_control('autoplay', ['label'=>'Reproducción automática','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before','frontend_available'=>true]);
+        $this->add_control('autoplay_speed', ['label'=>'Intervalo (ms)','type'=>Controls_Manager::NUMBER,'default'=>5000,'condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control('loop', ['label'=>'Bucle infinito','type'=>Controls_Manager::SWITCHER,'default'=>'yes','frontend_available'=>true]);
+        $this->add_control('pause_on_hover', ['label'=>'Pausar al pasar el ratón','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control('pause_on_interaction', ['label'=>'Pausar al interactuar','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control('overlay', ['label'=>'Superposición','type'=>Controls_Manager::SELECT,'options'=>[''=>'Ninguna','text'=>'Texto','icon'=>'Icono'],'condition'=>$not_slideshow,'separator'=>'before']);
+        $this->add_control('caption', ['label'=>'Texto','type'=>Controls_Manager::SELECT,'default'=>'title','options'=>['title'=>'Título','caption'=>'Leyenda','description'=>'Descripción'],'condition'=>$not_slideshow + ['overlay'=>'text']]);
+        $this->add_control('icon', ['label'=>'Icono','type'=>Controls_Manager::CHOOSE,'default'=>'search-plus','options'=>['search-plus'=>['title'=>'Lupa','icon'=>'eicon-search'],'plus-circle'=>['title'=>'Más','icon'=>'eicon-plus-circle'],'eye'=>['title'=>'Ojo','icon'=>'eicon-preview-medium'],'link'=>['title'=>'Enlace','icon'=>'eicon-link']],'toggle'=>false,'condition'=>$not_slideshow + ['overlay'=>'icon']]);
+        $this->add_control('overlay_animation', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'fade','options'=>['fade'=>'Fundido','slide-up'=>'Deslizar hacia arriba','slide-down'=>'Deslizar hacia abajo','slide-right'=>'Deslizar a la derecha','slide-left'=>'Deslizar a la izquierda','zoom-in'=>'Acercar'],'prefix_class'=>'obx-media--overlay-','condition'=>$not_slideshow + ['overlay!'=>'']]);
+        $this->add_group_control(Group_Control_Image_Size::get_type(), ['name'=>'image_size','default'=>'full','separator'=>'before']);
+        $this->add_control('image_fit', ['label'=>'Ajuste de la imagen','type'=>Controls_Manager::SELECT,'options'=>[''=>'Cubrir','contain'=>'Contener','auto'=>'Automático'],'selectors_dictionary'=>[''=>'cover','contain'=>'contain','auto'=>'none'],'selectors'=>self::css('.obx-media__image', 'object-fit: {{VALUE}};')]);
+        $this->add_control('lazyload', ['label'=>'Carga diferida','type'=>Controls_Manager::SWITCHER]);
         $this->end_controls_section();
-        $this->start_controls_section('section_style_image', ['label'=>'Imagen','tab'=>Controls_Manager::TAB_STYLE]);
-        $this->slider('space_between', 'Separación', '.obx-carousel', '--obx-gap: {{SIZE}}{{UNIT}};', ['default'=>['size'=>10]], true);
-        $this->slider('height', 'Altura', '.obx-media__image', 'height: {{SIZE}}{{UNIT}};', ['size_units'=>['px','vh'],'default'=>['unit'=>'px','size'=>300]], true);
-        $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'image_border','selector'=>'{{WRAPPER}} .obx-media__image']);
-        $this->dimensions('border_radius', 'Radio del borde', '.obx-media__image', 'border-radius');
+
+        $this->start_controls_section('section_slides_style', ['label'=>'Diapositivas','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->slider('space_between', 'Separación', '.obx-carousel', '--obx-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'default'=>['unit'=>'px','size'=>10],'range'=>['px'=>['max'=>50]],'render_type'=>'none'], true);
+        $this->color('slide_background_color', 'Color de fondo', '.obx-media .obx-media__item', 'background-color');
+        $this->dimensions('slide_border_size', 'Grosor del borde', '.obx-media .obx-media__item', 'border-style: solid; border-width', [], false);
+        $this->slider('slide_border_radius', 'Radio del borde', '.obx-media .obx-media__item', 'border-radius: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%','em','rem','custom'],'range'=>['%'=>['max'=>50]]]);
+        $this->color('slide_border_color', 'Color del borde', '.obx-media .obx-media__item', 'border-color');
+        $this->dimensions('slide_padding', 'Relleno', '.obx-media .obx-media__item', 'padding', [], false);
         $this->end_controls_section();
-        $this->carousel_navigation_style('show_arrows');
+
+        $pagination = ['pagination!'=>''] + $not_slideshow;
+        $this->start_controls_section('section_navigation', ['label'=>'Navegación','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('heading_arrows', ['label'=>'Flechas','type'=>Controls_Manager::HEADING,'condition'=>['show_arrows'=>'yes']]);
+        $this->slider('arrows_size', 'Tamaño', '.obx-carousel__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'default'=>['unit'=>'px','size'=>20],'range'=>['px'=>['min'=>20,'max'=>60]],'condition'=>['show_arrows'=>'yes']]);
+        $this->color('arrows_color', 'Color', '.obx-carousel__arrow', 'color', ['condition'=>['show_arrows'=>'yes']]);
+        $this->add_control('heading_pagination', ['label'=>'Paginación','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>$pagination]);
+        $this->add_control('pagination_position', ['label'=>'Posición','type'=>Controls_Manager::SELECT,'default'=>'outside','options'=>['outside'=>'Fuera','inside'=>'Dentro'],'prefix_class'=>'obx-media--pagination-','condition'=>$pagination]);
+        $this->slider('pagination_gap', 'Separación', '.obx-carousel__pagination--bullets', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>40]],'condition'=>['pagination'=>'bullets'] + $not_slideshow]);
+        $this->slider('pagination_size', 'Tamaño', '.obx-carousel__pagination', '--obx-dot: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>20]],'condition'=>$pagination]);
+        $this->color('pagination_color_inactive', 'Color', '.obx-carousel__pagination', '--obx-dot-inactive', ['condition'=>['pagination!'=>'']]);
+        $this->color('pagination_color', 'Color activo', '.obx-carousel__pagination', '--obx-dot-active', ['condition'=>$pagination]);
+        $this->add_control('heading_play_icon', ['label'=>'Icono de reproducción','type'=>Controls_Manager::HEADING,'separator'=>'before']);
+        $this->color('play_icon_color', 'Color', '.obx-media__play', 'color');
+        $this->slider('play_icon_size', 'Tamaño', '.obx-media__play', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['min'=>20,'max'=>150]]], true);
+        $this->add_group_control(Group_Control_Text_Shadow::get_type(), ['name'=>'play_icon_text_shadow','selector'=>'{{WRAPPER}} .obx-media__play','fields_options'=>['text_shadow_type'=>['label'=>'Sombra']]]);
+        $this->end_controls_section();
+
+        $overlay = $not_slideshow + ['overlay!'=>''];
+        $this->start_controls_section('section_overlay', ['label'=>'Superposición','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$overlay]);
+        $this->color('overlay_background_color', 'Color de fondo', '.obx-media__overlay', 'background-color');
+        $this->color('overlay_color', 'Color', '.obx-media__overlay', 'color');
+        $this->typography('caption_typography', '.obx-media__overlay', ['condition'=>['overlay'=>'text']]);
+        $this->slider('icon_size', 'Tamaño del icono', '.obx-media__overlay', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>100]],'condition'=>['overlay'=>'icon']]);
+        $this->end_controls_section();
+
+        $box = '#elementor-lightbox-slideshow-{{ID}}';
+        $this->start_controls_section('section_lightbox_style', ['label'=>'Caja de luz','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('lightbox_color', ['label'=>'Color de fondo','type'=>Controls_Manager::COLOR,'selectors'=>[$box=>'background-color: {{VALUE}};']]);
+        $this->add_control('lightbox_ui_color', ['label'=>'Color de los controles','type'=>Controls_Manager::COLOR,'selectors'=>[$box . ' .dialog-lightbox-close-button, ' . $box . ' .elementor-swiper-button'=>'color: {{VALUE}};', $box . ' .dialog-lightbox-close-button svg, ' . $box . ' .elementor-swiper-button svg'=>'fill: {{VALUE}};']]);
+        $this->add_control('lightbox_ui_hover_color', ['label'=>'Color de los controles al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>[$box . ' .dialog-lightbox-close-button:hover, ' . $box . ' .elementor-swiper-button:hover'=>'color: {{VALUE}};', $box . ' .dialog-lightbox-close-button:hover svg, ' . $box . ' .elementor-swiper-button:hover svg'=>'fill: {{VALUE}};']]);
+        $this->add_responsive_control('lightbox_video_width', ['label'=>'Ancho del vídeo','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vw','custom'],'default'=>['unit'=>'%'],'range'=>['%'=>['min'=>50]],'selectors'=>[$box . ' .elementor-video-container'=>'width: {{SIZE}}{{UNIT}};']]);
+        $this->end_controls_section();
+    }
+
+    /** Text for the «text» overlay from the attachment: title, caption or description. */
+    private static function caption(int $id, string $field): string {
+        $post = $id ? get_post($id) : null;
+        if (!$post) { return ''; }
+        return trim((string) (['title'=>$post->post_title,'caption'=>$post->post_excerpt,'description'=>$post->post_content][$field] ?? ''));
+    }
+
+    private static function video_url(string $url): string {
+        $embed = class_exists(\Elementor\Embed::class) ? \Elementor\Embed::get_embed_url($url, ['autoplay'=>'1','rel'=>'0','controls'=>'1']) : null;
+        return $embed ?: $url;
     }
 
     protected function render(): void {
         $s = $this->get_settings_for_display(); $slides = array_values(array_filter((array) ($s['slides'] ?? []), 'is_array'));
         if (!$slides) { $this->placeholder('Añade imágenes o vídeos.'); return; }
-        echo '<div class="obx-carousel obx-media" data-carousel="' . esc_attr($this->carousel_options($s, 'show_arrows', 'loop')) . '" role="region" aria-roledescription="carrusel" aria-label="Medios"><div class="obx-carousel__track">';
+        $skin = in_array($s['skin'] ?? 'carousel', ['carousel','slideshow','coverflow'], true) ? (string) $s['skin'] : 'carousel';
+        $effect = $skin === 'coverflow' ? 'slide' : (string) ($s['effect'] ?? 'slide');
+        $overlay = $skin === 'slideshow' ? '' : (string) ($s['overlay'] ?? '');
+        $lazy = ($s['lazyload'] ?? '') === 'yes' ? ' loading="lazy"' : '';
+        $data = json_decode($this->carousel_options($s, 'show_arrows', 'loop'), true) + ['fade'=>in_array($effect, ['fade','cube'], true)];
+        $classes = 'obx-carousel obx-media obx-media--' . $skin . ($effect === 'cube' ? ' obx-carousel--cube' : '');
+        echo '<div class="' . esc_attr($classes) . '" data-carousel="' . esc_attr((string) wp_json_encode($data)) . '" role="region" aria-roledescription="carrusel" aria-label="' . esc_attr((string) ($s['slides_name'] ?? 'Diapositivas')) . '" style="--obx-speed:' . max(0, (int) ($s['speed'] ?? 500)) . 'ms"><div class="obx-carousel__track">';
+        $thumbs = '';
         foreach ($slides as $i => $slide) {
-            $image = (array) ($slide['image'] ?? []); $id = (int) ($image['id'] ?? 0); $src = $id ? Group_Control_Image_Size::get_attachment_image_src($id, 'thumbnail', $s) : (string) ($image['url'] ?? '');
-            if ($src === '') { continue; }
-            $file = $id ? (string) wp_get_attachment_url($id) : $src; $video = (string) (($slide['video_url']['url'] ?? '') ?: '');
-            $href = ''; $attrs = '';
-            if (($s['link_to'] ?? 'file') === 'file') { $href = $video ?: $file; $attrs = ' data-elementor-open-lightbox="' . esc_attr((string) ($s['open_lightbox'] ?? 'default')) . '" data-elementor-lightbox-slideshow="media-' . esc_attr($this->get_id()) . '"' . ($video ? ' data-elementor-lightbox-video="' . esc_attr($video) . '"' : ''); }
-            elseif (($s['link_to'] ?? '') === 'custom') { $href = (string) ($slide['link']['url'] ?? ''); }
-            $tag = $href ? 'a' : 'div';
-            echo '<div class="obx-carousel__slide"><' . $tag . ' class="obx-media__item"' . ($href ? ' href="' . esc_url($href) . '"' . $attrs : '') . '><img class="obx-media__image" src="' . esc_url($src) . '" alt="' . esc_attr($id ? (string) get_post_meta($id, '_wp_attachment_image_alt', true) : '') . '" loading="lazy">' . ($video ? '<span class="obx-media__play" aria-hidden="true">▶</span>' : '') . '</' . $tag . '></div>';
+            $image = (array) ($slide['image'] ?? []); $id = (int) ($image['id'] ?? 0);
+            $src = $id ? (string) Group_Control_Image_Size::get_attachment_image_src($id, 'image_size', $s) : (string) ($image['url'] ?? '');
+            if ($src === '') { $src = Utils::get_placeholder_image_src(); }
+            $alt = $id ? (string) get_post_meta($id, '_wp_attachment_image_alt', true) : '';
+            $video = ($slide['type'] ?? 'image') === 'video' ? (string) ($slide['video']['url'] ?? '') : '';
+            $key = 'slide_' . $i;
+            $href = '';
+            if ($video !== '') {
+                $href = $video;
+                $this->add_render_attribute($key, ['data-elementor-open-lightbox'=>'yes','data-elementor-lightbox-slideshow'=>$this->get_id(),'data-elementor-lightbox-video'=>self::video_url($video),'data-elementor-lightbox-index'=>(string) $i]);
+            } elseif (($slide['image_link_to_type'] ?? '') === 'file') {
+                $href = $id ? (string) wp_get_attachment_url($id) : (string) ($image['url'] ?? '');
+                $this->add_render_attribute($key, ['data-elementor-open-lightbox'=>'yes','data-elementor-lightbox-slideshow'=>$this->get_id(),'data-elementor-lightbox-index'=>(string) $i]);
+                if ($id) { $this->add_render_attribute($key, ['data-elementor-lightbox-title'=>get_the_title($id),'data-elementor-lightbox-description'=>(string) wp_get_attachment_caption($id)]); }
+            } elseif (($slide['image_link_to_type'] ?? '') === 'custom' && !empty($slide['image_link_to']['url'])) {
+                $this->add_link_attributes($key, $slide['image_link_to']);
+            }
+            $this->add_render_attribute($key, 'class', 'obx-media__item');
+            if ($href !== '') { $this->add_render_attribute($key, 'href', esc_url($href)); }
+            $tag = $this->get_render_attributes($key, 'href') ? 'a' : 'div';
+            echo '<div class="obx-carousel__slide"><' . $tag . ' ' . $this->get_render_attribute_string($key) . '><img class="obx-media__image" src="' . esc_url($src) . '" alt="' . esc_attr($alt) . '"' . $lazy . '>';
+            if ($video !== '') { echo '<span class="obx-media__play" aria-hidden="true"><i class="eicon-play"></i></span>'; }
+            if ($overlay === 'text') { $text = self::caption($id, (string) ($s['caption'] ?? 'title')); if ($text !== '') { echo '<span class="obx-media__overlay">' . esc_html($text) . '</span>'; } }
+            elseif ($overlay === 'icon') { echo '<span class="obx-media__overlay" aria-hidden="true">' . Icons_Manager::try_get_icon_html(['value'=>self::ICONS[$s['icon'] ?? 'search-plus'] ?? self::ICONS['search-plus'],'library'=>str_starts_with(self::ICONS[$s['icon'] ?? 'search-plus'] ?? 'fas', 'far') ? 'fa-regular' : 'fa-solid']) . '</span>'; }
+            echo '</' . $tag . '></div>';
+            if ($skin === 'slideshow') { $thumbs .= '<div class="obx-carousel__slide obx-media__thumb" role="button" tabindex="0" aria-label="' . esc_attr(sprintf('Ir a la diapositiva %d', $i + 1)) . '"><img src="' . esc_url($id ? (string) wp_get_attachment_image_url($id, 'medium') : $src) . '" alt=""' . $lazy . '>' . ($video !== '' ? '<span class="obx-media__play" aria-hidden="true"><i class="eicon-play"></i></span>' : '') . '</div>'; }
         }
-        echo '</div>' . $this->carousel_controls_html($s, 'show_arrows') . '</div>';
+        $controls = $skin === 'slideshow' ? ['show_arrows'=>$s['show_arrows'] ?? 'yes','pagination'=>''] : $s;
+        echo '</div>' . $this->carousel_controls_html($controls, 'show_arrows') . '</div>';
+        if ($thumbs !== '') {
+            echo '<div class="obx-carousel obx-media__thumbs" data-carousel="' . esc_attr((string) wp_json_encode(['autoplay'=>false,'loop'=>false,'speed'=>max(0, (int) ($s['speed'] ?? 500)),'centered'=>($s['centered_slides'] ?? '') === 'yes'])) . '" aria-label="Miniaturas"><div class="obx-carousel__track">' . $thumbs . '</div></div>';
+        }
     }
 }
