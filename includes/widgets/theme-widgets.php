@@ -171,11 +171,13 @@ trait Image_Controls {
     protected function image_controls(string $link_note): void {
         $this->start_controls_section('section_image', ['label'=>'Imagen']);
         $this->add_control('image', ['label'=>'Imagen alternativa','type'=>Controls_Manager::MEDIA,'dynamic'=>['active'=>true],'default'=>['url'=>''],'description'=>$this->image_note()]);
-        $this->add_group_control(Group_Control_Image_Size::get_type(), ['name'=>'image','default'=>'large']);
+        $this->before_image_size();
+        $this->add_group_control(Group_Control_Image_Size::get_type(), ['name'=>'image','default'=>$this->default_image_size()]);
         $this->add_control('caption_source', ['label'=>'Leyenda','type'=>Controls_Manager::SELECT,'options'=>['none'=>'Ninguna','attachment'=>'Leyenda del adjunto','custom'=>'Personalizada'],'default'=>'none']);
         $this->add_control('caption', ['label'=>'Leyenda personalizada','type'=>Controls_Manager::TEXT,'dynamic'=>['active'=>true],'condition'=>['caption_source'=>'custom']]);
-        $this->add_control('link_to', ['label'=>'Enlace','type'=>Controls_Manager::SELECT,'options'=>['none'=>'Ninguno','file'=>'Archivo multimedia','custom'=>'URL personalizada'],'default'=>$this->default_link_to()]);
+        $this->add_control('link_to', ['label'=>'Enlace','type'=>Controls_Manager::SELECT,'options'=>$this->link_options(),'default'=>$this->default_link_to()]);
         $this->add_control('link', ['label'=>'Enlace','type'=>Controls_Manager::URL,'dynamic'=>['active'=>true],'condition'=>['link_to'=>'custom'],'show_label'=>false,'description'=>$link_note]);
+        $this->add_control('open_lightbox', ['label'=>'Caja de luz','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>['default'=>'Por defecto','yes'=>'Sí','no'=>'No'],'condition'=>['link_to'=>'file']]);
         $this->end_controls_section();
 
         $this->start_controls_section('section_style_image', ['label'=>'Imagen','tab'=>Controls_Manager::TAB_STYLE]);
@@ -185,9 +187,18 @@ trait Image_Controls {
         $this->add_responsive_control('height', ['label'=>'Alto','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vh','custom'],'range'=>['px'=>['min'=>1,'max'=>1000],'vh'=>['min'=>1,'max'=>100]],'selectors'=>['{{WRAPPER}} img'=>'height: {{SIZE}}{{UNIT}};']]);
         $this->add_responsive_control('object-fit', ['label'=>'Ajuste del objeto','type'=>Controls_Manager::SELECT,'options'=>[''=>'Predeterminado','fill'=>'Rellenar','cover'=>'Cubrir','contain'=>'Contener','scale-down'=>'Reducir'],'default'=>'','condition'=>['height[size]!'=>''],'selectors'=>['{{WRAPPER}} img'=>'object-fit: {{VALUE}};']]);
         $this->add_responsive_control('object-position', ['label'=>'Posición del objeto','type'=>Controls_Manager::SELECT,'options'=>['center center'=>'Centro','center left'=>'Centro izquierda','center right'=>'Centro derecha','top center'=>'Arriba','top left'=>'Arriba izquierda','top right'=>'Arriba derecha','bottom center'=>'Abajo','bottom left'=>'Abajo izquierda','bottom right'=>'Abajo derecha'],'default'=>'center center','condition'=>['height[size]!'=>'','object-fit'=>['cover','contain','scale-down']],'selectors'=>['{{WRAPPER}} img'=>'object-position: {{VALUE}};']]);
+        $this->start_controls_tabs('image_effects');
+        $this->start_controls_tab('normal', ['label'=>'Normal']);
         $this->add_control('opacity', ['label'=>'Opacidad','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>1,'min'=>0.1,'step'=>0.01]],'selectors'=>['{{WRAPPER}} img'=>'opacity: {{SIZE}};']]);
-        $this->add_control('opacity_hover', ['label'=>'Opacidad al pasar el ratón','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>1,'min'=>0.1,'step'=>0.01]],'selectors'=>['{{WRAPPER}}:hover img'=>'opacity: {{SIZE}};']]);
         $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>'css_filters','selector'=>'{{WRAPPER}} img']);
+        $this->end_controls_tab();
+        $this->start_controls_tab('hover', ['label'=>'Al pasar el ratón']);
+        $this->add_control('opacity_hover', ['label'=>'Opacidad','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>1,'min'=>0.1,'step'=>0.01]],'selectors'=>['{{WRAPPER}}:hover img'=>'opacity: {{SIZE}};']]);
+        $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>'css_filters_hover','selector'=>'{{WRAPPER}}:hover img']);
+        $this->add_control('background_hover_transition', ['label'=>'Duración de la transición (s)','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>3,'step'=>0.1]],'selectors'=>['{{WRAPPER}} img'=>'transition-duration: {{SIZE}}s;']]);
+        $this->add_control('hover_animation', ['label'=>'Animación al pasar el ratón','type'=>Controls_Manager::HOVER_ANIMATION]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'image_border','selector'=>'{{WRAPPER}} img','separator'=>'before']);
         $this->add_responsive_control('image_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','custom'],'selectors'=>['{{WRAPPER}} img'=>'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
         $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'image_box_shadow','selector'=>'{{WRAPPER}} img']);
@@ -198,11 +209,15 @@ trait Image_Controls {
         $this->add_control('text_color', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .widget-image-caption'=>'color: {{VALUE}};']]);
         $this->add_control('caption_background_color', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .widget-image-caption'=>'background-color: {{VALUE}};']]);
         $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'caption_typography','selector'=>'{{WRAPPER}} .widget-image-caption']);
+        $this->add_group_control(Group_Control_Text_Shadow::get_type(), ['name'=>'caption_text_shadow','selector'=>'{{WRAPPER}} .widget-image-caption']);
         $this->add_responsive_control('caption_space', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['min'=>0,'max'=>100]],'selectors'=>['{{WRAPPER}} .widget-image-caption'=>'margin-top: {{SIZE}}{{UNIT}}; margin-bottom: 0px;']]);
         $this->end_controls_section();
     }
 
     protected function default_link_to(): string { return 'none'; }
+    protected function default_image_size(): string { return 'large'; }
+    protected function link_options(): array { return ['none'=>'Ninguno','file'=>'Archivo multimedia','custom'=>'URL personalizada']; }
+    protected function before_image_size(): void {}
     protected function image_note(): string { return ''; }
 
     /**
@@ -214,10 +229,16 @@ trait Image_Controls {
         $size = (string) ($s['image_size'] ?? 'large');
         if ($id) {
             $size_arg = $size === 'custom' ? 'full' : ($size ?: 'large');
-            $html = wp_get_attachment_image($id, $size_arg, false, ['alt'=>$alt ?: (string) get_post_meta($id, '_wp_attachment_image_alt', true)]);
+            $attrs = ['alt'=>$alt ?: (string) get_post_meta($id, '_wp_attachment_image_alt', true)];
+            if (!empty($s['hover_animation'])) { $attrs['class'] = 'attachment-' . $size_arg . ' size-' . $size_arg . ' wp-image-' . $id . ' elementor-animation-' . $s['hover_animation']; }
+            $html = wp_get_attachment_image($id, $size_arg, false, $attrs);
+            if ($size === 'custom' && $html) {
+                $src = Group_Control_Image_Size::get_attachment_image_src($id, 'image', $s);
+                if ($src) { $html = '<img src="' . esc_url($src) . '" alt="' . esc_attr($attrs['alt']) . '"' . (isset($attrs['class']) ? ' class="' . esc_attr($attrs['class']) . '"' : '') . '>'; }
+            }
             $file = (string) wp_get_attachment_url($id);
         } else {
-            $html = '<img src="' . esc_url($url) . '" alt="' . esc_attr($alt) . '">';
+            $html = '<img src="' . esc_url($url) . '" alt="' . esc_attr($alt) . '"' . (!empty($s['hover_animation']) ? ' class="elementor-animation-' . esc_attr($s['hover_animation']) . '"' : '') . '>';
             $file = $url;
         }
         if (!$html) { return; }
@@ -227,8 +248,13 @@ trait Image_Controls {
             default => '',
         };
         $link = '';
-        if (($s['link_to'] ?? 'none') === 'file') { $link = $file; }
-        if (($s['link_to'] ?? 'none') === 'custom') {
+        $link_to = (string) ($s['link_to'] ?? $this->default_link_to());
+        if ($link_to === 'site_url') { $link = home_url('/'); }
+        if ($link_to === 'file') {
+            $this->add_render_attribute('file_link', ['href'=>esc_url($file),'data-elementor-open-lightbox'=>(string) ($s['open_lightbox'] ?? 'default')]);
+            $html = '<a ' . $this->get_render_attribute_string('file_link') . '>' . $html . '</a>';
+        }
+        if ($link_to === 'custom') {
             if (!empty($s['link']['url'])) {
                 $this->add_link_attributes('link', $s['link']);
                 $html = '<a ' . $this->get_render_attribute_string('link') . '>' . $html . '</a>';
@@ -259,7 +285,12 @@ final class Site_Logo extends Base {
     public function get_icon(): string { return 'eicon-site-logo'; }
     public function get_keywords(): array { return ['logo','logotipo','marca','brand']; }
     protected function register_controls(): void { $this->image_controls('Vacío: la portada.'); }
-    protected function default_link_to(): string { return 'custom'; }
+    protected function default_link_to(): string { return 'site_url'; }
+    protected function default_image_size(): string { return 'full'; }
+    protected function link_options(): array { return ['none'=>'Ninguno','file'=>'Archivo multimedia','custom'=>'URL personalizada','site_url'=>'URL del sitio']; }
+    protected function before_image_size(): void {
+        $this->add_control('change_logo_cta', ['type'=>Controls_Manager::BUTTON,'label_block'=>true,'show_label'=>false,'button_type'=>'default elementor-button-center','text'=>'Cambiar el logotipo del sitio','separator'=>'none','event'=>'obx:site-logo:change']);
+    }
     protected function image_note(): string { return 'Se usa si no hay logotipo en Apariencia → Personalizar → Identidad del sitio.'; }
     protected static function upgrade_settings(array $s): array {
         $s['link_to'] = ($s['link'] ?? 'yes') === 'yes' ? 'custom' : 'none';

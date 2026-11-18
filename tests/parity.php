@@ -319,6 +319,20 @@ try {
     foreach (['icon_size_minimal','overlay_background_color','tabs_input_colors','input_box_shadow_box_shadow_type','button_border_width','tabs_button_colors','tabs_toggle_color','toggle_color','toggle_background_color','toggle_color_hover','toggle_background_color_hover','toggle_icon_size','toggle_border_width','toggle_border_radius'] as $key) { $assert(isset($sf[$key]), "search-form: falta {$key}."); }
     $assert(!isset($sf['border_width']) && array_keys($sf['toggle_align']['options'] ?? []) === ['start','center','end'] && str_contains((string) implode('', $sf['button_background_color_hover']['selectors'] ?? []), '--obx-submit-bg-hover'), 'search-form: claves y opciones de Pro; colores por variables.');
     $assert((\OldBearExpansion\Widgets\Search_Form::convert('search-form', ['border_width'=>['top'=>'2']])['button_border_width']['top'] ?? '') === '2', 'search-form: border_width pasa a button_border_width.');
+    // 0.11.0 Testimonial Carousel, Site Logo, Featured Image: the remaining Pro keys.
+    $tc = Elementor::$instance->widgets_manager->get_widget_types('testimonial-carousel')->get_controls();
+    foreach (['image_size_size','text_stroke_text_stroke_type','content_text_shadow_text_shadow_type','pagination_gap','background_color','text_padding','border_radius','border','border_color','border_width','arrows_size','arrows_color','pagination_size','pagination_color_inactive','pagination_color'] as $key) { $assert(isset($tc[$key]), "testimonial-carousel: falta {$key}."); }
+    $assert(array_keys($tc['alignment']['options'] ?? []) === ['left','center','right'] && ($tc['image_size_size']['default'] ?? '') === 'full' && ($tc['border_color']['default'] ?? '') === '#000' && ($tc['text_padding']['default']['top'] ?? '') === '20' && ($tc['arrows_size']['default']['size'] ?? 0) === 20 && !isset($tc['arrows_hover_color']), 'testimonial-carousel: opciones y valores de Pro.');
+    foreach (['theme-site-logo','theme-post-featured-image'] as $type) {
+        $ic = Elementor::$instance->widgets_manager->get_widget_types($type)->get_controls();
+        foreach (['open_lightbox','image_effects','css_filters_hover_css_filter','background_hover_transition','hover_animation','caption_text_shadow_text_shadow_type'] as $key) { $assert(isset($ic[$key]), "{$type}: falta {$key}."); }
+    }
+    $lc2 = Elementor::$instance->widgets_manager->get_widget_types('theme-site-logo')->get_controls();
+    $assert(isset($lc2['change_logo_cta']) && ($lc2['link_to']['default'] ?? '') === 'site_url' && isset($lc2['link_to']['options']['site_url']) && ($lc2['image_size']['default'] ?? '') === 'full', 'theme-site-logo: botón para cambiar el logotipo, enlace a la URL del sitio y tamaño completo por defecto.');
+    $html = $render(['__widget'=>'theme-site-logo','image'=>['url'=>'https://example.org/logo.png'],'hover_animation'=>'grow']);
+    $assert(str_contains($html, 'href="' . home_url('/') . '"') && str_contains($html, 'elementor-animation-grow'), 'theme-site-logo: enlace a la portada por defecto y animación al pasar el ratón.');
+    $html = $render(['__widget'=>'theme-post-featured-image','image'=>['url'=>'https://example.org/f.png'],'link_to'=>'file','open_lightbox'=>'no']);
+    $assert(str_contains($html, 'data-elementor-open-lightbox="no"') && str_contains($html, 'href="https://example.org/f.png"'), 'theme-post-featured-image: archivo con la opción de caja de luz.');
     $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
     $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);
     $assert(wp_list_pluck($kids, 'term_id') === [$sub['term_id']], 'Bucle de términos: hijos de un término.');

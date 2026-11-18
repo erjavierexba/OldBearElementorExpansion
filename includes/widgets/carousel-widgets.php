@@ -8,6 +8,8 @@ use Elementor\Group_Control_Box_Shadow;
 use Elementor\Group_Control_Css_Filter;
 use Elementor\Group_Control_Image_Size;
 use Elementor\Group_Control_Typography;
+use Elementor\Group_Control_Text_Stroke;
+use Elementor\Group_Control_Text_Shadow;
 use Elementor\Icons_Manager;
 use Elementor\Modules\NestedElements\Base\Widget_Nested_Base;
 use Elementor\Repeater;
@@ -36,14 +38,15 @@ trait Carousel {
         $this->add_control('pagination', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'bullets','options'=>[''=>'Ninguna','bullets'=>'Puntos','fraction'=>'Fracción','progressbar'=>'Barra de progreso'],'frontend_available'=>true]);
     }
 
-    protected function carousel_navigation_style(string $arrows_key, string $prefix = 'arrows'): void {
-        $this->start_controls_section('section_navigation_style', ['label'=>'Navegación','tab'=>Controls_Manager::TAB_STYLE]);
+    /** Pro's «section_navigation» of the classic carousels (arrows size/colour, pagination gap/size/colours). */
+    protected function carousel_navigation_style(string $arrows_key): void {
+        $this->start_controls_section('section_navigation', ['label'=>'Navegación','tab'=>Controls_Manager::TAB_STYLE]);
         $this->add_control('heading_arrows', ['label'=>'Flechas','type'=>Controls_Manager::HEADING,'condition'=>[$arrows_key=>'yes']]);
-        $this->slider($prefix . '_size', 'Tamaño', '.obx-carousel__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>6,'max'=>100]],'condition'=>[$arrows_key=>'yes']], true);
-        $this->color($prefix === 'arrows' ? 'arrows_color' : 'arrows_normal_color', 'Color', '.obx-carousel__arrow', 'color', ['condition'=>[$arrows_key=>'yes']]);
-        $this->color('arrows_hover_color', 'Color al pasar el ratón', '.obx-carousel__arrow:hover', 'color', ['condition'=>[$arrows_key=>'yes']]);
+        $this->slider('arrows_size', 'Tamaño', '.obx-carousel__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'default'=>['unit'=>'px','size'=>20],'range'=>['px'=>['min'=>20,'max'=>60]],'condition'=>[$arrows_key=>'yes']]);
+        $this->color('arrows_color', 'Color', '.obx-carousel__arrow', 'color', ['condition'=>[$arrows_key=>'yes']]);
         $this->add_control('heading_pagination', ['label'=>'Paginación','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>['pagination!'=>'']]);
-        $this->slider('pagination_size', 'Tamaño', '.obx-carousel__pagination', '--obx-dot: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>30]],'condition'=>['pagination!'=>'']]);
+        $this->slider('pagination_gap', 'Separación', '.obx-carousel__pagination--bullets', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>40]],'condition'=>['pagination'=>'bullets']]);
+        $this->slider('pagination_size', 'Tamaño', '.obx-carousel__pagination', '--obx-dot: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>20]],'condition'=>['pagination!'=>'']]);
         $this->color('pagination_color_inactive', 'Color', '.obx-carousel__pagination', '--obx-dot-inactive', ['condition'=>['pagination!'=>'']]);
         $this->color('pagination_color', 'Color activo', '.obx-carousel__pagination', '--obx-dot-active', ['condition'=>['pagination!'=>'']]);
         $this->end_controls_section();
@@ -183,13 +186,14 @@ final class Testimonial_Carousel extends Element {
         $this->add_control('slides', ['type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'default'=>[['content'=>$sample,'name'=>'Nombre','title'=>'Cargo'],['content'=>$sample,'name'=>'Nombre','title'=>'Cargo'],['content'=>$sample,'name'=>'Nombre','title'=>'Cargo']],'title_field'=>'{{{ name }}}']);
         $this->add_control('skin', ['label'=>'Apariencia','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>['default'=>'Por defecto','bubble'=>'Bocadillo'],'prefix_class'=>'obx-testimonials--skin-','separator'=>'before']);
         $this->add_control('layout', ['label'=>'Disposición','type'=>Controls_Manager::SELECT,'default'=>'image_inline','options'=>['image_inline'=>'Foto en línea','image_stacked'=>'Foto apilada','image_above'=>'Foto arriba','image_left'=>'Foto a la izquierda','image_right'=>'Foto a la derecha'],'prefix_class'=>'obx-testimonials--layout-']);
-        $this->add_responsive_control('alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::logical_align(),'prefix_class'=>'obx-testimonials%s--align-','condition'=>['layout'=>['image_inline','image_stacked','image_above']]]);
+        $this->add_responsive_control('alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>['left'=>['title'=>'Izquierda','icon'=>'eicon-text-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-text-align-center'],'right'=>['title'=>'Derecha','icon'=>'eicon-text-align-right']],'prefix_class'=>'obx-testimonials%s--align-','condition'=>['layout'=>['image_inline','image_stacked','image_above']]]);
         $this->add_control('slides_name', ['type'=>Controls_Manager::HIDDEN,'default'=>'Testimonios']);
         $this->end_controls_section();
 
         $this->start_controls_section('section_additional_options', ['label'=>'Carrusel']);
         $this->carousel_controls(['show'=>'slides_per_view','scroll'=>'slides_to_scroll','gap'=>'space_between','arrows'=>'show_arrows','loop'=>'loop']);
-        $this->add_control('lazyload', ['label'=>'Carga diferida','type'=>Controls_Manager::SWITCHER,'separator'=>'before']);
+        $this->add_group_control(Group_Control_Image_Size::get_type(), ['name'=>'image_size','default'=>'full','separator'=>'before']);
+        $this->add_control('lazyload', ['label'=>'Carga diferida','type'=>Controls_Manager::SWITCHER]);
         $this->end_controls_section();
 
         $this->start_controls_section('section_slides_style', ['label'=>'Diapositivas','tab'=>Controls_Manager::TAB_STYLE]);
@@ -206,6 +210,8 @@ final class Testimonial_Carousel extends Element {
         $this->slider('content_gap', 'Separación', '.obx-testimonial', '--obx-content-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]], true);
         $this->color('content_color', 'Color del texto', '.obx-testimonial__content');
         $this->typography('content_typography', '.obx-testimonial__content');
+        $this->add_group_control(Group_Control_Text_Stroke::get_type(), ['name'=>'text_stroke','selector'=>'{{WRAPPER}} .obx-testimonial__content']);
+        $this->add_group_control(Group_Control_Text_Shadow::get_type(), ['name'=>'content_text_shadow','selector'=>'{{WRAPPER}} .obx-testimonial__content']);
         $this->add_control('heading_name_style', ['label'=>'Nombre','type'=>Controls_Manager::HEADING,'separator'=>'before']);
         $this->color('name_color', 'Color', '.obx-testimonial__name');
         $this->typography('name_typography', '.obx-testimonial__name');
@@ -224,6 +230,17 @@ final class Testimonial_Carousel extends Element {
         $this->end_controls_section();
 
         $this->carousel_navigation_style('show_arrows');
+
+        $bubble = ['skin'=>'bubble'];
+        $content = '{{WRAPPER}} .obx-testimonial__content';
+        $this->start_controls_section('section_skin_style', ['label'=>'Bocadillo','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$bubble]);
+        $this->add_control('background_color', ['label'=>'Color de fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-testimonial'=>'--obx-bubble-bg: {{VALUE}};'],'condition'=>$bubble]);
+        $this->add_control('text_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','vw','custom'],'default'=>['unit'=>'px','top'=>'20','right'=>'20','bottom'=>'20','left'=>'20','isLinked'=>true],'selectors'=>[$content=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};'],'condition'=>$bubble]);
+        $this->add_control('border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','custom'],'selectors'=>[$content=>'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};'],'condition'=>$bubble]);
+        $this->add_control('border', ['label'=>'Borde','type'=>Controls_Manager::SWITCHER,'selectors'=>['{{WRAPPER}} .obx-testimonial'=>'--obx-bubble-border-width: 1px;'],'separator'=>'before','condition'=>$bubble]);
+        $this->add_control('border_color', ['label'=>'Color del borde','type'=>Controls_Manager::COLOR,'default'=>'#000','selectors'=>['{{WRAPPER}} .obx-testimonial'=>'--obx-bubble-border-color: {{VALUE}};'],'condition'=>$bubble + ['border'=>'yes']]);
+        $this->add_control('border_width', ['label'=>'Grosor del borde','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vw','custom'],'range'=>['px'=>['max'=>20]],'selectors'=>['{{WRAPPER}} .obx-testimonial'=>'--obx-bubble-border-width: {{SIZE}}{{UNIT}};'],'condition'=>$bubble + ['border'=>'yes']]);
+        $this->end_controls_section();
     }
 
     protected function render(): void {
@@ -238,7 +255,9 @@ final class Testimonial_Carousel extends Element {
             if ((string) ($slide['content'] ?? '') !== '') { echo '<blockquote class="obx-testimonial__content">' . wp_kses_post(wpautop((string) $slide['content'])) . '</blockquote>'; }
             echo '<figcaption class="obx-testimonial__footer">';
             if (!empty($slide['image']['url'])) {
-                $img = !empty($slide['image']['id']) ? wp_get_attachment_image((int) $slide['image']['id'], 'thumbnail', false, ['loading'=>$lazy,'alt'=>(string) ($slide['name'] ?? '')]) : '';
+                $size = (string) ($s['image_size_size'] ?? 'full');
+                $img = !empty($slide['image']['id']) && $size !== 'custom' ? wp_get_attachment_image((int) $slide['image']['id'], $size, false, ['loading'=>$lazy,'alt'=>(string) ($slide['name'] ?? '')]) : '';
+                if ($img === '' && !empty($slide['image']['id'])) { $src = Group_Control_Image_Size::get_attachment_image_src((int) $slide['image']['id'], 'image_size', $s); $slide['image']['url'] = $src ?: $slide['image']['url']; }
                 echo '<span class="obx-testimonial__image">' . ($img ?: '<img src="' . esc_url($slide['image']['url']) . '" alt="' . esc_attr((string) ($slide['name'] ?? '')) . '" loading="' . $lazy . '">') . '</span>';
             }
             echo '<cite class="obx-testimonial__cite">';

@@ -18,4 +18,11 @@
         });
     };
     $(window).on('elementor/nested-element-type-loaded', register);
+
+    /* Site Logo «Change site logo» button: opens Site Settings → Site Identity, as in Pro. */
+    $(window).on('elementor:init', () => {
+        elementor.channels.editor.on('obx:site-logo:change', () => {
+            Promise.resolve($e.run('panel/global/open')).then(() => $e.route('panel/global/settings-site-identity')).catch(() => {});
+        });
+    });
 })(jQuery);
