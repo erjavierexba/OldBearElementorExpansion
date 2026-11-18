@@ -314,6 +314,11 @@ try {
     $assert(str_contains($html, $mark . ' nieta') && !str_contains($html, $mark . ' hija') && str_contains($html, $mark . ' privada') && !str_contains($html, 'class="children"'), 'sitemap: lista plana, exclusión manual y protegidas incluidas.');
     $old = \OldBearExpansion\Widgets\Sitemap::convert('sitemap', ['sources'=>['page','tax:category'],'columns'=>'3','limit'=>20]);
     $assert(count($old['sitemap_items'] ?? []) === 2 && ($old['sitemap_items'][1]['sitemap_type_selector'] ?? '') === 'taxonomy' && ($old['sitemap_items'][1]['sitemap_source_taxonomy'] ?? '') === 'category' && ($old['sitemap_columns'] ?? '') === '3' && !isset($old['sources'], $old['limit']), 'sitemap: los datos antiguos pasan a las claves de Pro.');
+    // 0.11.0 Search Form: Pro's input/button/toggle style keys; colours reach buttons over theme button styles.
+    $sf = Elementor::$instance->widgets_manager->get_widget_types('search-form')->get_controls();
+    foreach (['icon_size_minimal','overlay_background_color','tabs_input_colors','input_box_shadow_box_shadow_type','button_border_width','tabs_button_colors','tabs_toggle_color','toggle_color','toggle_background_color','toggle_color_hover','toggle_background_color_hover','toggle_icon_size','toggle_border_width','toggle_border_radius'] as $key) { $assert(isset($sf[$key]), "search-form: falta {$key}."); }
+    $assert(!isset($sf['border_width']) && array_keys($sf['toggle_align']['options'] ?? []) === ['start','center','end'] && str_contains((string) implode('', $sf['button_background_color_hover']['selectors'] ?? []), '--obx-submit-bg-hover'), 'search-form: claves y opciones de Pro; colores por variables.');
+    $assert((\OldBearExpansion\Widgets\Search_Form::convert('search-form', ['border_width'=>['top'=>'2']])['button_border_width']['top'] ?? '') === '2', 'search-form: border_width pasa a button_border_width.');
     $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
     $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);
     $assert(wp_list_pluck($kids, 'term_id') === [$sub['term_id']], 'Bucle de términos: hijos de un término.');

@@ -162,36 +162,70 @@ final class Search_Form extends Base {
         $this->add_control('button_text', ['label'=>'Texto','type'=>Controls_Manager::TEXT,'default'=>'Buscar','condition'=>['button_type'=>'text','skin'=>'classic']]);
         $this->add_control('icon', ['label'=>'Icono','type'=>Controls_Manager::CHOOSE,'default'=>'search','options'=>['search'=>['title'=>'Lupa','icon'=>'eicon-search'],'arrow'=>['title'=>'Flecha','icon'=>'eicon-arrow-right']],'condition'=>['button_type'=>'icon','skin'=>'classic']]);
         $this->add_control('size', ['label'=>'Altura','type'=>Controls_Manager::SLIDER,'default'=>['size'=>50],'selectors'=>['{{WRAPPER}} .obx-search__field, {{WRAPPER}} .obx-search__submit'=>'min-height: {{SIZE}}{{UNIT}};','{{WRAPPER}} .obx-search__submit'=>'min-width: {{SIZE}}{{UNIT}};'],'condition'=>['skin!'=>'full_screen']]);
-        $this->add_control('toggle_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::align_options(),'selectors'=>['{{WRAPPER}} .obx-search-toggle'=>'text-align: {{VALUE}};'],'condition'=>['skin'=>'full_screen']]);
-        $this->add_control('toggle_size', ['label'=>'Tamaño del botón','type'=>Controls_Manager::SLIDER,'default'=>['size'=>33],'selectors'=>['{{WRAPPER}} .obx-search-toggle button'=>'font-size: {{SIZE}}{{UNIT}};'],'condition'=>['skin'=>'full_screen']]);
+        $this->add_control('toggle_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>['start'=>['title'=>'Inicio','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'end'=>['title'=>'Final','icon'=>'eicon-h-align-right']],'selectors_dictionary'=>['left'=>'start','right'=>'end'],'selectors'=>['{{WRAPPER}} .obx-search-toggle'=>'text-align: {{VALUE}};'],'condition'=>['skin'=>'full_screen']]);
+        $this->add_control('toggle_size', ['label'=>'Tamaño del botón','type'=>Controls_Manager::SLIDER,'default'=>['unit'=>'px','size'=>33],'selectors'=>['{{WRAPPER}} .obx-search-toggle'=>'--obx-toggle-size: {{SIZE}}{{UNIT}};'],'condition'=>['skin'=>'full_screen']]);
         $this->end_controls_section();
 
         $this->start_controls_section('section_input_style', ['label'=>'Campo','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_control('icon_size_minimal', ['label'=>'Tamaño del icono','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-search--minimal .obx-search__icon'=>'font-size: {{SIZE}}{{UNIT}};'],'condition'=>['skin'=>'minimal']]);
+        $this->add_control('overlay_background_color', ['label'=>'Color de la superposición','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-search-overlay'=>'background-color: {{VALUE}};'],'condition'=>['skin'=>'full_screen']]);
         $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'input_typography','selector'=>'{{WRAPPER}} .obx-search__field']);
-        foreach (['normal'=>'','focus'=>'_focus'] as $state => $suffix) {
+        $this->start_controls_tabs('tabs_input_colors');
+        foreach (['normal'=>['', 'Normal'],'focus'=>['_focus', 'Con foco']] as $state => [$suffix, $label]) {
             $sel = '{{WRAPPER}} .obx-search__field' . ($suffix ? ':focus' : '');
-            $label = $suffix ? ' (con foco)' : '';
-            $this->add_control('input_text_color' . $suffix, ['label'=>'Color del texto' . $label,'type'=>Controls_Manager::COLOR,'selectors'=>[$sel=>'color: {{VALUE}};']]);
-            $this->add_control('input_background_color' . $suffix, ['label'=>'Fondo' . $label,'type'=>Controls_Manager::COLOR,'selectors'=>[$sel=>'background-color: {{VALUE}};']]);
-            $this->add_control('input_border_color' . $suffix, ['label'=>'Color del borde' . $label,'type'=>Controls_Manager::COLOR,'selectors'=>[$sel=>'border-color: {{VALUE}};']]);
+            $this->start_controls_tab('tab_input_' . $state, ['label'=>$label]);
+            $this->add_control('input_text_color' . $suffix, ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>[$sel=>'color: {{VALUE}};', '{{WRAPPER}} .obx-search' . ($suffix ? ':focus-within' : '') . ' .obx-search__icon'=>'color: {{VALUE}};']]);
+            $this->add_control('input_background_color' . $suffix, ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>[$sel=>'background-color: {{VALUE}};'],'condition'=>['skin!'=>'full_screen']]);
+            $this->add_control('input_border_color' . $suffix, ['label'=>'Color del borde','type'=>Controls_Manager::COLOR,'selectors'=>[$sel=>'border-color: {{VALUE}};']]);
+            $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'input_box_shadow' . $suffix,'selector'=>$sel,'condition'=>['skin!'=>'full_screen']]);
+            $this->end_controls_tab();
         }
-        $this->add_control('border_width', ['label'=>'Grosor del borde','type'=>Controls_Manager::DIMENSIONS,'selectors'=>['{{WRAPPER}} .obx-search__field'=>'border-width: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
-        $this->add_control('border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::SLIDER,'default'=>['size'=>3],'range'=>['px'=>['max'=>200]],'selectors'=>['{{WRAPPER}} .obx-search'=>'--obx-search-radius: {{SIZE}}{{UNIT}};']]);
+        $this->end_controls_tabs();
+        $this->add_control('button_border_width', ['label'=>'Grosor del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-search__field'=>'border-width: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}; border-style: solid;'],'separator'=>'before']);
+        $this->add_control('border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::SLIDER,'default'=>['unit'=>'px','size'=>3],'range'=>['px'=>['max'=>200]],'selectors'=>['{{WRAPPER}} .obx-search'=>'--obx-search-radius: {{SIZE}}{{UNIT}};']]);
         $this->end_controls_section();
 
-        $this->start_controls_section('section_button_style', ['label'=>'Botón','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['skin'=>'classic']]);
-        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'button_typography','selector'=>'{{WRAPPER}} .obx-search__submit','condition'=>['button_type'=>'text']]);
-        $this->add_control('button_text_color', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-search__submit'=>'color: {{VALUE}};']]);
-        $this->add_control('button_background_color', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-search__submit'=>'background-color: {{VALUE}};']]);
-        $this->add_control('button_text_color_hover', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-search__submit:hover, {{WRAPPER}} .obx-search__submit:focus'=>'color: {{VALUE}};']]);
-        $this->add_control('button_background_color_hover', ['label'=>'Fondo al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-search__submit:hover, {{WRAPPER}} .obx-search__submit:focus'=>'background-color: {{VALUE}};']]);
-        $this->add_control('icon_size', ['label'=>'Tamaño del icono','type'=>Controls_Manager::SLIDER,'selectors'=>['{{WRAPPER}} .obx-search__submit'=>'font-size: {{SIZE}}{{UNIT}};'],'condition'=>['button_type'=>'icon']]);
-        $this->add_responsive_control('button_width', ['label'=>'Ancho','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['min'=>1,'max'=>10,'step'=>0.1]],'selectors'=>['{{WRAPPER}} .obx-search__submit'=>'min-width: calc({{SIZE}} * 50px);']]);
+        $classic = ['skin'=>'classic'];
+        $this->start_controls_section('section_button_style', ['label'=>'Botón','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$classic]);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'button_typography','selector'=>'{{WRAPPER}} .obx-search__submit','condition'=>$classic + ['button_type'=>'text']]);
+        $this->start_controls_tabs('tabs_button_colors', ['condition'=>$classic]);
+        // Colours go through variables read by rules that outrank theme button styles (normal and hover).
+        foreach (['normal'=>['', '', 'Normal'],'hover'=>['_hover', '-hover', 'Al pasar el ratón']] as $state => [$suffix, $var, $label]) {
+            $this->start_controls_tab('tab_button_' . $state, ['label'=>$label]);
+            $this->add_control('button_text_color' . $suffix, ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-search__submit'=>'--obx-submit-color' . $var . ': {{VALUE}};'],'condition'=>$classic]);
+            $this->add_control('button_background_color' . $suffix, ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-search__submit'=>'--obx-submit-bg' . $var . ': {{VALUE}};'],'condition'=>$classic]);
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
+        $this->add_control('icon_size', ['label'=>'Tamaño del icono','type'=>Controls_Manager::SLIDER,'selectors'=>['{{WRAPPER}} .obx-search__submit'=>'font-size: {{SIZE}}{{UNIT}};'],'condition'=>$classic + ['button_type'=>'icon'],'separator'=>'before']);
+        $this->add_responsive_control('button_width', ['label'=>'Ancho','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['min'=>1,'max'=>10,'step'=>0.1]],'selectors'=>['{{WRAPPER}} .obx-search__submit'=>'min-width: calc({{SIZE}} * 50px);'],'condition'=>$classic]);
+        $this->end_controls_section();
+
+        $full = ['skin'=>'full_screen'];
+        $toggle = '{{WRAPPER}} .obx-search-toggle__open';
+        $this->start_controls_section('section_toggle_style', ['label'=>'Botón de apertura','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$full]);
+        $this->start_controls_tabs('tabs_toggle_color', ['condition'=>$full]);
+        foreach (['normal'=>['', '', 'Normal'],'hover'=>['_hover', '-hover', 'Al pasar el ratón']] as $state => [$suffix, $var, $label]) {
+            $this->start_controls_tab('tab_toggle_' . $state, ['label'=>$label]);
+            $this->add_control('toggle_color' . $suffix, ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>[$toggle=>'--obx-toggle-color' . $var . ': {{VALUE}};'],'condition'=>$full]);
+            $this->add_control('toggle_background_color' . $suffix, ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>[$toggle=>'--obx-toggle-bg' . $var . ': {{VALUE}};'],'condition'=>$full]);
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
+        $this->add_control('toggle_icon_size', ['label'=>'Tamaño del icono','type'=>Controls_Manager::SLIDER,'selectors'=>['{{WRAPPER}} .obx-search-toggle'=>'--obx-toggle-icon: {{SIZE}}{{UNIT}};'],'condition'=>$full,'separator'=>'before']);
+        $this->add_control('toggle_border_width', ['label'=>'Grosor del borde','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vw','custom'],'range'=>['px'=>['max'=>20]],'selectors'=>[$toggle=>'border-width: {{SIZE}}{{UNIT}};'],'condition'=>$full]);
+        $this->add_control('toggle_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','custom'],'selectors'=>[$toggle=>'border-radius: {{SIZE}}{{UNIT}};'],'condition'=>$full]);
         $this->end_controls_section();
     }
 
+    /** Before 0.11.0 the field border width was saved as «border_width» under Pro's name too. */
+    public static function convert(string $name, array $settings): array {
+        if ($name === self::PRO && array_key_exists('border_width', $settings)) { return self::rename($settings, ['border_width'=>'button_border_width']); }
+        return parent::convert($name, $settings);
+    }
+
     protected static function upgrade_settings(array $s): array {
-        $s = self::rename($s, ['button'=>'button_text','input_color'=>'input_text_color','input_bg'=>'input_background_color','button_color'=>'button_text_color','button_bg'=>'button_background_color']);
+        $s = self::rename($s, ['button'=>'button_text','input_color'=>'input_text_color','input_bg'=>'input_background_color','button_color'=>'button_text_color','button_bg'=>'button_background_color','border_width'=>'button_border_width']);
         $s['button_type'] = 'text';
         return $s;
     }
