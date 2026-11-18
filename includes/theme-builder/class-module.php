@@ -98,6 +98,7 @@ final class Module {
             if ($documents) { self::load_widgets(); \OldBearExpansion\Widgets\Woo_Notices::relocate($documents); }
         }, 20);
         add_action('init', [self::class, 'assets'], 5);
+        if (!Plugin::pro_active()) { add_filter('wp_check_filetype_and_ext', [self::class, 'json_file_type'], 10, 3); }
         add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); wp_add_inline_style('obx-frontend', self::menu_breakpoints_css()); });
         add_action('elementor/editor/after_enqueue_scripts', static function() {
             if (!Plugin::pro_active()) { wp_enqueue_script('obx-editor-nested', Plugin::url('assets/js/editor-nested.js'), ['jquery'], VERSION, true); }
@@ -152,6 +153,7 @@ final class Module {
         require_once DIR . '/includes/widgets/carousel-widgets.php';
         require_once DIR . '/includes/widgets/nested-widgets.php';
         require_once DIR . '/includes/widgets/media-widgets.php';
+        require_once DIR . '/includes/widgets/lottie-widget.php';
         // Elementor includes its widget files itself (no require_once): ours extending them wait for them.
         if (class_exists('\\Elementor\\Widget_Image', false) && !class_exists('\\OldBearExpansion\\Widgets\\Hotspot', false)) { require DIR . '/includes/widgets/image-widgets.php'; }
         require_once DIR . '/includes/widgets/loop-widgets.php';
@@ -218,5 +220,17 @@ final class Module {
         wp_register_script('obx-off-canvas', Plugin::url('assets/js/off-canvas.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-hotspot', Plugin::url('assets/js/hotspot.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-widgets', Plugin::url('assets/js/widgets.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
+        // lottie-web 5.12.2 (MIT, Airbnb) plays the Lottie widget's animations.
+        wp_register_script('obx-lottie-web', Plugin::url('assets/vendor/lottie/lottie.min.js'), [], '5.12.2', ['strategy'=>'defer','in_footer'=>true]);
+        wp_register_script('obx-lottie', Plugin::url('assets/js/lottie.js'), ['obx-lottie-web'], VERSION, ['strategy'=>'defer','in_footer'=>true]);
+        wp_add_inline_script('obx-lottie', 'window.obxLottie = ' . wp_json_encode(['defaultAnimationUrl'=>Plugin::url('assets/lottie/default.json')]) . ';', 'before');
+    }
+
+    /** WordPress may not recognise an uploaded .json (finfo reports text/plain): the Lottie widget needs it. */
+    public static function json_file_type($data, $file, $filename) {
+        if (!empty($data['ext']) && !empty($data['type'])) { return $data; }
+        $type = wp_check_filetype((string) $filename);
+        if ('json' === $type['ext']) { $data['ext'] = 'json'; $data['type'] = 'application/json'; }
+        return $data;
     }
 }

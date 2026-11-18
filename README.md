@@ -191,6 +191,7 @@ includes/theme-builder/            Tipos de documento, condiciones, ubicaciones,
 includes/widgets/                  Widgets (base con doble nombre obx-*/Pro, tema, sitio, entradas, generales, formulario y carruseles)
 templates/                         header.php, footer.php y location.php que imprime el plugin
 assets/                            CSS y JS propios (sin dependencias; los carruseles usan scroll-snap)
+assets/vendor/lottie/               lottie-web 5.12.2 (MIT), reproductor del widget Lottie
 dev/seed.php · tests/              Demo de desarrollo y pruebas de integración (wp eval-file)
 dev/inventory.php · dev/parity-*   Medición de paridad con Elementor Pro (ver docs/PARIDAD-PRO.md)
 ```
@@ -198,3 +199,5 @@ dev/inventory.php · dev/parity-*   Medición de paridad con Elementor Pro (ver 
 ## Licencia
 
 GPL-2.0-or-later. Consulta [LICENSE](LICENSE).
+
+Incluye [lottie-web](https://github.com/airbnb/lottie-web) 5.12.2 (licencia MIT, compatible con la GPL) en `assets/vendor/lottie/`, con su licencia en `assets/vendor/lottie/LICENSE.md`.

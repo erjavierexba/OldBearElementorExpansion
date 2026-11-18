@@ -31,7 +31,7 @@ abstract class Base extends Widget_Base {
             Countdown::class, Share_Buttons::class, Animated_Headline::class, Table_Of_Contents::class, Progress_Tracker::class,
             Login::class, Code_Highlight::class, Template::class, Form::class,
             Testimonial_Carousel::class, Nested_Carousel::class, Gallery::class, Off_Canvas::class, Mega_Menu::class,
-            Slides::class, Media_Carousel::class,
+            Slides::class, Media_Carousel::class, Lottie::class,
             Loop_Grid::class, Loop_Carousel::class, Taxonomy_Filter::class,
             Woo_Breadcrumbs::class, Woo_Menu_Cart::class, Woo_Product_Title::class, Woo_Product_Images::class,
             Woo_Product_Price::class, Woo_Product_Add_To_Cart::class, Woo_Product_Rating::class, Woo_Product_Stock::class,

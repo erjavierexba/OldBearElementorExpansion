@@ -919,6 +919,38 @@ try {
         $assert(str_contains((string) wp_scripts()->query('obx-hotspot')->src, 'hotspot.js'), 'Hotspot: script del navegador registrado.');
     }
 
+    // Lottie: Pro's keys and markup, played by the bundled lottie-web.
+    $lt_type = Elementor::$instance->widgets_manager->get_widget_types('lottie');
+    $assert($lt_type instanceof \OldBearExpansion\Widgets\Lottie && $lt_type->get_categories() === ['pro-elements'] && $lt_type->get_script_depends() === ['obx-lottie'], 'Lottie: widget registrado con el nombre y la categoría de Pro.');
+    if ($lt_type) {
+        $lt = $lt_type->get_controls();
+        $assert(($lt['source']['default'] ?? '') === 'media_file' && ($lt['trigger']['default'] ?? '') === 'arriving_to_viewport' && ($lt['renderer']['default'] ?? '') === 'svg' && ($lt['viewport']['default']['sizes'] ?? []) === ['start'=>0,'end'=>100] && ($lt['play_speed']['default']['size'] ?? 0) == 1 && ($lt['source_json']['media_types'] ?? []) === ['application/json'] && ($lt['align']['prefix_class'] ?? '') === 'elementor-align-', 'Lottie: controles y valores por defecto de Pro.');
+        $assert(!empty($lt['trigger']['frontend_available']) && !empty($lt['source_json']['frontend_available']) && ($lt['loop']['render_type'] ?? '') === 'none', 'Lottie: los ajustes llegan al navegador sin volver a renderizar.');
+        $lt_media = wp_insert_attachment(['post_title'=>'Animación paridad','post_mime_type'=>'application/json','post_status'=>'inherit','post_excerpt'=>'Leyenda Lottie'], false, 0); $created[] = $lt_media;
+        $lt_json = ['url'=>'https://example.com/anim.json','id'=>$lt_media];
+        $lt_page = $save('page', 'Paridad lottie', [$container([
+            $widget('lottie', ['width'=>['unit'=>'%','size'=>50],'opacity_hover'=>['unit'=>'px','size'=>0.5]]),
+            $widget('lottie', ['source_json'=>$lt_json,'caption_source'=>'title','link_to'=>'custom','custom_link'=>['url'=>'https://example.com/','is_external'=>'','nofollow'=>''],'trigger'=>'on_click','link_timeout'=>500,'align'=>'left','text_color'=>'#123456']),
+            $widget('lottie', ['source_json'=>$lt_json,'caption_source'=>'caption']),
+            $widget('lottie', ['source_json'=>$lt_json,'caption_source'=>'custom','caption'=>'<b>Mía</b>']),
+        ])]);
+        $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($lt_page);
+        $assert(str_contains($html, '<div class="e-lottie__container"><div class="e-lottie__animation"></div></div>') && (bool) preg_match('/class="[^"]*elementor-widget-lottie[^"]*elementor-align-center|class="[^"]*elementor-align-center[^"]*elementor-widget-lottie/', $html), 'Lottie: contenedor y animación con las clases de Pro, centrado por defecto.');
+        $assert(str_contains($html, '<a class="e-lottie__container__link" href="https://example.com/"><div class="e-lottie__container"><div class="e-lottie__animation"></div><p class="e-lottie__caption"> Animación paridad</p></div></a>') && str_contains($html, 'elementor-align-left'), 'Lottie: enlace personalizado y leyenda con el título del archivo.');
+        $assert(str_contains($html, '<p class="e-lottie__caption"> Leyenda Lottie</p>') && str_contains($html, '<p class="e-lottie__caption"> &lt;b&gt;Mía&lt;/b&gt;</p>'), 'Lottie: leyenda del archivo y leyenda personalizada escapada.');
+        $assert((bool) preg_match('/data-settings="[^"]*&quot;trigger&quot;:&quot;on_click&quot;[^"]*&quot;link_timeout&quot;:500/', $html) || (bool) preg_match('/data-settings="[^"]*&quot;link_timeout&quot;:500[^"]*&quot;trigger&quot;:&quot;on_click&quot;/', $html), 'Lottie: disparador y retardo del enlace en los ajustes del navegador.');
+        $lt_css = \Elementor\Core\Files\CSS\Post::create($lt_page); $lt_css->update(); $rules = (string) $lt_css->get_content();
+        $assert(str_contains($rules, '--lottie-container-width:50%') && str_contains($rules, '--lottie-container-opacity-hover:0.5') && str_contains($rules, '--caption-color:#123456'), 'Lottie: estilos con las variables CSS de Pro.');
+        $scripts = wp_scripts();
+        $default = json_decode((string) file_get_contents(\OldBearExpansion\DIR . '/assets/lottie/default.json'), true);
+        $assert(str_contains((string) $scripts->query('obx-lottie-web')->src, 'assets/vendor/lottie/lottie.min.js') && in_array('obx-lottie-web', $scripts->query('obx-lottie')->deps, true) && str_contains(implode('', (array) $scripts->get_data('obx-lottie', 'before')), 'assets\/lottie\/default.json') && !empty($default['layers']) && isset($default['fr'], $default['op']), 'Lottie: reproductor incluido y animación por defecto propia.');
+        $mimes = static fn($m) => $m + ['json'=>'application/json'];
+        add_filter('upload_mimes', $mimes);
+        $type = \OldBearExpansion\ThemeBuilder\Module::json_file_type(['ext'=>false,'type'=>false,'proper_filename'=>false], '/tmp/x', 'anim.json');
+        remove_filter('upload_mimes', $mimes);
+        $assert(($type['ext'] ?? '') === 'json' && ($type['type'] ?? '') === 'application/json', 'Lottie: los archivos .json se reconocen al subirlos.');
+    }
+
     // Global widget: `widget` library template plus `global` elements with `templateID`, as Pro stores them.
     $GW = \OldBearExpansion\Extras\Global_Widgets::class;
     $local = Elementor::$instance->templates_manager->get_source('local');

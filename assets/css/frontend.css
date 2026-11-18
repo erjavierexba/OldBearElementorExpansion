@@ -1004,3 +1004,11 @@ body.e-off-canvas__no-scroll{overflow:hidden}
 .e-hotspot--fade-direction:is(.e-hotspot--tooltip-animation-from-left,.e-hotspot--override-tooltip-animation-from-left){transform:translate(-10px)}
 .e-hotspot--fade-direction:is(.e-hotspot--tooltip-animation-from-right,.e-hotspot--override-tooltip-animation-from-right){transform:translate(10px)}
 @media (prefers-reduced-motion:reduce){.e-hotspot--soft-beat,.e-hotspot--expand::before,.e-hotspot--expand .e-hotspot__outer-circle{animation:none}}
+
+/* Lottie: the size, opacity and caption follow Pro's custom properties. */
+.e-lottie__container{display:inline-block;width:var(--lottie-container-width);max-width:var(--lottie-container-max-width);opacity:var(--lottie-container-opacity)}
+.e-lottie__container:hover{opacity:var(--lottie-container-opacity-hover);transition-duration:var(--lottie-container-transition-duration-hover)}
+.e-lottie__container svg,.e-lottie__container svg *{transition:none!important}
+.e-lottie__animation canvas{display:block;max-width:100%}
+.e-lottie__container__link{display:inline-block;max-width:100%}
+.e-lottie__caption{margin-top:var(--caption-margin-top);color:var(--caption-color);text-align:var(--caption-text-align)}
