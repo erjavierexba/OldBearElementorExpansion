@@ -31,7 +31,7 @@ final class Nav_Menu extends Base {
         }
         $this->add_control('layout', ['label'=>'Disposición','type'=>Controls_Manager::SELECT,'default'=>'horizontal','options'=>['horizontal'=>'Horizontal','vertical'=>'Vertical','dropdown'=>'Desplegable']]);
         $this->add_control('align_items', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::logical_align(true),'selectors_dictionary'=>self::flex_dictionary(),'selectors'=>['{{WRAPPER}} .obx-nav__list'=>'justify-content: {{VALUE}};','{{WRAPPER}} .obx-nav'=>'justify-content: {{VALUE}};'],'condition'=>['layout!'=>'dropdown']]);
-        $this->add_control('pointer', ['label'=>'Indicador','type'=>Controls_Manager::SELECT,'default'=>'underline','options'=>['none'=>'Ninguno','underline'=>'Subrayado','overline'=>'Sobrerrayado','double-line'=>'Doble línea','framed'=>'Marco','background'=>'Fondo','text'=>'Texto'],'condition'=>['layout!'=>'dropdown']]);
+        $this->add_pointer_controls(['layout!'=>'dropdown']);
         $this->add_control('submenu_icon', ['label'=>'Icono de submenú','type'=>Controls_Manager::ICONS,'default'=>['value'=>'fas fa-caret-down','library'=>'fa-solid'],'skin'=>'inline','label_block'=>false,'recommended'=>['fa-solid'=>['chevron-down','angle-down','caret-down','plus']]]);
         $this->add_control('depth', ['label'=>'Niveles','type'=>Controls_Manager::SELECT,'options'=>['1'=>'Solo primer nivel','0'=>'Todos (submenús desplegables)'],'default'=>'0']);
         $this->add_control('heading_mobile_dropdown', ['label'=>'Menú móvil','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>['layout!'=>'dropdown']]);
@@ -39,20 +39,35 @@ final class Nav_Menu extends Base {
         $this->add_control('full_width', ['label'=>'Ancho completo','type'=>Controls_Manager::SWITCHER,'return_value'=>'stretch','default'=>'','condition'=>['dropdown!'=>'none']]);
         $this->add_control('text_align', ['label'=>'Alineación del texto','type'=>Controls_Manager::SELECT,'default'=>'aside','options'=>['aside'=>'Lateral','center'=>'Centro'],'condition'=>['dropdown!'=>'none']]);
         $this->add_control('toggle', ['label'=>'Botón','type'=>Controls_Manager::SELECT,'default'=>'burger','options'=>[''=>'Ninguno','burger'=>'Hamburguesa'],'condition'=>['dropdown!'=>'none']]);
+        $this->start_controls_tabs('nav_icon_options', ['condition'=>['toggle'=>'burger']]);
+        $this->start_controls_tab('nav_icon_normal_options', ['label'=>'Normal','condition'=>['toggle'=>'burger']]);
         $this->add_control('toggle_icon_normal', ['label'=>'Icono','type'=>Controls_Manager::ICONS,'condition'=>['toggle'=>'burger']]);
-        $this->add_control('toggle_icon_active', ['label'=>'Icono al abrir','type'=>Controls_Manager::ICONS,'condition'=>['toggle'=>'burger']]);
+        $this->add_control('toggle_icon_hover_animation', ['label'=>'Animación al pasar el ratón','type'=>Controls_Manager::HOVER_ANIMATION,'condition'=>['toggle'=>'burger']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('nav_icon_active_options', ['label'=>'Activo','condition'=>['toggle'=>'burger']]);
+        $this->add_control('toggle_icon_active', ['label'=>'Icono','type'=>Controls_Manager::ICONS,'condition'=>['toggle'=>'burger']]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_control('toggle_text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'','condition'=>['toggle'=>'burger']]);
         $this->add_control('toggle_align', ['label'=>'Alineación del botón','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>['left'=>['title'=>'Izquierda','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'right'=>['title'=>'Derecha','icon'=>'eicon-h-align-right']],'selectors_dictionary'=>['left'=>'margin-right: auto','center'=>'margin: 0 auto','right'=>'margin-left: auto'],'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'{{VALUE}}'],'condition'=>['toggle!'=>'','dropdown!'=>'none']]);
         $this->end_controls_section();
 
         $this->start_controls_section('section_style_main-menu', ['label'=>'Menú principal','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['layout!'=>'dropdown']]);
         $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'menu_typography','selector'=>'{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a']);
-        $this->add_control('color_menu_item', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a'=>'color: {{VALUE}};','{{WRAPPER}} .obx-nav__toggle'=>'color: {{VALUE}};']]);
-        $this->add_control('color_menu_item_hover', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a:hover, {{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a:focus'=>'color: {{VALUE}};'],'condition'=>['pointer!'=>'background']]);
-        $this->add_control('color_menu_item_hover_pointer_bg', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'default'=>'#fff','selectors'=>['{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a:hover, {{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a:focus'=>'color: {{VALUE}};'],'condition'=>['pointer'=>'background']]);
-        $this->add_control('pointer_color_menu_item_hover', ['label'=>'Color del indicador','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-pointer: {{VALUE}};'],'condition'=>['pointer!'=>['none','text']]]);
-        $this->add_control('color_menu_item_active', ['label'=>'Color del elemento activo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li.current-menu-item > a, {{WRAPPER}} .obx-nav__menu > .obx-nav__list > li.current-menu-ancestor > a'=>'color: {{VALUE}};']]);
-        $this->add_control('pointer_color_menu_item_active', ['label'=>'Color del indicador activo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-pointer-active: {{VALUE}};'],'condition'=>['pointer!'=>['none','text']]]);
+        $this->start_controls_tabs('tabs_menu_item_style');
+        $this->start_controls_tab('tab_menu_item_normal', ['label'=>'Normal']);
+        $this->add_control('color_menu_item', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a'=>'color: {{VALUE}};','{{WRAPPER}} .obx-nav__toggle'=>'--obx-nav-toggle-color: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_menu_item_hover', ['label'=>'Al pasar el ratón']);
+        $this->add_control('color_menu_item_hover', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a:hover, {{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a:focus'=>'color: {{VALUE}};'],'condition'=>['pointer!'=>'background']]);
+        $this->add_control('color_menu_item_hover_pointer_bg', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'default'=>'#fff','selectors'=>['{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a:hover, {{WRAPPER}} .obx-nav__menu > .obx-nav__list > li > a:focus'=>'color: {{VALUE}};'],'condition'=>['pointer'=>'background']]);
+        $this->add_control('pointer_color_menu_item_hover', ['label'=>'Color del indicador','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-pointer-hover: {{VALUE}};'],'condition'=>['pointer!'=>['none','text']]]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_menu_item_active', ['label'=>'Activo']);
+        $this->add_control('color_menu_item_active', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__menu > .obx-nav__list > li.current-menu-item > a, {{WRAPPER}} .obx-nav__menu > .obx-nav__list > li.current-menu-ancestor > a'=>'color: {{VALUE}};']]);
+        $this->add_control('pointer_color_menu_item_active', ['label'=>'Color del indicador','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-pointer-active: {{VALUE}};'],'condition'=>['pointer!'=>['none','text']]]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_control('nav_menu_divider', ['label'=>'Separadores','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','condition'=>['layout'=>'horizontal'],'separator'=>'before']);
         $this->add_control('nav_menu_divider_style', ['label'=>'Estilo','type'=>Controls_Manager::SELECT,'default'=>'solid','options'=>['solid'=>'Sólido','double'=>'Doble','dotted'=>'Puntos','dashed'=>'Guiones'],'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-divider-style: {{VALUE}};'],'condition'=>['nav_menu_divider'=>'yes','layout'=>'horizontal']]);
         $this->add_control('nav_menu_divider_weight', ['label'=>'Grosor','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['min'=>1,'max'=>20]],'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-divider-weight: {{SIZE}}{{UNIT}};'],'condition'=>['nav_menu_divider'=>'yes','layout'=>'horizontal']]);
@@ -66,13 +81,21 @@ final class Nav_Menu extends Base {
         $this->end_controls_section();
 
         $this->start_controls_section('section_style_dropdown', ['label'=>'Desplegable','tab'=>Controls_Manager::TAB_STYLE]);
-        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'dropdown_typography','selector'=>'{{WRAPPER}} .obx-nav .sub-menu a, {{WRAPPER}} .obx-nav.is-dropdown .obx-nav__list a']);
+        $this->start_controls_tabs('tabs_dropdown_item_style');
+        $this->start_controls_tab('tab_dropdown_item_normal', ['label'=>'Normal']);
         $this->add_control('color_dropdown_item', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-color: {{VALUE}};']]);
         $this->add_control('background_color_dropdown_item', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-bg: {{VALUE}};']]);
-        $this->add_control('color_dropdown_item_hover', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-hover-color: {{VALUE}};']]);
-        $this->add_control('background_color_dropdown_item_hover', ['label'=>'Fondo al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-hover-bg: {{VALUE}};']]);
-        $this->add_control('color_dropdown_item_active', ['label'=>'Color activo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-active-color: {{VALUE}};']]);
-        $this->add_control('background_color_dropdown_item_active', ['label'=>'Fondo activo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-active-bg: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_dropdown_item_hover', ['label'=>'Al pasar el ratón']);
+        $this->add_control('color_dropdown_item_hover', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-hover-color: {{VALUE}};']]);
+        $this->add_control('background_color_dropdown_item_hover', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-hover-bg: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_dropdown_item_active', ['label'=>'Activo']);
+        $this->add_control('color_dropdown_item_active', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-active-color: {{VALUE}};']]);
+        $this->add_control('background_color_dropdown_item_active', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav'=>'--obx-dropdown-active-bg: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'dropdown_typography','separator'=>'before','selector'=>'{{WRAPPER}} .obx-nav .sub-menu a, {{WRAPPER}} .obx-nav.is-dropdown .obx-nav__list a']);
         $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'dropdown_border','selector'=>'{{WRAPPER}} .obx-nav .sub-menu, {{WRAPPER}} .obx-nav__menu.is-panel','separator'=>'before']);
         $this->add_responsive_control('dropdown_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-nav .sub-menu, {{WRAPPER}} .obx-nav__menu.is-panel'=>'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}; overflow: hidden;']]);
         $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'dropdown_box_shadow','selector'=>'{{WRAPPER}} .obx-nav .sub-menu, {{WRAPPER}} .obx-nav__menu.is-panel']);
@@ -84,10 +107,16 @@ final class Nav_Menu extends Base {
         $this->end_controls_section();
 
         $this->start_controls_section('style_toggle', ['label'=>'Botón de menú','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['toggle!'=>'','dropdown!'=>'none']]);
-        $this->add_control('toggle_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'color: {{VALUE}};']]);
-        $this->add_control('toggle_background_color', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'background-color: {{VALUE}};']]);
-        $this->add_control('toggle_color_hover', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__toggle:hover, {{WRAPPER}} .obx-nav__toggle:focus'=>'color: {{VALUE}};']]);
-        $this->add_control('toggle_background_color_hover', ['label'=>'Fondo al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__toggle:hover, {{WRAPPER}} .obx-nav__toggle:focus'=>'background-color: {{VALUE}};']]);
+        $this->start_controls_tabs('tabs_toggle_style');
+        $this->start_controls_tab('tab_toggle_style_normal', ['label'=>'Normal']);
+        $this->add_control('toggle_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'--obx-nav-toggle-color: {{VALUE}};']]);
+        $this->add_control('toggle_background_color', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'--obx-nav-toggle-bg: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_toggle_style_hover', ['label'=>'Al pasar el ratón']);
+        $this->add_control('toggle_color_hover', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'--obx-nav-toggle-color-hover: {{VALUE}};']]);
+        $this->add_control('toggle_background_color_hover', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'--obx-nav-toggle-bg-hover: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_responsive_control('toggle_size', ['label'=>'Tamaño','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['min'=>15]],'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'font-size: {{SIZE}}{{UNIT}};']]);
         $this->add_responsive_control('toggle_border_width', ['label'=>'Grosor del borde','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>10]],'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'border-width: {{SIZE}}{{UNIT}}; border-style: solid;']]);
         $this->add_responsive_control('toggle_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em'],'selectors'=>['{{WRAPPER}} .obx-nav__toggle'=>'border-radius: {{SIZE}}{{UNIT}};']]);
@@ -114,23 +143,35 @@ final class Nav_Menu extends Base {
         $s = $this->get_settings_for_display();
         $menu = self::find_menu($s['menu'] ?? '');
         if (!$menu) { $this->placeholder('Elige un menú en los ajustes del widget.'); return; }
+        $layout = in_array($s['layout'] ?? '', ['horizontal','vertical','dropdown'], true) ? $s['layout'] : 'horizontal';
+        $pointer_classes = $layout === 'dropdown' ? [] : self::pointer_classes($s);
+        // Top-level links carry the pointer; the current item keeps it visible.
+        $link_classes = static function (array $atts, $item, $args, int $depth = 0) use ($pointer_classes): array {
+            if ($depth > 0 || !$pointer_classes) { return $atts; }
+            $classes = ['obx-pointer__item'];
+            if (in_array('current-menu-item', (array) ($item->classes ?? []), true)) { $classes[] = 'is-active'; }
+            $atts['class'] = trim(($atts['class'] ?? '') . ' ' . implode(' ', $classes));
+            return $atts;
+        };
+        add_filter('nav_menu_link_attributes', $link_classes, 10, 4);
         $html = wp_nav_menu(['menu'=>$menu->term_id,'container'=>false,'menu_class'=>'obx-nav__list','fallback_cb'=>false,'depth'=>absint($s['depth'] ?? 0),'echo'=>false]);
+        remove_filter('nav_menu_link_attributes', $link_classes, 10);
         if (!$html) { return; }
         if (!empty($s['submenu_icon']['value'])) {
             $icon = Icons_Manager::try_get_icon_html($s['submenu_icon'], ['aria-hidden'=>'true']);
             if ($icon) { $html = preg_replace('~(<li[^>]*menu-item-has-children[^>]*>\s*<a\b[^>]*>)(.*?)(</a>)~s', '$1$2<span class="obx-nav__sub-icon">' . $icon . '</span>$3', $html); }
         }
-        $layout = in_array($s['layout'] ?? '', ['horizontal','vertical','dropdown'], true) ? $s['layout'] : 'horizontal';
         $breakpoint = $layout === 'dropdown' ? 'all' : (in_array($s['dropdown'] ?? '', ['mobile','tablet'], true) ? $s['dropdown'] : 'none');
         $pointer = in_array($s['pointer'] ?? '', ['underline','overline','double-line','framed','background','text'], true) ? $s['pointer'] : 'none';
-        $classes = ['obx-nav','obx-nav--' . ($layout === 'vertical' ? 'vertical' : 'horizontal'),'obx-nav--bp-' . $breakpoint,'obx-nav--pointer-' . $pointer];
+        $classes = array_merge(['obx-nav','obx-nav--' . ($layout === 'vertical' ? 'vertical' : 'horizontal'),'obx-nav--bp-' . $breakpoint,'obx-nav--pointer-' . $pointer], $pointer_classes);
         if (($s['full_width'] ?? '') === 'stretch') { $classes[] = 'obx-nav--stretch'; }
         if (($s['text_align'] ?? 'aside') === 'center') { $classes[] = 'obx-nav--panel-center'; }
         if (($s['nav_menu_divider'] ?? '') === 'yes') { $classes[] = 'obx-nav--divider'; }
         $id = 'obx-nav-' . $this->get_id();
         echo '<nav class="' . esc_attr(implode(' ', $classes)) . '" aria-label="' . esc_attr(($s['menu_name'] ?? '') ?: $menu->name) . '">';
         if ($breakpoint !== 'none' && ($s['toggle'] ?? 'burger') !== '') {
-            echo '<button class="obx-nav__toggle" type="button" aria-expanded="false" aria-controls="' . esc_attr($id) . '">';
+            $animation = (string) ($s['toggle_icon_hover_animation'] ?? '');
+            echo '<button class="obx-nav__toggle' . ($animation !== '' ? ' elementor-animation-' . esc_attr(sanitize_html_class($animation)) : '') . '" type="button" aria-expanded="false" aria-controls="' . esc_attr($id) . '">';
             $open = !empty($s['toggle_icon_normal']['value']) ? Icons_Manager::try_get_icon_html($s['toggle_icon_normal'], ['aria-hidden'=>'true']) : '';
             $close = !empty($s['toggle_icon_active']['value']) ? Icons_Manager::try_get_icon_html($s['toggle_icon_active'], ['aria-hidden'=>'true']) : '';
             echo $open ? '<span class="obx-nav__icon-open">' . $open . '</span>' : '<span class="obx-nav__icon" aria-hidden="true"></span>';

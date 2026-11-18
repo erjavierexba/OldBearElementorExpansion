@@ -436,12 +436,7 @@ final class Gallery extends Element {
         $this->start_controls_section('section_filter_bar_content', ['label'=>'Barra de filtros','condition'=>['gallery_type'=>'multiple']]);
         $this->add_control('show_all_galleries', ['label'=>'Opción «Todas»','type'=>Controls_Manager::SWITCHER,'default'=>'yes']);
         $this->add_control('show_all_galleries_label', ['label'=>'Texto','type'=>Controls_Manager::TEXT,'default'=>'Todas','condition'=>['show_all_galleries'=>'yes']]);
-        $this->add_control('pointer', ['label'=>'Indicador','type'=>Controls_Manager::SELECT,'default'=>'underline','options'=>['none'=>'Ninguno','underline'=>'Subrayado','overline'=>'Sobrerrayado','double-line'=>'Doble línea','framed'=>'Marco','background'=>'Fondo','text'=>'Texto']]);
-        $none = ['none'=>'Ninguna'];
-        $this->add_control('animation_line', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'fade','options'=>['fade'=>'Fundido','slide'=>'Deslizar','grow'=>'Crecer','drop-in'=>'Caer hacia dentro','drop-out'=>'Caer hacia fuera'] + $none,'condition'=>['pointer'=>['underline','overline','double-line']]]);
-        $this->add_control('animation_framed', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'fade','options'=>['fade'=>'Fundido','grow'=>'Crecer','shrink'=>'Encoger','draw'=>'Dibujar','corners'=>'Esquinas'] + $none,'condition'=>['pointer'=>'framed']]);
-        $this->add_control('animation_background', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'fade','options'=>['fade'=>'Fundido','grow'=>'Crecer','shrink'=>'Encoger','sweep-left'=>'Barrer a la izquierda','sweep-right'=>'Barrer a la derecha','sweep-up'=>'Barrer hacia arriba','sweep-down'=>'Barrer hacia abajo','shutter-in-vertical'=>'Persiana hacia dentro (vertical)','shutter-out-vertical'=>'Persiana hacia fuera (vertical)','shutter-in-horizontal'=>'Persiana hacia dentro (horizontal)','shutter-out-horizontal'=>'Persiana hacia fuera (horizontal)'] + $none,'condition'=>['pointer'=>'background']]);
-        $this->add_control('animation_text', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'grow','options'=>['grow'=>'Crecer','shrink'=>'Encoger','sink'=>'Hundir','float'=>'Flotar','skew'=>'Inclinar','rotate'=>'Girar'] + $none,'condition'=>['pointer'=>'text']]);
+        $this->add_pointer_controls();
         $this->end_controls_section();
 
         $this->start_controls_section('overlay', ['label'=>'Capa al pasar el ratón']);
@@ -501,15 +496,15 @@ final class Gallery extends Element {
         $this->add_control('align_filter_bar_items', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::align_options(),'selectors_dictionary'=>['left'=>'flex-start','center'=>'center','right'=>'flex-end'],'selectors'=>self::css('.obx-gallery__filters', 'justify-content: {{VALUE}};')]);
         $this->start_controls_tabs('filter_bar_colors');
         $this->start_controls_tab('filter_bar_normal', ['label'=>'Normal']);
-        $this->color('galleries_title_color_normal', 'Color', '.obx-gallery__filter');
+        $this->color('galleries_title_color_normal', 'Color', '.obx-gallery__filters', '--obx-filter-color');
         $this->end_controls_tab();
         $this->start_controls_tab('filter_bar_hover', ['label'=>'Al pasar el ratón']);
-        $this->color('galleries_title_color_hover', 'Color', '.obx-gallery__filter:hover', 'color', ['condition'=>['pointer!'=>'background']]);
-        $this->color('galleries_title_color_hover_pointer_bg', 'Color', '.obx-gallery__filters--background .obx-gallery__filter:hover, .obx-gallery__filters--background .obx-gallery__filter.is-active', 'color', ['default'=>'#fff','condition'=>['pointer'=>'background']]);
+        $this->color('galleries_title_color_hover', 'Color', '.obx-gallery__filters', '--obx-filter-color-hover', ['condition'=>['pointer!'=>'background']]);
+        $this->color('galleries_title_color_hover_pointer_bg', 'Color', '.obx-gallery__filters', '--obx-filter-color-pointer-bg', ['default'=>'#fff','condition'=>['pointer'=>'background']]);
         $this->color('galleries_pointer_color_hover', 'Color del indicador', '.obx-gallery__filters', '--obx-pointer-hover', ['condition'=>['pointer!'=>['none','text']]]);
         $this->end_controls_tab();
         $this->start_controls_tab('filter_bar_active', ['label'=>'Activo']);
-        $this->color('galleries_title_color_active', 'Color', '.obx-gallery__filter.is-active');
+        $this->color('galleries_title_color_active', 'Color', '.obx-gallery__filters', '--obx-filter-color-active');
         $this->color('galleries_pointer_color_active', 'Color del indicador', '.obx-gallery__filters', '--obx-pointer-active', ['condition'=>['pointer!'=>['none','text']]]);
         $this->end_controls_tab();
         $this->end_controls_tabs();
@@ -559,12 +554,12 @@ final class Gallery extends Element {
 
         if ($multiple) {
             $pointer = sanitize_html_class((string) ($s['pointer'] ?? 'underline'));
-            $pointer_animation = match ($pointer) { 'underline','overline','double-line' => $s['animation_line'] ?? 'fade', 'framed' => $s['animation_framed'] ?? 'fade', 'background' => $s['animation_background'] ?? 'fade', 'text' => $s['animation_text'] ?? 'grow', default => '' };
-            echo '<div class="obx-gallery__filters obx-gallery__filters--' . esc_attr($pointer) . ($pointer_animation ? ' obx-gallery__filters--anim-' . esc_attr(sanitize_html_class((string) $pointer_animation)) : '') . '" role="tablist">';
-            if (($s['show_all_galleries'] ?? 'yes') === 'yes') { echo '<button type="button" class="obx-gallery__filter is-active" data-gallery="all" role="tab" aria-selected="true">' . esc_html((string) ($s['show_all_galleries_label'] ?? 'Todas')) . '</button>'; }
+            $bar = array_merge(['obx-gallery__filters','obx-gallery__filters--' . $pointer], self::pointer_classes($s));
+            echo '<div class="' . esc_attr(implode(' ', $bar)) . '" role="tablist">';
+            if (($s['show_all_galleries'] ?? 'yes') === 'yes') { echo '<button type="button" class="obx-gallery__filter obx-pointer__item is-active" data-gallery="all" role="tab" aria-selected="true">' . esc_html((string) ($s['show_all_galleries_label'] ?? 'Todas')) . '</button>'; }
             foreach ($sets as $g => $set) {
                 $first = $g === 0 && ($s['show_all_galleries'] ?? 'yes') !== 'yes';
-                echo '<button type="button" class="obx-gallery__filter' . ($first ? ' is-active' : '') . '" data-gallery="' . $g . '" role="tab" aria-selected="' . ($first ? 'true' : 'false') . '">' . esc_html((string) ($set['gallery_title'] ?? '')) . '</button>';
+                echo '<button type="button" class="obx-gallery__filter obx-pointer__item' . ($first ? ' is-active' : '') . '" data-gallery="' . $g . '" role="tab" aria-selected="' . ($first ? 'true' : 'false') . '">' . esc_html((string) ($set['gallery_title'] ?? '')) . '</button>';
             }
             echo '</div>';
         }

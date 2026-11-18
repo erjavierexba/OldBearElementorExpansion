@@ -192,6 +192,32 @@ abstract class Base extends Widget_Base {
         return ['left'=>'flex-start','start'=>'flex-start','right'=>'flex-end','end'=>'flex-end','center'=>'center','justify'=>'space-between','stretch'=>'stretch'];
     }
 
+    /** Pointer select plus its four animation selects (Nav Menu, Gallery filter bar). */
+    protected function add_pointer_controls(array $condition = []): void {
+        $this->add_control('pointer', ['label'=>'Indicador','type'=>Controls_Manager::SELECT,'default'=>'underline','options'=>['none'=>'Ninguno','underline'=>'Subrayado','overline'=>'Sobrerrayado','double-line'=>'Doble línea','framed'=>'Marco','background'=>'Fondo','text'=>'Texto']] + ($condition ? ['condition'=>$condition] : []));
+        $none = ['none'=>'Ninguna'];
+        $animations = [
+            'animation_line'=>[['underline','overline','double-line'], 'fade', ['fade'=>'Fundido','slide'=>'Deslizar','grow'=>'Crecer','drop-in'=>'Caer hacia dentro','drop-out'=>'Caer hacia fuera']],
+            'animation_framed'=>['framed', 'fade', ['fade'=>'Fundido','grow'=>'Crecer','shrink'=>'Encoger','draw'=>'Dibujar','corners'=>'Esquinas']],
+            'animation_background'=>['background', 'fade', ['fade'=>'Fundido','grow'=>'Crecer','shrink'=>'Encoger','sweep-left'=>'Barrer a la izquierda','sweep-right'=>'Barrer a la derecha','sweep-up'=>'Barrer hacia arriba','sweep-down'=>'Barrer hacia abajo','shutter-in-vertical'=>'Persiana hacia dentro (vertical)','shutter-out-vertical'=>'Persiana hacia fuera (vertical)','shutter-in-horizontal'=>'Persiana hacia dentro (horizontal)','shutter-out-horizontal'=>'Persiana hacia fuera (horizontal)']],
+            'animation_text'=>['text', 'grow', ['grow'=>'Crecer','shrink'=>'Encoger','sink'=>'Hundir','float'=>'Flotar','skew'=>'Inclinar','rotate'=>'Girar']],
+        ];
+        foreach ($animations as $key => [$pointers, $default, $options]) {
+            $this->add_control($key, ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>$default,'options'=>$options + $none,'condition'=>$condition + ['pointer'=>$pointers]]);
+        }
+    }
+
+    /** Classes read by the shared .obx-pointer rules; items carry .obx-pointer__item and .is-active. */
+    protected static function pointer_classes(array $s): array {
+        $pointer = (string) ($s['pointer'] ?? 'underline');
+        $line = in_array($pointer, ['underline','overline','double-line'], true);
+        $animation = match (true) { $line => $s['animation_line'] ?? 'fade', $pointer === 'framed' => $s['animation_framed'] ?? 'fade', $pointer === 'background' => $s['animation_background'] ?? 'fade', $pointer === 'text' => $s['animation_text'] ?? 'grow', default => '' };
+        if ($animation === '') { return []; }
+        $classes = ['obx-pointer','obx-pointer--' . $pointer,'obx-pointer--anim-' . sanitize_html_class((string) $animation)];
+        if ($line) { $classes[] = 'obx-pointer--line'; }
+        return $classes;
+    }
+
     protected static function align_options(): array {
         return ['left'=>['title'=>'Izquierda','icon'=>'eicon-text-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-text-align-center'],'right'=>['title'=>'Derecha','icon'=>'eicon-text-align-right']];
     }

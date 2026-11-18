@@ -338,6 +338,21 @@ try {
     foreach (['animation_line','animation_framed','animation_background','animation_text','image_tabs','overlay_background_tabs','background_overlay_hover_animation','background_overlay_animation_duration','content_animation_duration','content_sequenced_animation','filter_bar_colors','galleries_title_color_hover_pointer_bg'] as $key) { $assert(isset($gc[$key]), "gallery: falta {$key}."); }
     $assert(isset($gc['content_hover_animation']['options']['enter-from-bottom'], $gc['background_overlay_hover_animation']['options']['exit-zoom-out']) && !isset($gc['content_hover_animation']['options']['slide-in-up']) && ($gc['overlay_background_hover_color']['default'] ?? '') === 'rgba(0,0,0,0.5)' && ($gc['animation_text']['default'] ?? '') === 'grow', 'gallery: animaciones y valores de Pro.');
     $assert((\OldBearExpansion\Widgets\Gallery::convert('gallery', ['content_hover_animation'=>'slide-in-up'])['content_hover_animation'] ?? '') === 'enter-from-bottom', 'gallery: las animaciones antiguas pasan a las de Pro.');
+    $html = $render(['__widget'=>'gallery','gallery_type'=>'multiple','galleries'=>[['_id'=>'g1','gallery_title'=>'Uno','multiple_gallery'=>[['id'=>0,'url'=>'https://example.org/a.png']]]],'pointer'=>'framed','animation_framed'=>'draw']);
+    $assert(str_contains($html, 'obx-pointer obx-pointer--framed obx-pointer--anim-draw') && str_contains($html, 'obx-gallery__filter obx-pointer__item is-active'), 'gallery: la barra de filtros usa los indicadores compartidos.');
+    // 0.11.0 Nav Menu: pointer animations, icon tabs with hover animation, normal/hover/active tabs.
+    $nc = Elementor::$instance->widgets_manager->get_widget_types('nav-menu')->get_controls();
+    foreach (['animation_line','animation_framed','animation_background','animation_text','nav_icon_options','toggle_icon_hover_animation','tabs_menu_item_style','tabs_dropdown_item_style','tabs_toggle_style'] as $key) { $assert(isset($nc[$key]), "nav-menu: falta {$key}."); }
+    $assert(($nc['animation_text']['default'] ?? '') === 'grow' && ($nc['animation_line']['condition']['layout!'] ?? '') === 'dropdown' && isset($nc['animation_background']['options']['shutter-in-vertical']), 'nav-menu: animaciones del indicador con los valores de Pro.');
+    $menu_id = wp_create_nav_menu('obx-paridad-' . $uid());
+    $item_id = wp_update_nav_menu_item($menu_id, 0, ['menu-item-title'=>'Inicio paridad','menu-item-url'=>home_url('/'),'menu-item-status'=>'publish']);
+    $link_filters = has_filter('nav_menu_link_attributes');
+    $html = $render(['__widget'=>'nav-menu','menu'=>(string) $menu_id,'pointer'=>'background','animation_background'=>'sweep-up','dropdown'=>'mobile','toggle_icon_hover_animation'=>'pulse']);
+    $assert(str_contains($html, 'obx-pointer--background obx-pointer--anim-sweep-up') && str_contains($html, 'class="obx-pointer__item"') && str_contains($html, 'obx-nav__toggle elementor-animation-pulse'), 'nav-menu: indicador animado en los enlaces y animación del botón.');
+    $html = $render(['__widget'=>'nav-menu','menu'=>(string) $menu_id,'layout'=>'dropdown']);
+    $assert(!str_contains($html, 'obx-pointer'), 'nav-menu: sin indicador en la disposición desplegable, como en Pro.');
+    $assert(has_filter('nav_menu_link_attributes') === $link_filters, 'nav-menu: el filtro de los enlaces se quita después de pintar.');
+    wp_delete_nav_menu($menu_id);
     $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
     $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);
     $assert(wp_list_pluck($kids, 'term_id') === [$sub['term_id']], 'Bucle de términos: hijos de un término.');
