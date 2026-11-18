@@ -5,6 +5,7 @@ use Elementor\Controls_Manager;
 use Elementor\Group_Control_Box_Shadow;
 use Elementor\Group_Control_Css_Filter;
 use Elementor\Group_Control_Image_Size;
+use Elementor\Group_Control_Text_Stroke;
 use Elementor\Group_Control_Typography;
 use Elementor\Icons_Manager;
 use OldBearExpansion\Context;
@@ -37,10 +38,10 @@ trait Paginates {
         $this->add_control('load_more_spinner', ['label'=>'Icono de carga','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'fas fa-spinner','library'=>'fa-solid'],'exclude_inline_options'=>['svg'],'condition'=>$more,'separator'=>'before']);
         $this->add_control('text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'Cargar más','condition'=>$click]);
         $this->add_control('selected_icon', ['label'=>'Icono del botón','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'condition'=>$click]);
+        $this->add_control('icon_align', ['label'=>'Posición del icono','type'=>Controls_Manager::CHOOSE,'default'=>'row','options'=>['row'=>['title'=>'Antes','icon'=>'eicon-h-align-left'],'row-reverse'=>['title'=>'Después','icon'=>'eicon-h-align-right']],'selectors'=>['{{WRAPPER}} .obx-load-more .elementor-button-content-wrapper'=>'flex-direction: {{VALUE}};'],'condition'=>$click + ['text!'=>'','selected_icon[value]!'=>'']]);
+        $this->add_control('icon_indent', ['label'=>'Separación del icono','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-load-more .elementor-button-content-wrapper'=>'gap: {{SIZE}}{{UNIT}};'],'condition'=>$click + ['text!'=>'','selected_icon[value]!'=>'']]);
+        $this->add_control('button_css_id', ['label'=>'ID del botón','type'=>Controls_Manager::TEXT,'default'=>'','ai'=>['active'=>false],'description'=>'Sin espacios ni «#».','condition'=>$click]);
         if ($loop) {
-            $this->add_control('icon_align', ['label'=>'Posición del icono','type'=>Controls_Manager::CHOOSE,'default'=>'row','options'=>['row'=>['title'=>'Antes','icon'=>'eicon-h-align-left'],'row-reverse'=>['title'=>'Después','icon'=>'eicon-h-align-right']],'selectors'=>['{{WRAPPER}} .obx-load-more .elementor-button-content-wrapper'=>'flex-direction: {{VALUE}};'],'condition'=>$click + ['text!'=>'','selected_icon[value]!'=>'']]);
-            $this->add_control('icon_indent', ['label'=>'Separación del icono','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-load-more .elementor-button-content-wrapper'=>'gap: {{SIZE}}{{UNIT}};'],'condition'=>$click + ['text!'=>'','selected_icon[value]!'=>'']]);
-            $this->add_control('button_css_id', ['label'=>'ID del botón','type'=>Controls_Manager::TEXT,'default'=>'','ai'=>['active'=>false],'description'=>'Sin espacios ni «#».','condition'=>$click]);
             $this->add_control('load_more_button_align', ['label'=>'Alineación del botón','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::flex_align_options() + ['justify'=>['title'=>'Ancho completo','icon'=>'eicon-h-align-stretch']],'prefix_class'=>'obx-load-more-align-','condition'=>$click]);
         }
         $this->add_control('load_more_no_posts_message_switcher', ['label'=>'Mensaje al terminar','type'=>Controls_Manager::SWITCHER,'condition'=>$more,'separator'=>'before']);
@@ -61,9 +62,17 @@ trait Paginates {
     protected function pagination_style(): void {
         $this->start_controls_section('section_pagination_style', ['label'=>'Paginación','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['pagination_type!'=>'']]);
         $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'pagination_typography','selector'=>'{{WRAPPER}} .obx-pagination']);
+        $this->start_controls_tabs('pagination_colors', ['condition'=>['pagination_type!'=>['load_more_on_click','load_more_infinite_scroll','']]]);
+        $this->start_controls_tab('pagination_color_normal', ['label'=>'Normal']);
         $this->add_control('pagination_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers:not(.dots)'=>'color: {{VALUE}};']]);
-        $this->add_control('pagination_hover_color', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination a.page-numbers:hover'=>'color: {{VALUE}};']]);
-        $this->add_control('pagination_active_color', ['label'=>'Color activo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers.current'=>'color: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('pagination_color_hover', ['label'=>'Al pasar el ratón']);
+        $this->add_control('pagination_hover_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination a.page-numbers:hover'=>'color: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('pagination_color_active', ['label'=>'Activo']);
+        $this->add_control('pagination_active_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-pagination .page-numbers.current'=>'color: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_responsive_control('pagination_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'default'=>['size'=>10],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination'=>'gap: {{SIZE}}{{UNIT}};']]);
         $this->add_responsive_control('pagination_spacing_top', ['label'=>'Distancia','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination, {{WRAPPER}} .obx-load-more'=>'margin-top: {{SIZE}}{{UNIT}};']]);
         $this->add_control('load_more_color', ['label'=>'Color del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click'],'separator'=>'before']);
@@ -75,13 +84,15 @@ trait Paginates {
      * «Load more» button and end message (Pro's «section_style»). With $button the button gets Elementor's own
      * button style controls (Button_Trait keys), scoped to the «Load more» box so buttons inside the items keep theirs.
      */
-    protected function load_more_style(bool $button): void {
+    protected function load_more_style(bool $button, bool $align = false): void {
         $more = ['pagination_type'=>['load_more_on_click','load_more_infinite_scroll']];
         $this->start_controls_section('section_style', ['label'=>'Cargar más','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$more]);
         if ($button && method_exists($this, 'register_button_style_controls')) {
             $before = array_keys($this->get_controls());
-            $this->register_button_style_controls(['section_condition'=>['pagination_type'=>'load_more_on_click']]);
-            $this->remove_control('align');
+            // Elementor's «elementor-align-*» class would align the whole widget, its text included: Pro's «align»
+            // gets our own class, which only moves the «Load more» button (frontend.css).
+            $this->register_button_style_controls(['section_condition'=>['pagination_type'=>'load_more_on_click'],'alignment_default'=>'center','alignment_control_prefix_class'=>'obx-load-more%s-btn-']);
+            if (!$align) { $this->remove_control('align'); }
             foreach (array_diff(array_keys($this->get_controls()), $before) as $id) {
                 $control = $this->get_controls($id);
                 if (!empty($control['selectors'])) {
@@ -162,6 +173,7 @@ trait Paginates {
  */
 abstract class Posts_Base extends Base {
     use Paginates;
+    use \Elementor\Includes\Widgets\Traits\Button_Trait;
     /** Prefix of the skin ids: '' for the Posts widget, 'archive_' for Archive Posts. */
     protected const SKIN_PREFIX = '';
     public const SKINS = ['classic'=>'Clásico','cards'=>'Tarjetas','full_content'=>'Contenido completo'];
@@ -172,6 +184,8 @@ abstract class Posts_Base extends Base {
     private static array $rendering = [];
 
     public function get_script_depends(): array { return ['obx-widgets']; }
+    /** Rendered on the server: Button_Trait brings a JS template meant for the Button widget. */
+    protected function content_template() {}
 
     public static function excerpt(\WP_Post $post, int $length, bool $trim_custom = false): string {
         $length = max(1, $length ?: 25);
@@ -208,7 +222,11 @@ abstract class Posts_Base extends Base {
 
         foreach (array_keys(self::SKINS) as $skin) { $this->style_controls(static::SKIN_PREFIX . $skin, $skin); }
         $this->pagination_style();
-        $this->load_more_style(false);
+        $this->load_more_style(true, true);
+        $this->start_controls_section('section_nothing_found_style', ['label'=>'Sin resultados','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['nothing_found_message!'=>'']]);
+        $this->add_control('nothing_found_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'condition'=>['nothing_found_message!'=>''],'selectors'=>['{{WRAPPER}} .obx-posts-nothing-found'=>'color: {{VALUE}};']]);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'nothing_found_typography','selector'=>'{{WRAPPER}} .obx-posts-nothing-found','condition'=>['nothing_found_message!'=>'']]);
+        $this->end_controls_section();
     }
 
     private function layout_controls(string $id, string $skin): void {
@@ -224,14 +242,12 @@ abstract class Posts_Base extends Base {
         $this->add_control($p . 'thumbnail', ['label'=>'Imagen','type'=>Controls_Manager::SELECT,'default'=>'top','options'=>$positions,'condition'=>$c]);
         $thumb = $c + [$p . 'thumbnail!'=>'none'];
         $this->add_group_control(Group_Control_Image_Size::get_type(), ['name'=>$p . 'thumbnail_size','default'=>'medium','exclude'=>['custom'],'condition'=>$thumb]);
-        if ($skin !== 'full_content') {
-            $this->add_responsive_control($p . 'item_ratio', ['label'=>'Proporción de la imagen','type'=>Controls_Manager::SLIDER,'default'=>['size'=>0.66],'range'=>['px'=>['min'=>0.1,'max'=>2,'step'=>0.01]],'selectors'=>['{{WRAPPER}} .obx-post__thumb'=>'aspect-ratio: 1 / {{SIZE}};'],'condition'=>$thumb]);
-        }
+        $this->add_responsive_control($p . 'item_ratio', ['label'=>'Proporción de la imagen','type'=>Controls_Manager::SLIDER,'default'=>['size'=>0.66],'range'=>['px'=>['min'=>0.1,'max'=>2,'step'=>0.01]],'selectors'=>['{{WRAPPER}} .obx-post__thumb'=>'aspect-ratio: 1 / {{SIZE}};'],'condition'=>$skin === 'full_content' ? $c + [$p . 'thumbnail!'=>''] : $thumb]);
         if ($skin !== 'cards') {
             $this->add_responsive_control($p . 'image_width', ['label'=>'Ancho de la imagen','type'=>Controls_Manager::SLIDER,'size_units'=>['%','px'],'default'=>['size'=>100,'unit'=>'%'],'range'=>['%'=>['min'=>10,'max'=>100],'px'=>['min'=>10,'max'=>600]],'selectors'=>['{{WRAPPER}} .obx-post__thumb-link'=>'width: {{SIZE}}{{UNIT}};'],'condition'=>$thumb]);
         }
-        if ($skin === 'cards') {
-            $this->add_control($p . 'masonry', ['type'=>Controls_Manager::HIDDEN,'default'=>'']);
+        if ($skin !== 'full_content') {
+            $this->add_control($p . 'masonry', ['label'=>'Mampostería','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','description'=>'Cada entrada sube hasta la de encima, sin huecos, manteniendo el orden.','condition'=>$c + [$p . 'columns!'=>'1',$p . 'thumbnail'=>'top']]);
         }
         $this->add_control($p . 'show_title', ['label'=>'Título','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','separator'=>'before','condition'=>$c]);
         $this->add_control($p . 'title_tag', ['label'=>'Etiqueta del título','type'=>Controls_Manager::SELECT,'default'=>'h3','options'=>['h1'=>'H1','h2'=>'H2','h3'=>'H3','h4'=>'H4','h5'=>'H5','h6'=>'H6','div'=>'div','span'=>'span','p'=>'p'],'condition'=>$c + [$p . 'show_title'=>'yes']]);
@@ -245,11 +261,12 @@ abstract class Posts_Base extends Base {
         if ($skin !== 'full_content') {
             $this->add_control($p . 'show_read_more', ['label'=>'Leer más','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','separator'=>'before','condition'=>$c]);
             $this->add_control($p . 'read_more_text', ['label'=>'Texto de «Leer más»','type'=>Controls_Manager::TEXT,'default'=>'Leer más »','condition'=>$c + [$p . 'show_read_more'=>'yes']]);
-            $this->add_control($p . 'open_new_tab', ['label'=>'Abrir en una pestaña nueva','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'no','condition'=>$c]);
+            $this->add_control($p . 'read_more_alignment', ['label'=>'Alinear «Leer más» abajo','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','description'=>'En cada fila, los enlaces quedan a la misma altura.','condition'=>$c + [$p . 'masonry!'=>'yes',$p . 'show_read_more'=>'yes']]);
         }
+        $this->add_control($p . 'open_new_tab', ['label'=>'Abrir en una pestaña nueva','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'no','condition'=>$c]);
         if ($skin === 'cards') {
             $this->add_control($p . 'show_badge', ['label'=>'Distintivo','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes','separator'=>'before','condition'=>$c]);
-            $taxonomies = [];
+            $taxonomies = [''=>'Ninguna'];
             foreach (get_taxonomies(['public'=>true,'show_in_nav_menus'=>true], 'objects') as $taxonomy) { $taxonomies[$taxonomy->name] = $taxonomy->label; }
             $this->add_control($p . 'badge_taxonomy', ['label'=>'Taxonomía del distintivo','type'=>Controls_Manager::SELECT2,'label_block'=>true,'default'=>'category','options'=>$taxonomies,'condition'=>$c + [$p . 'show_badge'=>'yes']]);
             $this->add_control($p . 'show_avatar', ['label'=>'Avatar del autor','type'=>Controls_Manager::SWITCHER,'return_value'=>'show-avatar','default'=>'show-avatar','condition'=>$c + [$p . 'thumbnail!'=>'none']]);
@@ -284,17 +301,36 @@ abstract class Posts_Base extends Base {
             $this->add_control($p . 'box_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','custom'],'range'=>['px'=>['max'=>200]],'selectors'=>['{{WRAPPER}} .obx-post'=>'border-radius: {{SIZE}}{{UNIT}}; overflow: hidden;']]);
             $this->add_responsive_control($p . 'box_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-post'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
             $this->add_responsive_control($p . 'content_padding', ['label'=>'Relleno del contenido','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-post__text'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
+            $this->start_controls_tabs($p . 'bg_effects_tabs');
+            $this->start_controls_tab($p . 'style_normal', ['label'=>'Normal']);
             $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>$p . 'box_shadow','selector'=>'{{WRAPPER}} .obx-post']);
             $this->add_control($p . 'box_bg_color', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post'=>'background-color: {{VALUE}};']]);
             $this->add_control($p . 'box_border_color', ['label'=>'Color del borde','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post'=>'border-color: {{VALUE}};']]);
+            $this->end_controls_tab();
+            $this->start_controls_tab($p . 'style_hover', ['label'=>'Al pasar el ratón']);
+            $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>$p . 'box_shadow_hover','selector'=>'{{WRAPPER}} .obx-post:hover']);
+            $this->add_control($p . 'box_bg_color_hover', ['label'=>'Fondo','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post:hover'=>'background-color: {{VALUE}};']]);
+            $this->add_control($p . 'box_border_color_hover', ['label'=>'Color del borde','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post:hover'=>'border-color: {{VALUE}};']]);
+            $this->end_controls_tab();
+            $this->end_controls_tabs();
         }
         $this->end_controls_section();
 
         $this->start_controls_section($p . 'section_design_image', ['label'=>'Imagen','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$c + [$p . 'thumbnail!'=>'none']]);
         $this->add_control($p . 'img_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','custom'],'selectors'=>['{{WRAPPER}} .obx-post__thumb'=>'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
         $this->add_responsive_control($p . 'image_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-post'=>'--obx-image-spacing: {{SIZE}}{{UNIT}};']]);
+        if ($skin === 'cards') {
+            $this->add_control($p . 'avatar_size', ['label'=>'Tamaño del avatar','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['min'=>20,'max'=>120]],'condition'=>[$p . 'show_avatar'=>'show-avatar'],
+                'selectors'=>['{{WRAPPER}} .obx-post__avatar img'=>'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};','{{WRAPPER}} .obx-post__avatar'=>'--obx-avatar-size: {{SIZE}}{{UNIT}};']]);
+        }
+        $this->start_controls_tabs($p . 'thumbnail_effects_tabs');
+        $this->start_controls_tab($p . 'normal', ['label'=>'Normal']);
         $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>$p . 'thumbnail_filters','selector'=>'{{WRAPPER}} .obx-post__thumb img']);
-        $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>$p . 'thumbnail_hover_filters','label'=>'Filtros al pasar el ratón','selector'=>'{{WRAPPER}} .obx-post:hover .obx-post__thumb img']);
+        $this->end_controls_tab();
+        $this->start_controls_tab($p . 'hover', ['label'=>'Al pasar el ratón']);
+        $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>$p . 'thumbnail_hover_filters','selector'=>'{{WRAPPER}} .obx-post:hover .obx-post__thumb img']);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->end_controls_section();
 
         if ($skin === 'cards') {
@@ -311,12 +347,13 @@ abstract class Posts_Base extends Base {
 
         $this->start_controls_section($p . 'section_design_content', ['label'=>'Contenido','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$c]);
         foreach (['title'=>['Título','.obx-post__title, {{WRAPPER}} .obx-post__title a'],'meta'=>['Metadatos','.obx-post__meta'],'excerpt'=>['Extracto','.obx-post__excerpt'],'read_more'=>['Leer más','.obx-post__read-more']] as $part => [$label, $selector]) {
-            if ($skin === 'full_content' && in_array($part, ['excerpt','read_more'], true)) { continue; }
-            $this->add_control($p . 'heading_' . $part . '_style', ['label'=>$label,'type'=>Controls_Manager::HEADING,'separator'=>'before']);
-            $this->add_control($p . $part . '_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} ' . $selector=>'color: {{VALUE}};']]);
+            $on = in_array($part, ['excerpt','read_more'], true) ? [$p . 'show_' . $part=>'yes'] : [];
+            $this->add_control($p . 'heading_' . $part . '_style', ['label'=>$label,'type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>$on]);
+            $this->add_control($p . $part . '_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} ' . $selector=>'color: {{VALUE}};'],'condition'=>$on]);
             if ($part === 'meta') { $this->add_control($p . 'meta_separator_color', ['label'=>'Color del separador','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-post__meta > span + span::before'=>'color: {{VALUE}};']]); }
-            $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>$p . $part . '_typography','selector'=>'{{WRAPPER}} ' . $selector]);
-            $this->add_responsive_control($p . $part . '_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-post__' . str_replace('_', '-', $part)=>'margin-bottom: {{SIZE}}{{UNIT}};']]);
+            $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>$p . $part . '_typography','selector'=>'{{WRAPPER}} ' . $selector,'condition'=>$on]);
+            if ($part === 'title') { $this->add_group_control(Group_Control_Text_Stroke::get_type(), ['name'=>$p . 'text_stroke','selector'=>'{{WRAPPER}} .obx-post__title']); }
+            $this->add_responsive_control($p . $part . '_spacing', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-post__' . str_replace('_', '-', $part)=>'margin-bottom: {{SIZE}}{{UNIT}};'],'condition'=>$on]);
         }
         if ($skin === 'full_content') {
             $this->add_control($p . 'heading_content_style', ['label'=>'Texto','type'=>Controls_Manager::HEADING,'separator'=>'before']);
@@ -348,6 +385,8 @@ abstract class Posts_Base extends Base {
         $target = $v('open_new_tab') === 'yes' ? ' target="_blank" rel="noopener"' : '';
 
         $classes = ['obx-posts','obx-posts--' . $skin,'obx-posts--thumb-' . $thumbnail];
+        if ($skin !== 'full_content' && $v('masonry') === 'yes' && $thumbnail === 'top') { $classes[] = 'obx-posts--masonry'; }
+        elseif ($skin !== 'full_content' && $v('read_more_alignment') === 'yes' && $v('show_read_more', 'yes') === 'yes') { $classes[] = 'obx-posts--read-more-bottom'; }
         if ($skin === 'cards') {
             $classes[] = 'obx-posts--hover-' . ($v('hover_effect', 'gradient') === 'none' ? 'none' : 'gradient');
             if ($v('show_avatar', 'show-avatar') === 'show-avatar') { $classes[] = 'obx-posts--show-avatar'; }

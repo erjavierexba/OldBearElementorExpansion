@@ -39,7 +39,7 @@
 .obx-post__read-more{display:inline-block;font-size:.75em;font-weight:700;text-transform:uppercase;text-decoration:none;margin-bottom:20px}
 .obx-post__meta-footer{margin-top:auto;padding:15px 30px;border-top:1px solid #eaeaea}.obx-post__meta-footer .obx-post__meta{margin:0}
 .obx-post__badge{position:absolute;top:0;right:0;z-index:2;margin:20px;padding:.6em 1.2em;border-radius:999px;background:#4054b2;color:#fff;font-size:12px;font-weight:600;line-height:1;text-transform:uppercase}
-.obx-post__avatar{position:relative;z-index:2;margin:-30px 0 0 30px;width:60px}
+.obx-post__avatar{position:relative;z-index:2;margin:calc(var(--obx-avatar-size,60px) / -2) 0 0 30px;width:var(--obx-avatar-size,60px)}
 .obx-post__avatar img{display:block;width:60px;height:60px;border-radius:50%;border:3px solid #fff}
 .obx-posts--hover-gradient .obx-post__thumb-link::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(0deg,rgba(0,0,0,.35),transparent 75%);opacity:0;transition:opacity .4s}
 .obx-posts--hover-gradient .obx-post:hover .obx-post__thumb-link::after{opacity:1}
@@ -712,3 +712,19 @@ html.obx-pt-loading .obx-preloader{opacity:0;animation:obx-preloader-in .2s var(
 .obx-woo-cart .coupon .button{margin:0}
 /* «View cart» link WooCommerce adds after an AJAX add to cart */
 .obx-add-to-cart .added_to_cart{margin-inline-start:.75em}
+
+/* Posts: masonry (the script moves each post up to the one above) and «Leer más» aligned at the bottom */
+.obx-posts--masonry{align-items:start}
+.obx-posts--read-more-bottom .obx-post,.obx-posts--read-more-bottom .obx-post__card{display:flex;flex-direction:column}
+.obx-posts--read-more-bottom .obx-post__card{flex:1}
+.obx-posts--read-more-bottom .obx-post__text{display:flex;flex-direction:column;flex-grow:1}
+.obx-posts--read-more-bottom .obx-post__read-more{margin-top:auto}
+
+/* «Load more»: Elementor's button display must not override [hidden] (the button hides after the last page) */
+.obx-load-more [hidden]{display:none!important}
+/* Pro's «align» of the «Load more» button (obx-load-more{-device}-btn-{left|center|right|justify}) */
+.obx-load-more-btn-left .obx-load-more{align-items:flex-start}.obx-load-more-btn-center .obx-load-more{align-items:center}
+.obx-load-more-btn-right .obx-load-more{align-items:flex-end}.obx-load-more-btn-justify .obx-load-more{align-items:stretch}
+.obx-load-more-btn-justify .obx-load-more__button{width:100%}
+@media (max-width:1024px){.obx-load-more-tablet-btn-left .obx-load-more{align-items:flex-start}.obx-load-more-tablet-btn-center .obx-load-more{align-items:center}.obx-load-more-tablet-btn-right .obx-load-more{align-items:flex-end}.obx-load-more-tablet-btn-justify .obx-load-more{align-items:stretch}.obx-load-more-tablet-btn-justify .obx-load-more__button{width:100%}}
+@media (max-width:767px){.obx-load-more-mobile-btn-left .obx-load-more{align-items:flex-start}.obx-load-more-mobile-btn-center .obx-load-more{align-items:center}.obx-load-more-mobile-btn-right .obx-load-more{align-items:flex-end}.obx-load-more-mobile-btn-justify .obx-load-more{align-items:stretch}.obx-load-more-mobile-btn-justify .obx-load-more__button{width:100%}}

@@ -745,9 +745,40 @@
         window.jQuery(document.body).on('updated_wc_div updated_cart_totals updated_checkout updated_shipping_method', () => setTimeout(animateAll, 0));
     }
 
+    /**
+     * Masonry for post grids: the grid keeps its columns and order, and each post moves up to the bottom of the
+     * post above it (negative top margin), so there are no gaps. Recomputed when sizes or the posts change.
+     */
+    const masonry = (grid) => {
+        if (grid.dataset.obxMasonry) { return; }
+        grid.dataset.obxMasonry = '1';
+        let frame = 0;
+        const layout = () => {
+            frame = 0;
+            const items = Array.from(grid.children).filter((item) => item.matches('.obx-post'));
+            items.forEach((item) => { item.style.marginTop = ''; });
+            const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+            if (columns < 2) { return; }
+            const gap = parseFloat(getComputedStyle(grid).rowGap) || 0;
+            const bottoms = [];
+            items.forEach((item, index) => {
+                const column = index % columns;
+                const rect = item.getBoundingClientRect();
+                if (index >= columns) { item.style.marginTop = (bottoms[column] + gap - rect.top) + 'px'; }
+                bottoms[column] = item.getBoundingClientRect().bottom;
+            });
+        };
+        const schedule = () => { if (!frame) { frame = requestAnimationFrame(layout); } };
+        schedule();
+        if (window.ResizeObserver) { new ResizeObserver(schedule).observe(grid); }
+        new MutationObserver(schedule).observe(grid, { childList: true });
+        grid.addEventListener('load', schedule, true);
+        window.addEventListener('resize', schedule);
+    };
     const handlers = {
         '.obx-countdown': countdown, '.obx-headline': headline, '.obx-toc': toc, '.obx-progress': progress, '.obx-code': code,
         '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, '.obx-search[data-live]': liveSearch, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters, '[data-obx-menu-cart]': menuCart, '[data-obx-animations]': wooAnimations, '.obx-woo-cart--auto-update': wooCartAuto,
+        '.obx-posts--masonry': masonry,
     };
     const init = (root) => {
         Object.entries(handlers).forEach(([selector, fn]) => {

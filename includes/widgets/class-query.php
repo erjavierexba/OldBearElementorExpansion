@@ -45,15 +45,22 @@ final class Query {
         $add($p . 'posts_ids', ['label'=>'Entradas','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>[$p . 'post_type'=>'by_id']]);
         $add('archive_query_note', ['type'=>Controls_Manager::RAW_HTML,'raw'=>'Muestra las entradas de la página en la que se use (archivo, búsqueda o blog).','content_classes'=>'elementor-panel-alert elementor-panel-alert-info','condition'=>[$p . 'post_type'=>'current_query']]);
         $add($p . 'related_taxonomies', ['label'=>'Relacionadas por','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$taxonomies,'default'=>['category','post_tag'],'condition'=>[$p . 'post_type'=>'related']]);
+        // Include / Exclude tabs, as in Pro's query (UI only: tabs store nothing).
+        $w->start_controls_tabs($p . 'query_args', ['condition'=>[$p . 'post_type!'=>['by_id','current_query']] + $condition]);
+        $w->start_controls_tab($p . 'query_include', ['label'=>'Incluir']);
         $add($p . 'include', ['label'=>'Incluir solo','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>['terms'=>'Términos','authors'=>'Autores'],'condition'=>$plain]);
         $add($p . 'include_term_ids', ['label'=>'Términos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$terms,'condition'=>$plain + [$p . 'include'=>'terms']]);
         $add($p . 'include_authors', ['label'=>'Autores','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$authors,'condition'=>$plain + [$p . 'include'=>'authors']]);
+        $w->end_controls_tab();
+        $w->start_controls_tab($p . 'query_exclude', ['label'=>'Excluir']);
         $add($p . 'exclude', ['label'=>'Excluir','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>['current_post'=>'Entrada actual','manual_selection'=>'Selección manual','terms'=>'Términos','authors'=>'Autores'],'condition'=>[$p . 'post_type!'=>['by_id','current_query']]]);
         $add($p . 'exclude_ids', ['label'=>'Entradas excluidas','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>[$p . 'exclude'=>'manual_selection']]);
         $add($p . 'exclude_term_ids', ['label'=>'Términos excluidos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$terms,'condition'=>[$p . 'exclude'=>'terms']]);
         $add($p . 'exclude_authors', ['label'=>'Autores excluidos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$authors,'condition'=>[$p . 'exclude'=>'authors']]);
         $add($p . 'avoid_duplicates', ['label'=>'Evitar duplicados','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','description'=>'Omite las entradas que ya muestran otros widgets de esta página.','condition'=>[$p . 'post_type!'=>'current_query']]);
         $add($p . 'offset', ['label'=>'Saltar','type'=>Controls_Manager::NUMBER,'default'=>0,'min'=>0,'condition'=>$plain]);
+        $w->end_controls_tab();
+        $w->end_controls_tabs();
         $add($p . 'select_date', ['label'=>'Fecha','type'=>Controls_Manager::SELECT,'default'=>'anytime','options'=>['anytime'=>'Cualquiera','today'=>'Último día','week'=>'Última semana','month'=>'Último mes','quarter'=>'Último trimestre','year'=>'Último año','exact'=>'Personalizada'],'condition'=>$plain,'separator'=>'before']);
         $add($p . 'date_after', ['label'=>'Después de','type'=>Controls_Manager::DATE_TIME,'condition'=>$plain + [$p . 'select_date'=>'exact']]);
         $add($p . 'date_before', ['label'=>'Antes de','type'=>Controls_Manager::DATE_TIME,'condition'=>$plain + [$p . 'select_date'=>'exact']]);

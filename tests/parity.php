@@ -243,6 +243,23 @@ try {
     $html = $render(['template_id'=>(string) $term_item,'_skin'=>'post_taxonomy','post_taxonomy_query_post_type'=>'category','post_taxonomy_query_filter_by'=>'manual_selection','post_taxonomy_posts_ids'=>[(string) $t1['term_id'],(string) $t2['term_id']],'post_taxonomy_order'=>'ASC']);
     $n1 = get_term($t1['term_id'])->name; $n2 = get_term($t2['term_id'])->name;
     $assert(substr_count($html, 'data-term-id=') === 2 && strpos($html, $n2) !== false && strpos($html, $n1) !== false && strpos($html, $n2) < strpos($html, $n1), 'Bucle de términos: un elemento por término, con su título y en orden.');
+
+    // 0.11.0 Posts and Archive Posts: every key of Pro (button of «Load more», masonry, read more, hover, full content).
+    foreach (['posts'=>'', 'archive-posts'=>'archive_'] as $type => $sp) {
+        $pc = Elementor::$instance->widgets_manager->get_widget_types($type)->get_controls();
+        foreach (['align','content_align','typography_typography','text_shadow_text_shadow_type','button_text_color','background_background','button_box_shadow_box_shadow_type','hover_color','button_background_hover_background','button_hover_border_color','button_hover_box_shadow_box_shadow_type','button_hover_transition_duration','hover_animation','border_border','border_radius','text_padding','icon_align','icon_indent','button_css_id','pagination_colors','nothing_found_color','nothing_found_typography_typography',
+            $sp . 'classic_masonry',$sp . 'cards_masonry',$sp . 'classic_read_more_alignment',$sp . 'cards_read_more_alignment',$sp . 'classic_box_bg_color_hover',$sp . 'classic_box_border_color_hover',$sp . 'classic_box_shadow_hover_box_shadow_type',$sp . 'classic_thumbnail_effects_tabs',$sp . 'classic_text_stroke_text_stroke_type',$sp . 'cards_avatar_size',$sp . 'cards_text_stroke_text_stroke_type',
+            $sp . 'full_content_item_ratio',$sp . 'full_content_open_new_tab',$sp . 'full_content_excerpt_color',$sp . 'full_content_read_more_typography_typography',$sp . 'full_content_box_shadow_hover_box_shadow_type',$sp . 'full_content_text_stroke_text_stroke_type'] as $key) { $assert(isset($pc[$key]), "{$type}: falta {$key}."); }
+        $assert(($pc['align']['default'] ?? '') === 'center' && ($pc['align']['prefix_class'] ?? '') === 'obx-load-more-btn-' && ($pc['align_tablet']['prefix_class'] ?? '') === 'obx-load-more-tablet-btn-' && ($pc[$sp . 'full_content_open_new_tab']['default'] ?? '') === 'no' && (float) ($pc[$sp . 'full_content_item_ratio']['default']['size'] ?? 0) === 0.66, "{$type}: valores de Pro; la alineación solo mueve el botón «Cargar más».");
+        $assert(array_key_exists('', $pc[$sp . 'cards_badge_taxonomy']['options'] ?? []), "{$type}: distintivo sin taxonomía.");
+    }
+    $assert(isset($posts_c['posts_query_args']) || isset(Elementor::$instance->widgets_manager->get_widget_types('posts')->get_controls()['posts_query_args']), 'posts: pestañas Incluir / Excluir de la consulta.');
+    $html = $render(['__widget'=>'posts','posts_post_type'=>'post','classic_masonry'=>'yes','classic_columns'=>'3']);
+    $assert(str_contains($html, 'obx-posts--masonry') && !str_contains($html, 'obx-posts--read-more-bottom'), 'posts: mampostería.');
+    $html = $render(['__widget'=>'posts','posts_post_type'=>'post','classic_read_more_alignment'=>'yes']);
+    $assert(str_contains($html, 'obx-posts--read-more-bottom') && !str_contains($html, 'obx-posts--masonry'), 'posts: «Leer más» alineado abajo.');
+    $html = $render(['__widget'=>'posts','posts_post_type'=>'post','classic_masonry'=>'yes','classic_thumbnail'=>'left']);
+    $assert(!str_contains($html, 'obx-posts--masonry'), 'posts: sin mampostería si la imagen no va arriba (como en Pro).');
     $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
     $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);
     $assert(wp_list_pluck($kids, 'term_id') === [$sub['term_id']], 'Bucle de términos: hijos de un término.');
