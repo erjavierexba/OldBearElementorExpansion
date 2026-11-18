@@ -951,6 +951,34 @@ try {
         $assert(($type['ext'] ?? '') === 'json' && ($type['type'] ?? '') === 'application/json', 'Lottie: los archivos .json se reconocen al subirlos.');
     }
 
+    // Portfolio: post thumbnails with an overlay title and a filter bar by term, Pro's markup.
+    $pf_type = Elementor::$instance->widgets_manager->get_widget_types('portfolio');
+    $assert($pf_type instanceof \OldBearExpansion\Widgets\Portfolio && $pf_type->get_categories() === ['pro-elements'] && $pf_type->get_script_depends() === ['obx-portfolio'], 'Portafolio: widget registrado con el nombre y la categoría de Pro.');
+    if ($pf_type) {
+        $pf = $pf_type->get_controls();
+        $assert(($pf['columns']['default'] ?? '') === '3' && ($pf['columns_tablet']['default'] ?? '') === '2' && ($pf['columns_mobile']['default'] ?? '') === '1' && ($pf['posts_per_page']['default'] ?? 0) === 6 && ($pf['thumbnail_size_size']['default'] ?? '') === 'medium' && ($pf['item_ratio']['default']['size'] ?? 0) == 0.66 && ($pf['title_tag']['default'] ?? '') === 'h3' && ($pf['posts_post_type']['default'] ?? '') === 'post' && isset($pf['taxonomy']['options']['category'], $pf['posts_include_term_ids'], $pf['filter_item_spacing'], $pf['color_background']), 'Portafolio: controles y valores por defecto de Pro, con la consulta `posts_`.');
+        $pf_a = wp_insert_term('obx-pf-b ' . $uid(), 'category'); $terms[] = $pf_a['term_id'];
+        $pf_b = wp_insert_term('obx-pf-a ' . $uid(), 'category'); $terms[] = $pf_b['term_id'];
+        $pf_posts = [];
+        foreach ([['Proyecto uno', [$pf_a['term_id']]], ['Proyecto dos', [$pf_b['term_id']]], ['Proyecto tres', [$pf_a['term_id'], $pf_b['term_id']]]] as $i => [$title, $cats]) {
+            $pf_posts[$i] = wp_insert_post(['post_type'=>'post','post_status'=>'publish','post_title'=>$title,'post_category'=>$cats,'post_date'=>gmdate('Y-m-d H:i:s', time() - 60 * (3 - $i))]); $created[] = $pf_posts[$i];
+        }
+        $pf_query = ['posts_post_type'=>'post','posts_include'=>['terms'],'posts_include_term_ids'=>[(string) $pf_a['term_id'], (string) $pf_b['term_id']]];
+        $pf_page = $save('page', 'Paridad portafolio', [$container([
+            $widget('portfolio', $pf_query + ['show_filter_bar'=>'yes','taxonomy'=>'category','item_ratio'=>['unit'=>'px','size'=>0.8],'item_gap'=>['unit'=>'px','size'=>12],'color_background'=>'#112233']),
+            $widget('portfolio', $pf_query + ['masonry'=>'yes','show_title'=>'','posts_per_page'=>2,'columns'=>'2']),
+        ])]);
+        $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($pf_page);
+        $pf_filters = '<ul class="elementor-portfolio__filters"><li class="elementor-portfolio__filter elementor-active" tabindex="0" data-filter="__all">Todos</li><li class="elementor-portfolio__filter" tabindex="0" data-filter="' . $pf_b['term_id'] . '">' . get_term($pf_b['term_id'])->name . '</li><li class="elementor-portfolio__filter" tabindex="0" data-filter="' . $pf_a['term_id'] . '">';
+        $assert(str_contains($html, $pf_filters), 'Portafolio: barra de filtros con «Todos» y los términos por nombre.');
+        $assert(str_contains($html, '<div class="elementor-portfolio elementor-grid elementor-posts-container elementor-has-item-ratio" role="list">') && (bool) preg_match('/<article class="elementor-portfolio-item elementor-post (?=[^"]*elementor-filter-' . $pf_a['term_id'] . ' )(?=[^"]*elementor-filter-' . $pf_b['term_id'] . ' )[^"]*" role="listitem"><a class="elementor-post__thumbnail__link" href="' . preg_quote(get_permalink($pf_posts[2]), '/') . '"><div class="elementor-portfolio-item__img elementor-post__thumbnail">\s*<\/div><div class="elementor-portfolio-item__overlay"><h3 class="elementor-portfolio-item__title">Proyecto tres<\/h3><\/div><\/a><\/article>/', $html), 'Portafolio: elementos con las clases de Pro, una clase por término y título en la capa.');
+        $assert((bool) preg_match('/class="[^"]*elementor-grid-3 elementor-grid-tablet-2 elementor-grid-mobile-1 [^"]*elementor-widget-portfolio/', $html) && str_contains($html, 'elementor-grid-2 elementor-grid-tablet-2 elementor-grid-mobile-1'), 'Portafolio: columnas por dispositivo como clases del widget.');
+        $assert(str_contains($html, '<div class="elementor-portfolio elementor-grid elementor-posts-container elementor-posts-masonry" role="list">') && substr_count($html, 'elementor-portfolio-item__title') === 3, 'Portafolio: mampostería, número de entradas y título opcional.');
+        $pf_css = \Elementor\Core\Files\CSS\Post::create($pf_page); $pf_css->update(); $rules = (string) $pf_css->get_content();
+        $assert(str_contains($rules, 'padding-bottom:calc( 0.8 * 100% )') && str_contains($rules, '--grid-column-gap:12px') && str_contains($rules, 'background-color:#112233'), 'Portafolio: proporción, separación y capa en el CSS de la página.');
+        $assert(str_contains((string) wp_scripts()->query('obx-portfolio')->src, 'portfolio.js'), 'Portafolio: script del navegador registrado.');
+    }
+
     // Global widget: `widget` library template plus `global` elements with `templateID`, as Pro stores them.
     $GW = \OldBearExpansion\Extras\Global_Widgets::class;
     $local = Elementor::$instance->templates_manager->get_source('local');

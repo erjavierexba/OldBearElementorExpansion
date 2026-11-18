@@ -223,13 +223,20 @@
 			onInit() {
 				Base.prototype.onInit.apply(this, arguments);
 				this.player = mount(this.$element[0], this.getElementSettings());
-			},
-			onElementChange() {
-				clearTimeout(this.remount);
-				this.remount = setTimeout(() => { this.player = mount(this.$element[0], this.getElementSettings()); }, 300);
+				// The settings without a re-render («render_type: none») are applied by mounting again (also on undo/redo).
+				const model = this.isEdit && frontend.config.elements && frontend.config.elements.data[this.getModelCID()];
+				if (model && model.on) {
+					this.settingsModel = model;
+					this.onSettings = () => {
+						clearTimeout(this.remount);
+						this.remount = setTimeout(() => { if (this.$element[0].isConnected) { this.player = mount(this.$element[0], this.getElementSettings()); } }, 300);
+					};
+					model.on('change', this.onSettings);
+				}
 			},
 			onDestroy() {
 				clearTimeout(this.remount);
+				if (this.settingsModel) { this.settingsModel.off('change', this.onSettings); }
 				if (this.player) { this.player.destroy(); }
 				Base.prototype.onDestroy.apply(this, arguments);
 			},

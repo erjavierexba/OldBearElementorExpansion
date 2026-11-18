@@ -1012,3 +1012,26 @@ body.e-off-canvas__no-scroll{overflow:hidden}
 .e-lottie__animation canvas{display:block;max-width:100%}
 .e-lottie__container__link{display:inline-block;max-width:100%}
 .e-lottie__caption{margin-top:var(--caption-margin-top);color:var(--caption-color);text-align:var(--caption-text-align)}
+
+/* Portfolio: Pro's markup; the grid columns and gaps come from Elementor's .elementor-grid. */
+.elementor-portfolio__filters{display:flex;flex-wrap:wrap;justify-content:center;margin:0;padding:0;list-style:none}
+.elementor-portfolio__filter{margin:0;padding:8px;cursor:pointer}
+.elementor ul li.elementor-portfolio__filter{list-style-type:none}
+.elementor-portfolio__filter:focus-visible{outline:1px auto -webkit-focus-ring-color}
+.elementor-portfolio.elementor-posts-container.elementor-posts-masonry{align-items:flex-start}
+.elementor-portfolio.elementor-posts-container:not(.elementor-posts-masonry){align-items:stretch}
+.elementor-portfolio-item{align-self:flex-start;margin:0;padding:0;overflow:hidden;transform-style:preserve-3d}
+.elementor-portfolio-item .elementor-post__thumbnail__link{position:relative;display:block;width:100%;transition:none}
+.elementor-portfolio-item .elementor-post__thumbnail{position:relative;overflow:hidden}
+.elementor-portfolio-item .elementor-post__thumbnail img{display:block;width:100%;max-width:none;max-height:none;transition:filter .3s}
+.elementor-portfolio-item__img img[src=""]{height:100%;background-color:rgba(0,0,0,.1)}
+.elementor-portfolio.elementor-has-item-ratio .elementor-post__thumbnail__link{padding-bottom:56.25%}
+.elementor-portfolio.elementor-has-item-ratio .elementor-post__thumbnail{position:absolute;inset:0;background-color:rgba(0,0,0,.1)}
+.elementor-portfolio.elementor-has-item-ratio .elementor-post__thumbnail img{position:absolute;top:calc(50% + 1px);left:calc(50% + 1px);height:auto;transform:scale(1.01) translate(-50%,-50%)}
+.elementor-portfolio.elementor-has-item-ratio .elementor-post__thumbnail.elementor-fit-height img{width:auto;height:100%}
+.elementor-portfolio.elementor-posts-masonry .elementor-post__thumbnail__link{padding-bottom:0!important}
+.elementor-portfolio-item__overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:15px;overflow:hidden;text-align:center;background-color:rgba(105,114,125,.8);opacity:0;transition:opacity 1s}
+.elementor-portfolio-item:hover .elementor-portfolio-item__overlay,.elementor-portfolio-item:focus-within .elementor-portfolio-item__overlay{opacity:1;transition:opacity .5s}
+.elementor-portfolio-item__title{margin:0;padding:0;color:#fff;font-size:18px;line-height:1}
+.elementor-portfolio-item__tags__separator:before{content:", "}
+.e-con>.elementor-widget-portfolio,.e-con-inner>.elementor-widget-portfolio{width:var(--container-widget-width);--flex-grow:var(--container-widget-flex-grow)}
