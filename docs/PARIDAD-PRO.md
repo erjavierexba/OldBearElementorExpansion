@@ -146,11 +146,12 @@ Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_ch
 - [ ] Editor v4 de Pro: interacciones, variables de Pro, Collection Loop y formulario atómico (`e-form-*`). Dependen de los experimentos del editor nuevo; se abordan cuando ese editor sea el predeterminado.
 - Fuera de alcance: licencia, biblioteca en la nube, capturas de plantillas (servicio remoto) y avisos o planes de Pro.
 
-## 4. Widgets ausentes (49; quedan 41 tras 0.10.0)
+## 4. Widgets ausentes (49; quedan 39)
 
 | Prioridad | Widgets |
 | --- | --- |
-| Alta | `mega-menu` (Menú), `global` |
+| Alta | `global` |
+| ✅ | `mega-menu` (Menú): todas las claves de Pro (elementos con título, enlace, icono, ID y contenido desplegable; ancho completo o ajustado y su posición, disposición horizontal o desplegable, punto de ruptura, abrir al pasar el ratón o al hacer clic, animación, botón del menú, desplazamiento horizontal y todos los estilos por estado). Cada elemento tiene su contenedor dentro del `<li>`, también en el editor (repetidores intercalados de Elementor). El contenido a ancho completo ocupa el contenedor de estiramiento del kit o la página; el ajustado se coloca junto a su título sin salirse de la pantalla y se abre hacia arriba si no cabe. Elemento actual por URL y anclas activas mientras su sección está en pantalla. |
 | ✅ | `off-canvas`: widget anidado con un contenedor, con las claves de Pro (posición, ancho, altura, animaciones de entrada y salida, duración, capa, no cerrar con la capa o Esc, bloquear el desplazamiento, etiqueta HTML, fondo, borde y sombra). En el editor se ve abierto mientras «Modo de edición» está activo; en la web se abre con la acción `off-canvas`, devuelve el foco al cerrar y mantiene el teclado dentro del panel. |
 | ~~Alta (WooCommerce)~~ | ✅ 0.10.0: `wc-add-to-cart`, `wc-products`, `wc-categories`, `wc-elements`, `woocommerce-notices`, `woocommerce-purchase-summary`, `wc-archive-products`, `wc-single-elements` |
 | Media | `hotspot`, `lottie`, `portfolio`, `reviews`, `video-playlist` |

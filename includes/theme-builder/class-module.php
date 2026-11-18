@@ -40,6 +40,10 @@ final class Module {
 
     public static function boot(): void {
         add_action('elementor/documents/register', [self::class, 'documents']);
+        add_action('elementor/controls/register', static function ($controls) {
+            require_once DIR . '/includes/widgets/class-menu-dropdown-animation.php';
+            if (!$controls->get_control(\OldBearExpansion\Widgets\Menu_Dropdown_Animation::TYPE)) { $controls->register(new \OldBearExpansion\Widgets\Menu_Dropdown_Animation()); }
+        });
         add_action('elementor/document/after_save', [self::class, 'sync_conditions']);
         self::boot_widgets();
         Locations::boot();
@@ -94,7 +98,7 @@ final class Module {
             if ($documents) { self::load_widgets(); \OldBearExpansion\Widgets\Woo_Notices::relocate($documents); }
         }, 20);
         add_action('init', [self::class, 'assets'], 5);
-        add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); });
+        add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); wp_add_inline_style('obx-frontend', self::menu_breakpoints_css()); });
         add_action('elementor/editor/after_enqueue_scripts', static function() {
             if (!Plugin::pro_active()) { wp_enqueue_script('obx-editor-nested', Plugin::url('assets/js/editor-nested.js'), ['jquery'], VERSION, true); }
         });
@@ -193,9 +197,22 @@ final class Module {
         }
     }
 
+    /** Menu widget: below its «Breakpoint» the bar becomes a toggle button (before the script decides, to avoid a jump). */
+    public static function menu_breakpoints_css(): string {
+        $css = '';
+        if (!class_exists('\\Elementor\\Plugin') || !isset(\Elementor\Plugin::$instance->breakpoints)) { return $css; }
+        foreach (\Elementor\Plugin::$instance->breakpoints->get_active_breakpoints() as $key => $breakpoint) {
+            if ($key === 'widescreen') { continue; }
+            $class = '.elementor .elementor-widget-mega-menu.obx-mm-bp-' . sanitize_html_class((string) $key);
+            $css .= '@media (max-width:' . (int) $breakpoint->get_value() . 'px){' . $class . '{--obx-mm-wrapper-display:none}' . $class . ' > .obx-mm > .obx-mm__toggle{display:flex}}';
+        }
+        return $css;
+    }
+
     public static function assets(): void {
         wp_register_style('obx-frontend', Plugin::url('assets/css/frontend.css'), [], VERSION);
         wp_register_script('obx-nav-menu', Plugin::url('assets/js/nav-menu.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
+        wp_register_script('obx-mega-menu', Plugin::url('assets/js/mega-menu.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-off-canvas', Plugin::url('assets/js/off-canvas.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-widgets', Plugin::url('assets/js/widgets.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
     }

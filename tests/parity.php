@@ -870,6 +870,34 @@ try {
         $assert(wp_script_is('obx-off-canvas', 'enqueued') || wp_script_is('obx-off-canvas', 'registered'), 'Off-Canvas: script del navegador registrado.');
     }
 
+    // Menu (mega menu): titles with optional dropdown containers, interlaced in the editor as in Pro.
+    $mm_type = Elementor::$instance->widgets_manager->get_widget_types('mega-menu');
+    $assert((bool) $mm_type, 'Menú: widget registrado con el nombre de Pro.');
+    if ($mm_type) {
+        $mm = $mm_type->get_controls();
+        $assert(($mm['menu_items']['type'] ?? '') === 'nested-elements-repeater' && ($mm['content_width']['default'] ?? '') === 'full_width' && ($mm['item_layout']['default'] ?? '') === 'horizontal' && ($mm['open_on']['default'] ?? '') === 'hover' && ($mm['breakpoint_selector']['default'] ?? '') === 'tablet' && ($mm['menu_item_icon']['default']['value'] ?? '') === 'fas fa-caret-down' && ($mm['menu_item_icon_active']['default']['value'] ?? '') === 'fas fa-caret-up' && ($mm['open_animation']['type'] ?? '') === 'animation_menu_dropdown' && ($mm['menu_item_title_transition_duration']['default']['size'] ?? 0) === 300 && ($mm['style_menu_toggle_icon_size']['default']['size'] ?? 0) === 20, 'Menú: tipos y valores por defecto de Pro.');
+        foreach (['item_title','item_link','item_dropdown_content','item_icon','item_icon_active','element_id'] as $field) { $assert(isset($mm['menu_items']['fields'][$field]), "Menú: falta el campo {$field}."); }
+        foreach (['menu_item_title_typography_typography','menu_item_title_text_shadow_normal_text_shadow_type','menu_item_title_background_color_hover_background','menu_item_title_box_border_active_border','menu_divider_color','icon_position','style_dropdown_indicator_rotate','menu_dropdown_indicator_color_active','menu_toggle_icon_background_color_active_background','menu_toggle_icon__padding','content_background_color_background','content_padding','dropdown_menu_item_background_color_active_background','menu_dropdown_box_border_border','menu_dropdown_box_shadow_box_shadow_type','horizontal_scroll'] as $key) { $assert(isset($mm[$key]), "Menú: falta {$key}."); }
+        $assert(array_keys($mm['item_position_horizontal']['options']) === ['start','center','end','stretch'] && array_key_exists('tablet', $mm['breakpoint_selector']['options']) && array_key_exists('none', $mm['breakpoint_selector']['options']), 'Menú: opciones de posición y puntos de ruptura.');
+        $config = (new ReflectionMethod($mm_type, 'get_initial_config'))->invoke($mm_type);
+        $assert(!empty($config['support_improved_repeaters']) && !empty($config['is_interlaced']) && ($config['node'] ?? '') === 'li', 'Menú: contenedores intercalados en cada elemento.');
+        $child = static fn(array $elements) => ['id'=>$uid(),'elType'=>'container','isInner'=>true,'isLocked'=>true,'settings'=>[],'elements'=>$elements];
+        $menu = $widget('mega-menu', ['menu_name'=>'Principal','open_on'=>'click','menu_items'=>[
+            ['_id'=>'a1','item_title'=>'Con desplegable','item_dropdown_content'=>'yes'],
+            ['_id'=>'a2','item_title'=>'Vacío','item_dropdown_content'=>'yes'],
+            ['_id'=>'a3','item_title'=>'Sin desplegable','item_link'=>['url'=>'https://example.com/','is_external'=>'on','nofollow'=>''],'element_id'=>'mi-id'],
+            ['_id'=>'a4','item_title'=>'Ancla','item_link'=>['url'=>'#seccion']],
+        ]]);
+        $menu['elements'] = [$child([$widget('heading', ['title'=>'Contenido del desplegable'])]), $child([]), $child([$widget('heading', ['title'=>'Oculto sin desplegable'])]), $child([])];
+        $mm_page = $save('page', 'Paridad menú', [$container([$menu])]);
+        $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($mm_page);
+        $assert(str_contains($html, '<nav class="obx-mm" data-layout="horizontal" aria-label="Principal">') && str_contains($html, 'aria-controls="obx-mm-bar-' . $menu['id'] . '"'), 'Menú: navegación con nombre accesible y botón del menú.');
+        $assert(str_contains($html, 'Contenido del desplegable') && str_contains($html, 'id="obx-mm-content-' . $menu['id'] . '1"') && str_contains($html, 'class="obx-mm__title is-click"'), 'Menú: el desplegable con contenido se pinta tras su título y se abre al hacer clic.');
+        $assert(substr_count($html, 'class="obx-mm__dropdown-icon"') === 2 && !str_contains($html, 'Oculto sin desplegable') && !str_contains($html, 'id="obx-mm-content-' . $menu['id'] . '2"'), 'Menú: sin «Contenido desplegable» o sin elementos no hay desplegable.');
+        $assert(str_contains($html, 'id="mi-id"') && (bool) preg_match('/<a class="obx-mm__title-container is-link" href="https:\/\/example.com\/" target="_blank"/', $html) && str_contains($html, 'obx-mm__title is-anchor'), 'Menú: enlaces, ID propio y anclas.');
+        $assert(str_contains(\OldBearExpansion\ThemeBuilder\Module::menu_breakpoints_css(), '.obx-mm-bp-tablet{--obx-mm-wrapper-display:none}'), 'Menú: el botón sustituye a la barra por debajo del punto de ruptura.');
+    }
+
     $assert(!$errors, 'Avisos PHP: ' . implode(' | ', array_slice($errors, 0, 4)));
 } finally {
     $frontend->setValue(null, $was_frontend);

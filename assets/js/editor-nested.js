@@ -1,7 +1,7 @@
 /* Editor: registers our nested widgets with Elementor's nested elements API (slides are containers). */
 (function ($) {
     'use strict';
-    const types = ['nested-carousel', 'off-canvas'];
+    const types = ['nested-carousel', 'off-canvas', 'mega-menu'];
     let done = false;
     const register = () => {
         const Base = window.elementor && elementor.modules && elementor.modules.elements && elementor.modules.elements.types.NestedElementBase;
