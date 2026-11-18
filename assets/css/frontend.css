@@ -208,6 +208,7 @@
 .obx-postnav--borders{border-block:var(--obx-postnav-border-width) solid var(--obx-postnav-border);padding-block:var(--obx-postnav-border-spacing)}
 .obx-postnav__separator{flex:0 0 var(--obx-postnav-border-width);background:var(--obx-postnav-border)}.obx-postnav>.is-empty{flex:1}
 .obx-postnav a{display:flex;align-items:center;gap:var(--obx-arrow-gap);flex:1;color:inherit;text-decoration:none;max-width:48%}.obx-postnav__next{margin-left:auto;text-align:right}
+.obx-postnav__label,.obx-postnav__title,.obx-postnav__arrow{transition:color .3s}
 .obx-postnav__text{display:flex;flex-direction:column}.obx-postnav__label{font-size:.8em;text-transform:uppercase;opacity:.7}.obx-postnav__title{font-weight:600}.obx-postnav__arrow{font-size:1.4em}
 /* Breadcrumbs */
 .obx-breadcrumbs ol{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}.obx-breadcrumbs a{color:inherit}.obx-breadcrumbs__sep{opacity:.6}

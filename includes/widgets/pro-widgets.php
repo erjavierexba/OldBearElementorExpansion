@@ -277,26 +277,32 @@ final class Call_To_Action extends Element {
         $this->add_control('heading_style_description', ['label'=>'Descripción','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>['description!'=>'']]);
         $this->typography('description_typography', '.obx-cta__description', ['condition'=>['description!'=>'']]);
         $this->slider('description_spacing', 'Separación', '.obx-cta__description', 'margin-bottom: {{SIZE}}{{UNIT}};', ['condition'=>['description!'=>'']], true);
-        $this->add_control('heading_content_colors', ['label'=>'Colores','type'=>Controls_Manager::HEADING,'separator'=>'before']);
-        foreach (['' => '', '_hover' => ' al pasar el ratón'] as $suffix => $label) {
+        $this->start_controls_tabs('color_tabs', ['separator'=>'before']);
+        foreach (['' => ['normal', 'Normal'], '_hover' => ['hover', 'Al pasar el ratón']] as $suffix => [$tab, $label]) {
+            $this->start_controls_tab('colors_' . $tab, ['label'=>$label]);
             $hover = $suffix ? '.obx-cta:hover ' : '';
-            $this->color('content_bg_color' . $suffix, 'Fondo' . $label, $hover . '.obx-cta__content', 'background-color', ['condition'=>['skin'=>'classic']]);
-            $this->color('title_color' . $suffix, 'Título' . $label, $hover . '.obx-cta__title', 'color', ['condition'=>['title!'=>'']]);
-            $this->color('description_color' . $suffix, 'Descripción' . $label, $hover . '.obx-cta__description', 'color', ['condition'=>['description!'=>'']]);
-            $this->color('button_color' . $suffix, 'Botón' . $label, $hover . '.obx-cta__button', 'border-color', ['condition'=>['button!'=>'']]);
+            $this->color('content_bg_color' . $suffix, 'Fondo', $hover . '.obx-cta__content', 'background-color', ['condition'=>['skin'=>'classic']]);
+            $this->color('title_color' . $suffix, 'Título', $hover . '.obx-cta__title', 'color', ['condition'=>['title!'=>'']]);
+            $this->color('description_color' . $suffix, 'Descripción', $hover . '.obx-cta__description', 'color', ['condition'=>['description!'=>'']]);
+            $this->color('button_color' . $suffix, 'Botón', $hover . '.obx-cta__button', 'border-color', ['condition'=>['button!'=>'']]);
+            $this->end_controls_tab();
         }
+        $this->end_controls_tabs();
         $this->end_controls_section();
 
         $this->start_controls_section('button_style', ['label'=>'Botón','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['button!'=>'']]);
         $this->add_control('button_size', ['label'=>'Tamaño','type'=>Controls_Manager::SELECT,'default'=>'sm','options'=>self::sizes()]);
         $this->typography('button_typography', '.obx-cta__button');
         $this->add_group_control(Group_Control_Text_Shadow::get_type(), ['name'=>'button_text_shadow','selector'=>'{{WRAPPER}} .obx-cta__button']);
-        $this->color('button_text_color', 'Color del texto', '.obx-cta__button', 'color');
-        $this->color('button_background_color', 'Fondo', '.obx-cta__button', 'background-color');
-        $this->color('button_border_color', 'Color del borde', '.obx-cta__button', 'border-color');
-        $this->color('button_hover_text_color', 'Color del texto al pasar el ratón', '.obx-cta__button:hover', 'color');
-        $this->color('button_hover_background_color', 'Fondo al pasar el ratón', '.obx-cta__button:hover', 'background-color');
-        $this->color('button_hover_border_color', 'Borde al pasar el ratón', '.obx-cta__button:hover', 'border-color');
+        $this->start_controls_tabs('button_tabs');
+        foreach (['' => ['normal', 'Normal', ''], '_hover' => ['hover', 'Al pasar el ratón', ':hover']] as $infix => [$tab, $label, $state]) {
+            $this->start_controls_tab('button_' . $tab, ['label'=>$label]);
+            $this->color('button' . $infix . '_text_color', 'Color del texto', '.obx-cta__button' . $state, 'color');
+            $this->color('button' . $infix . '_background_color', 'Fondo', '.obx-cta__button' . $state, 'background-color');
+            $this->color('button' . $infix . '_border_color', 'Color del borde', '.obx-cta__button' . $state, 'border-color');
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
         $this->slider('button_border_width', 'Grosor del borde', '.obx-cta__button', 'border-width: {{SIZE}}{{UNIT}}; border-style: solid;', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>20]],'separator'=>'before']);
         $this->slider('button_border_radius', 'Radio del borde', '.obx-cta__button', 'border-radius: {{SIZE}}{{UNIT}};', ['range'=>['px'=>['max'=>100]]]);
         $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'button_box_shadow','selector'=>'{{WRAPPER}} .obx-cta__button']);
@@ -314,16 +320,23 @@ final class Call_To_Action extends Element {
         $this->start_controls_section('hover_effects', ['label'=>'Efectos al pasar el ratón','tab'=>Controls_Manager::TAB_STYLE]);
         $this->add_control('content_hover_heading', ['label'=>'Contenido','type'=>Controls_Manager::HEADING,'condition'=>['skin'=>'cover']]);
         $this->add_control('content_animation', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'grow','options'=>self::ANIMATIONS,'condition'=>['skin'=>'cover']]);
+        $this->add_control('animation_class', ['type'=>Controls_Manager::HIDDEN,'default'=>'animated-content','prefix_class'=>'obx-cta--','condition'=>['content_animation!'=>'']]);
         $this->add_control('content_animation_duration', ['label'=>'Duración (ms)','type'=>Controls_Manager::SLIDER,'size_units'=>['px'],'default'=>['size'=>1000],'range'=>['px'=>['min'=>0,'max'=>3000,'step'=>100]],'selectors'=>self::css('.obx-cta__content > *', 'transition-duration: {{SIZE}}ms;'),'condition'=>['content_animation!'=>'','skin'=>'cover']]);
         $this->add_control('sequenced_animation', ['label'=>'Animación escalonada','type'=>Controls_Manager::SWITCHER,'condition'=>['content_animation!'=>'','skin'=>'cover']]);
         $this->add_control('background_hover_heading', ['label'=>'Fondo','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>['skin'=>'cover']]);
         $this->add_control('transformation', ['label'=>'Animación','type'=>Controls_Manager::SELECT,'default'=>'zoom-in','options'=>[''=>'Ninguna','zoom-in'=>'Acercar','zoom-out'=>'Alejar','move-left'=>'Mover a la izquierda','move-right'=>'Mover a la derecha','move-up'=>'Mover arriba','move-down'=>'Mover abajo']]);
+        $this->start_controls_tabs('bg_effects_tabs');
+        $this->start_controls_tab('bg_effects_normal', ['label'=>'Normal']);
         $this->color('overlay_color', 'Color de la capa', '.obx-cta__bg-overlay', 'background-color');
-        $this->add_control('overlay_blend_mode', ['label'=>'Modo de fusión','type'=>Controls_Manager::SELECT,'options'=>[''=>'Normal','multiply'=>'Multiplicar','screen'=>'Trama','overlay'=>'Superponer','darken'=>'Oscurecer','lighten'=>'Aclarar','color-dodge'=>'Sobreexponer color','color-burn'=>'Subexponer color','hue'=>'Tono','saturation'=>'Saturación','color'=>'Color','exclusion'=>'Exclusión','luminosity'=>'Luminosidad'],'selectors'=>self::css('.obx-cta__bg-overlay', 'mix-blend-mode: {{VALUE}};')]);
         $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>'bg_filters','selector'=>'{{WRAPPER}} .obx-cta__bg-image']);
-        $this->color('overlay_color_hover', 'Color de la capa al pasar el ratón', '.obx-cta:hover .obx-cta__bg-overlay', 'background-color', ['separator'=>'before']);
+        $this->add_control('overlay_blend_mode', ['label'=>'Modo de fusión','type'=>Controls_Manager::SELECT,'options'=>[''=>'Normal','multiply'=>'Multiplicar','screen'=>'Trama','overlay'=>'Superponer','darken'=>'Oscurecer','lighten'=>'Aclarar','color-dodge'=>'Sobreexponer color','color-burn'=>'Subexponer color','hue'=>'Tono','saturation'=>'Saturación','color'=>'Color','exclusion'=>'Exclusión','luminosity'=>'Luminosidad'],'selectors'=>self::css('.obx-cta__bg-overlay', 'mix-blend-mode: {{VALUE}};')]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('bg_effects_hover', ['label'=>'Al pasar el ratón']);
+        $this->color('overlay_color_hover', 'Color de la capa', '.obx-cta:hover .obx-cta__bg-overlay', 'background-color');
         $this->add_group_control(Group_Control_Css_Filter::get_type(), ['name'=>'bg_filters_hover','selector'=>'{{WRAPPER}} .obx-cta:hover .obx-cta__bg-image']);
         $this->add_control('effect_duration', ['label'=>'Duración de la transición (ms)','type'=>Controls_Manager::SLIDER,'size_units'=>['px'],'default'=>['size'=>1500],'range'=>['px'=>['min'=>0,'max'=>3000,'step'=>100]],'selectors'=>self::css('.obx-cta__bg-image, .obx-cta__bg-overlay, .obx-cta__content', 'transition-duration: {{SIZE}}ms;'),'separator'=>'before']);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->end_controls_section();
     }
 

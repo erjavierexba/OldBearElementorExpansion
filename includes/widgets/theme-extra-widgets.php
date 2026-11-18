@@ -129,49 +129,88 @@ final class Post_Navigation extends Element {
     public function get_keywords(): array { return ['navigation','navegacion','anterior','siguiente','previous','next']; }
     protected function is_dynamic_content(): bool { return true; }
     public function get_script_depends(): array { return []; }
-    public static function wants_upgrade(string $name, array $settings): bool { return false; }
+    /** Public post types with taxonomies, as offered by Pro's «In same term». */
+    private static function term_post_types(): array {
+        $types = [];
+        foreach (get_post_types(['public'=>true], 'objects') as $type) {
+            $taxonomies = [];
+            foreach (get_object_taxonomies($type->name, 'objects') as $taxonomy) { if ($taxonomy->public) { $taxonomies[$taxonomy->name] = $taxonomy->label; } }
+            if ($taxonomies) { $types[$type->name] = ['label'=>$type->label,'taxonomies'=>$taxonomies]; }
+        }
+        return $types;
+    }
+
+    /** Earlier versions: «arrow» select (one class for both sides) and «in_same_term» as a switcher. */
+    public static function wants_upgrade(string $name, array $settings): bool {
+        return $name === static::PRO && (isset($settings['arrow']) || ($settings['in_same_term'] ?? null) === 'yes');
+    }
+    protected static function upgrade_settings(array $s): array {
+        if (isset($s['arrow'])) {
+            $icon = str_replace('fa fa-', 'fas fa-', (string) $s['arrow']);
+            if ($icon !== 'fas fa-angle-left') {
+                $s['arrow_previous_icon'] ??= ['value'=>$icon,'library'=>'fa-solid'];
+                $s['arrow_next_icon'] ??= ['value'=>str_replace('left', 'right', $icon),'library'=>'fa-solid'];
+            }
+            unset($s['arrow']);
+        }
+        if (($s['in_same_term'] ?? null) === 'yes') { $s['in_same_term'] = array_keys(self::term_post_types()); }
+        return $s;
+    }
+
+    /** Normal / hover tabs with the hover transition, as in Pro's three style sections. */
+    private function state_tabs(string $tabs, string $color, string $hover, string $selector, string $hover_selector, array $condition): void {
+        $this->start_controls_tabs($tabs, ['condition'=>$condition]);
+        $this->start_controls_tab($tabs . '_normal', ['label'=>'Normal','condition'=>$condition]);
+        $this->color($color, 'Color', $selector, 'color', ['condition'=>$condition]);
+        $this->end_controls_tab();
+        $this->start_controls_tab($tabs . '_hover', ['label'=>'Al pasar el ratón','condition'=>$condition]);
+        $this->color($hover, 'Color', $hover_selector, 'color', ['condition'=>$condition]);
+        $this->slider($hover . '_transition_duration', 'Duración de la transición', $selector, 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['s','ms','custom'],'default'=>['unit'=>'ms'],'range'=>['s'=>['min'=>0,'max'=>3,'step'=>0.1],'ms'=>['min'=>0,'max'=>3000,'step'=>100]],'condition'=>$condition]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
+    }
 
     protected function register_controls(): void {
         $this->start_controls_section('section_post_navigation_content', ['label'=>'Navegación']);
         $this->add_control('show_label', ['label'=>'Etiqueta','type'=>Controls_Manager::SWITCHER,'default'=>'yes']);
-        $this->add_control('prev_label', ['label'=>'Etiqueta anterior','type'=>Controls_Manager::TEXT,'default'=>'Anterior','condition'=>['show_label'=>'yes']]);
-        $this->add_control('next_label', ['label'=>'Etiqueta siguiente','type'=>Controls_Manager::TEXT,'default'=>'Siguiente','condition'=>['show_label'=>'yes']]);
+        $this->add_control('prev_label', ['label'=>'Etiqueta anterior','type'=>Controls_Manager::TEXT,'default'=>'Anterior','dynamic'=>['active'=>true],'condition'=>['show_label'=>'yes']]);
+        $this->add_control('next_label', ['label'=>'Etiqueta siguiente','type'=>Controls_Manager::TEXT,'default'=>'Siguiente','dynamic'=>['active'=>true],'condition'=>['show_label'=>'yes']]);
         $this->add_control('show_arrow', ['label'=>'Flechas','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before']);
-        $this->add_control('arrow', ['label'=>'Tipo de flecha','type'=>Controls_Manager::SELECT,'default'=>'fa fa-angle-left','options'=>['fa fa-angle-left'=>'Ángulo','fa fa-angle-double-left'=>'Doble ángulo','fa fa-chevron-left'=>'Galón','fa fa-chevron-circle-left'=>'Galón en círculo','fa fa-caret-left'=>'Triángulo','fa fa-arrow-left'=>'Flecha','fa fa-long-arrow-left'=>'Flecha larga','fa fa-arrow-circle-left'=>'Flecha en círculo','fa fa-arrow-circle-o-left'=>'Flecha en círculo (contorno)'],'condition'=>['show_arrow'=>'yes']]);
+        $this->add_control('arrow_previous_icon', ['label'=>'Flecha anterior','type'=>Controls_Manager::ICONS,'default'=>['value'=>'fas fa-angle-left','library'=>'fa-solid'],'skin'=>'inline','label_block'=>false,'recommended'=>['fa-solid'=>['angle-left','angle-double-left','chevron-left','chevron-circle-left','caret-left','arrow-left','long-arrow-alt-left','arrow-circle-left','arrow-alt-circle-left']],'condition'=>['show_arrow'=>'yes']]);
+        $this->add_control('arrow_next_icon', ['label'=>'Flecha siguiente','type'=>Controls_Manager::ICONS,'default'=>['value'=>'fas fa-angle-right','library'=>'fa-solid'],'skin'=>'inline','label_block'=>false,'recommended'=>['fa-solid'=>['angle-right','angle-double-right','chevron-right','chevron-circle-right','caret-right','arrow-right','long-arrow-alt-right','arrow-circle-right','arrow-alt-circle-right']],'condition'=>['show_arrow'=>'yes']]);
         $this->add_control('show_title', ['label'=>'Título de la entrada','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before']);
         $this->add_control('show_borders', ['label'=>'Separadores','type'=>Controls_Manager::SWITCHER,'default'=>'yes','separator'=>'before']);
-        $this->add_control('in_same_term', ['label'=>'Solo del mismo término','type'=>Controls_Manager::SWITCHER,'default'=>'','separator'=>'before']);
-        foreach (get_post_types(['public'=>true], 'objects') as $type) {
-            $taxonomies = [];
-            foreach (get_object_taxonomies($type->name, 'objects') as $taxonomy) { if ($taxonomy->public && $taxonomy->hierarchical !== null) { $taxonomies[$taxonomy->name] = $taxonomy->label; } }
-            if (!$taxonomies) { continue; }
-            $this->add_control($type->name . '_taxonomy', ['label'=>'Taxonomía','type'=>Controls_Manager::SELECT,'default'=>(string) array_key_first($taxonomies),'options'=>$taxonomies,'condition'=>['in_same_term'=>'yes']]);
+        $types = self::term_post_types();
+        $this->add_control('in_same_term', ['label'=>'Solo del mismo término en','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>array_map(static fn(array $t): string => $t['label'], $types),'separator'=>'before','description'=>'Muestra solo entradas que comparten un término de la taxonomía elegida.']);
+        foreach ($types as $name => $type) {
+            $this->add_control($name . '_taxonomy', ['label'=>'Taxonomía de ' . $type['label'],'type'=>Controls_Manager::SELECT,'default'=>(string) array_key_first($type['taxonomies']),'options'=>$type['taxonomies'],'condition'=>['in_same_term'=>$name]]);
         }
         $this->end_controls_section();
 
-        $this->start_controls_section('label_style', ['label'=>'Etiqueta','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_label'=>'yes']]);
-        $this->color('label_color', 'Color', '.obx-postnav__label');
-        $this->color('label_hover_color', 'Color al pasar el ratón', '.obx-postnav a:hover .obx-postnav__label');
-        $this->typography('label_typography', '.obx-postnav__label');
+        $label = ['show_label'=>'yes'];
+        $this->start_controls_section('label_style', ['label'=>'Etiqueta','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$label]);
+        $this->state_tabs('tabs_label_style', 'label_color', 'label_hover_color', '.obx-postnav__label', '.obx-postnav a:hover .obx-postnav__label', $label);
+        $this->typography('label_typography', '.obx-postnav__label', ['condition'=>$label,'exclude'=>['line_height'],'separator'=>'before']);
         $this->end_controls_section();
 
-        $this->start_controls_section('title_style', ['label'=>'Título','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_title'=>'yes']]);
-        $this->color('text_color', 'Color', '.obx-postnav__title');
-        $this->color('hover_color', 'Color al pasar el ratón', '.obx-postnav a:hover .obx-postnav__title');
-        $this->typography('title_typography', '.obx-postnav__title');
+        $title = ['show_title'=>'yes'];
+        $this->start_controls_section('title_style', ['label'=>'Título','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$title]);
+        $this->state_tabs('tabs_post_navigation_style', 'text_color', 'hover_color', '.obx-postnav__title', '.obx-postnav a:hover .obx-postnav__title', $title);
+        $this->typography('title_typography', '.obx-postnav__title', ['condition'=>$title,'exclude'=>['line_height'],'separator'=>'before']);
         $this->end_controls_section();
 
-        $this->start_controls_section('arrow_style', ['label'=>'Flecha','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_arrow'=>'yes']]);
-        $this->color('arrow_color', 'Color', '.obx-postnav__arrow');
-        $this->color('arrow_hover_color', 'Color al pasar el ratón', '.obx-postnav a:hover .obx-postnav__arrow');
-        $this->slider('arrow_size', 'Tamaño', '.obx-postnav__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>6,'max'=>300]]], true);
-        $this->slider('arrow_padding', 'Separación', '.obx-postnav', '--obx-arrow-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>50]]], true);
+        $arrow = ['show_arrow'=>'yes'];
+        $this->start_controls_section('arrow_style', ['label'=>'Flecha','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$arrow]);
+        $this->state_tabs('tabs_post_navigation_arrow_style', 'arrow_color', 'arrow_hover_color', '.obx-postnav__arrow', '.obx-postnav a:hover .obx-postnav__arrow', $arrow);
+        $this->slider('arrow_size', 'Tamaño', '.obx-postnav__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['min'=>6,'max'=>300]],'condition'=>$arrow,'separator'=>'before'], true);
+        $this->slider('arrow_padding', 'Separación', '.obx-postnav', '--obx-arrow-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>50]],'condition'=>$arrow], true);
         $this->end_controls_section();
 
-        $this->start_controls_section('borders_section_style', ['label'=>'Separadores','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_borders!'=>'']]);
-        $this->color('sep_color', 'Color', '.obx-postnav', '--obx-postnav-border');
-        $this->slider('borders_width', 'Grosor', '.obx-postnav', '--obx-postnav-border-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px'],'range'=>['px'=>['max'=>10]]]);
-        $this->slider('borders_spacing', 'Separación', '.obx-postnav', '--obx-postnav-border-spacing: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]]);
+        $borders = ['show_borders!'=>''];
+        $this->start_controls_section('borders_section_style', ['label'=>'Separadores','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$borders]);
+        $this->color('sep_color', 'Color', '.obx-postnav', '--obx-postnav-border', ['condition'=>$borders]);
+        $this->slider('borders_width', 'Grosor', '.obx-postnav', '--obx-postnav-border-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px'],'range'=>['px'=>['max'=>10]],'condition'=>$borders]);
+        $this->slider('borders_spacing', 'Separación', '.obx-postnav', '--obx-postnav-border-spacing: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>100]],'condition'=>$borders]);
         $this->end_controls_section();
     }
 
@@ -179,9 +218,9 @@ final class Post_Navigation extends Element {
         if (!$post) { return '<span class="obx-postnav__' . $dir . ' is-empty"></span>'; }
         $arrow = '';
         if (($s['show_arrow'] ?? 'yes') === 'yes') {
-            $icon = (string) ($s['arrow'] ?? 'fa fa-angle-left');
-            if ($dir === 'next') { $icon = str_replace('left', 'right', $icon); }
-            $arrow = '<span class="obx-postnav__arrow" aria-hidden="true">' . (Icons_Manager::try_get_icon_html(['value'=>$icon,'library'=>'fa-solid'], ['aria-hidden'=>'true']) ?: ($dir === 'prev' ? '‹' : '›')) . '</span>';
+            $icon = $s[$dir === 'prev' ? 'arrow_previous_icon' : 'arrow_next_icon'] ?? [];
+            $html = is_array($icon) && !empty($icon['value']) ? Icons_Manager::try_get_icon_html($icon, ['aria-hidden'=>'true']) : '';
+            $arrow = '<span class="obx-postnav__arrow" aria-hidden="true">' . ($html ?: ($dir === 'prev' ? '‹' : '›')) . '</span>';
         }
         $text = '';
         if (($s['show_label'] ?? 'yes') === 'yes') { $text .= '<span class="obx-postnav__label">' . esc_html((string) ($s[$dir . '_label'] ?? '')) . '</span>'; }
@@ -196,7 +235,8 @@ final class Post_Navigation extends Element {
         if (!$post) { $this->placeholder('No hay ninguna entrada que mostrar.'); return; }
         $previous = $GLOBALS['post'] ?? null;
         $GLOBALS['post'] = $post;
-        $same = ($s['in_same_term'] ?? '') === 'yes';
+        $same_in = $s['in_same_term'] ?? [];
+        $same = $same_in === 'yes' || in_array($post->post_type, (array) $same_in, true);
         $taxonomy = (string) ($s[$post->post_type . '_taxonomy'] ?? 'category');
         $taxonomy = taxonomy_exists($taxonomy) ? $taxonomy : 'category';
         $prev = get_adjacent_post($same, '', true, $taxonomy);

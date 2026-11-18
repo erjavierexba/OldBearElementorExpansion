@@ -353,6 +353,16 @@ try {
     $assert(!str_contains($html, 'obx-pointer'), 'nav-menu: sin indicador en la disposición desplegable, como en Pro.');
     $assert(has_filter('nav_menu_link_attributes') === $link_filters, 'nav-menu: el filtro de los enlaces se quita después de pintar.');
     wp_delete_nav_menu($menu_id);
+    // 0.11.0 Post Navigation: Pro's arrow icons, «in same term» per post type, normal/hover tabs with transition.
+    $pn = Elementor::$instance->widgets_manager->get_widget_types('post-navigation')->get_controls();
+    foreach (['arrow_previous_icon','arrow_next_icon','tabs_label_style','label_hover_color_transition_duration','tabs_post_navigation_style','hover_color_transition_duration','tabs_post_navigation_arrow_style','arrow_hover_color_transition_duration','post_taxonomy'] as $key) { $assert(isset($pn[$key]), "post-navigation: falta {$key}."); }
+    $assert(($pn['in_same_term']['type'] ?? '') === 'select2' && isset($pn['in_same_term']['options']['post']) && ($pn['post_taxonomy']['condition']['in_same_term'] ?? '') === 'post' && !isset($pn['arrow']) && ($pn['arrow_next_icon']['default']['value'] ?? '') === 'fas fa-angle-right', 'post-navigation: «mismo término» por tipo de contenido y flechas de Pro.');
+    $old = \OldBearExpansion\Widgets\Post_Navigation::convert('post-navigation', ['arrow'=>'fa fa-chevron-left','in_same_term'=>'yes']);
+    $assert(($old['arrow_previous_icon']['value'] ?? '') === 'fas fa-chevron-left' && ($old['arrow_next_icon']['value'] ?? '') === 'fas fa-chevron-right' && in_array('post', (array) ($old['in_same_term'] ?? []), true) && !isset($old['arrow']), 'post-navigation: las flechas y el «mismo término» antiguos se convierten.');
+    // 0.11.0 Call to Action: Pro's colour, button and background-effect tabs.
+    $cc = Elementor::$instance->widgets_manager->get_widget_types('call-to-action')->get_controls();
+    foreach (['color_tabs','button_tabs','bg_effects_tabs','animation_class'] as $key) { $assert(isset($cc[$key]), "call-to-action: falta {$key}."); }
+    $assert(($cc['animation_class']['default'] ?? '') === 'animated-content' && isset($cc['button_hover_text_color'], $cc['overlay_color_hover'], $cc['effect_duration']), 'call-to-action: pestañas de Pro sin perder claves.');
     $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
     $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);
     $assert(wp_list_pluck($kids, 'term_id') === [$sub['term_id']], 'Bucle de términos: hijos de un término.');
