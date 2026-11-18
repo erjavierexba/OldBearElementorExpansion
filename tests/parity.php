@@ -234,7 +234,8 @@ try {
     $t1 = wp_insert_term('obx-uno ' . $uid(), 'category'); $terms[] = $t1['term_id'];
     $t2 = wp_insert_term('obx-dos ' . $uid(), 'category'); $terms[] = $t2['term_id'];
     $render = static function (array $settings) use ($save, $container, $widget) {
-        $id = $save('page', 'Paridad rejilla', [$container([$widget('loop-grid', $settings)])]);
+        $type = $settings['__widget'] ?? 'loop-grid'; unset($settings['__widget']);
+        $id = $save('page', 'Paridad rejilla', [$container([$widget($type, $settings)])]);
         return (string) Elementor::$instance->frontend->get_builder_content_for_display($id);
     };
     $html = $render(['template_id'=>(string) $term_item,'_skin'=>'post_taxonomy','post_taxonomy_query_post_type'=>'category','post_taxonomy_query_filter_by'=>'manual_selection','post_taxonomy_posts_ids'=>[(string) $t1['term_id'],(string) $t2['term_id']],'post_taxonomy_order'=>'ASC']);
@@ -262,6 +263,16 @@ try {
     $assert(!str_contains($html, 'e-page-'), 'Sin paginación independiente se usa la paginación de WordPress, como en Pro.');
     $html = $render(['posts_per_page'=>3] + $base + ['alternate_template'=>'yes','alternate_templates'=>[['_id'=>'a1','template_id'=>(string) $term_item,'repeat_template'=>1,'show_once'=>'yes','static_position'=>'yes']]]);
     $assert(substr_count($html, 'data-elementor-type="loop-item" data-post-id=') === 4 && substr_count($html, 'Paridad carga') === 3, 'Plantilla alternativa en posición fija: se añade sin quitar sitio a las entradas.');
+
+    // §5 Loop Carousel: skins, Pro's carousel settings, arrow placement and pagination styles.
+    $lc = Elementor::$instance->widgets_manager->get_widget_types('loop-carousel')->get_controls();
+    foreach (['_skin','edit_handle_selector','post_taxonomy_query_post_type','product_query_post_type','direction','offset_sides','offset_width','navigation_previous_icon_horizontal_orientation','navigation_previous_icon_horizontal_position','navigation_previous_icon_vertical_orientation','navigation_previous_icon_vertical_position','navigation_next_icon_horizontal_orientation','navigation_next_icon_vertical_position','arrow_normal_color','arrow_hover_color','arrows_normal_background_background','arrows_hover_background_background','arrows_normal_border_type_border','arrows_hover_border_type_border','arrows_normal_box_shadow_box_shadow_type','arrows_hover_box_shadow_box_shadow_type','arrows_position','arrows_border_radius','arrows_padding','dots_gap','dots_size','dots_normal_color','dots_hover_color','dots_custom_position','dots_horizontal_position','dots_horizontal_offset','dots_vertical_position','dots_vertical_offset','dots_position','dots_pagination_spacing','typography_fraction_typography','fraction_color','fraction_custom_position','fraction_horizontal_position','fraction_vertical_offset','fraction_position','fraction_pagination_spacing','progressbar_height','progressbar_normal_color','progressbar_hover_color','slides_to_show','slides_to_scroll','image_spacing_custom'] as $key) { $assert(isset($lc[$key]), "loop-carousel: falta {$key}."); }
+    $assert(($lc['edit_handle_selector']['default'] ?? '') === '.elementor-loop-container' && ($lc['offset_width']['default']['size'] ?? 0) === 80 && ($lc['navigation_next_icon_horizontal_orientation']['default'] ?? '') === 'end' && ($lc['dots_vertical_position']['default'] ?? '') === 'end' && ($lc['navigation_previous_icon']['default']['value'] ?? '') === 'eicon-chevron-left' && ($lc['slides_to_show']['default'] ?? '') === '3', 'loop-carousel: valores por defecto de Pro.');
+    $assert(!isset($lc['arrows_normal_color']) && !isset($lc['dots_color_inactive']), 'loop-carousel: sin las claves propias antiguas.');
+    $old = \OldBearExpansion\Widgets\Loop_Carousel::convert('loop-carousel', ['arrows_normal_color'=>'#111','dots_color_active'=>'#222']);
+    $assert(($old['arrow_normal_color'] ?? '') === '#111' && ($old['dots_hover_color'] ?? '') === '#222' && !isset($old['arrows_normal_color']), 'loop-carousel: las claves de versiones anteriores se convierten.');
+    $html = $render(['template_id'=>(string) $term_item,'_skin'=>'post_taxonomy','post_taxonomy_query_filter_by'=>'manual_selection','post_taxonomy_posts_ids'=>[(string) $t1['term_id'],(string) $t2['term_id']],'direction'=>'rtl'] + ['__widget'=>'loop-carousel']);
+    $assert(substr_count($html, 'data-term-id=') === 2 && str_contains($html, 'dir="rtl"') && str_contains($html, 'obx-carousel__slide'), 'loop-carousel: bucle de términos en carrusel, de derecha a izquierda.');
 
     if (!empty($pid) && get_post($pid)) {
         $product_item = $save('loop-item', 'Paridad producto', [$container([$widget('theme-post-title')])], ['source'=>'product']);

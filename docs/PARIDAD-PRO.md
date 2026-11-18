@@ -166,9 +166,11 @@ El detalle de cada ajuste está en el anexo A. Las carencias funcionales que má
   - [x] Paginación de Pro: carga AJAX con desplazamiento, paginación independiente, botón «Cargar más» con los estilos de botón de Elementor (claves de `Button_Trait`), icono de carga y mensaje final opcional. Se corrigió además que «Cargar más» y el desplazamiento infinito no funcionaban en Loop Grid.
   - [x] Mensaje de «sin resultados» (`enable_nothing_found_message`, etiqueta, alineación y estilos) y plantillas alternativas en posición fija (`static_position`).
   - Lo que queda en el inventario son opciones propias de cada sitio (tipos de contenido y términos) y pestañas de la interfaz sin datos (`*_query_args`, `pagination_colors`).
-- **Loop Carousel**:
-  - fuente `_skin` (entradas, productos o términos) y sus consultas;
-  - dirección, desplazamiento lateral, posición de las flechas por orientación, estilos de flechas, puntos y fracción.
+- **Loop Carousel** (0.9.0, a la par salvo `e_display_conditions`):
+  - [x] `_skin` y las mismas consultas que Loop Grid, también con términos.
+  - [x] `direction`, `offset_sides`/`offset_width` (diapositivas vecinas visibles), posición de cada flecha por orientación y desplazamiento, flechas dentro o fuera, estilos normal/hover de flechas (color, fondo, borde y sombra), puntos (colores, posición personalizada, dentro o fuera), fracción (tipografía, color y posición) y barra de progreso.
+  - [x] Iconos y valores por defecto de Pro (`eicon-chevron-*`, 3/2/1 diapositivas). Las claves propias anteriores (`arrows_normal_color`, `dots_color_*`) se convierten al abrir.
+  - Los métodos de navegación de Pro están en el trait `Carousel` para aplicarlos después al carrusel anidado (§5, fase 0.11.0).
 - **Search** (buscador de Pro):
   - resultados en directo (`live_results`, `template_id`, `minimum_search_characters`, `number_of_items`, `enable_loader`) y consulta `search_query_*`;
   - paginación, mensaje de "sin resultados", botón de limpiar y estilos de resultados.

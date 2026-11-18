@@ -4,6 +4,7 @@ namespace OldBearExpansion\Widgets;
 use Elementor\Controls_Manager;
 use Elementor\Group_Control_Background;
 use Elementor\Group_Control_Border;
+use Elementor\Group_Control_Box_Shadow;
 use Elementor\Group_Control_Css_Filter;
 use Elementor\Group_Control_Image_Size;
 use Elementor\Icons_Manager;
@@ -45,6 +46,97 @@ trait Carousel {
         $this->color('pagination_color_inactive', 'Color', '.obx-carousel__pagination', '--obx-dot-inactive', ['condition'=>['pagination!'=>'']]);
         $this->color('pagination_color', 'Color activo', '.obx-carousel__pagination', '--obx-dot-active', ['condition'=>['pagination!'=>'']]);
         $this->end_controls_section();
+    }
+
+    /** Direction and partly visible side slides (Pro's direction, offset_sides, offset_width). */
+    protected function carousel_offset_controls(string $loop_key): void {
+        $this->add_control('direction', ['label'=>'Dirección','type'=>Controls_Manager::SELECT,'default'=>'ltr','options'=>['ltr'=>'De izquierda a derecha','rtl'=>'De derecha a izquierda'],'separator'=>'before']);
+        $this->add_control('offset_sides', ['label'=>'Mostrar parte de las diapositivas vecinas','type'=>Controls_Manager::SELECT,'default'=>'none','options'=>['none'=>'No','both'=>'A ambos lados','left'=>'A la izquierda','right'=>'A la derecha'],'prefix_class'=>'obx-carousel-offset-','condition'=>[$loop_key=>'yes']]);
+        $this->add_responsive_control('offset_width', ['label'=>'Ancho visible','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vw'],'default'=>['unit'=>'px','size'=>80],'range'=>['px'=>['max'=>500]],'selectors'=>['{{WRAPPER}} .obx-carousel'=>'--obx-offset: {{SIZE}}{{UNIT}};'],'condition'=>['offset_sides!'=>'none',$loop_key=>'yes']]);
+    }
+
+    /** Arrow placement by orientation, as Pro stores it (navigation_{previous,next}_icon_{horizontal,vertical}_*). */
+    protected function carousel_arrow_position_controls(string $arrows_key, array $condition = []): void {
+        $h = ['start'=>['title'=>'Inicio','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'end'=>['title'=>'Final','icon'=>'eicon-h-align-right']];
+        $v = ['start'=>['title'=>'Arriba','icon'=>'eicon-v-align-top'],'center'=>['title'=>'Centro','icon'=>'eicon-v-align-middle'],'end'=>['title'=>'Abajo','icon'=>'eicon-v-align-bottom']];
+        $hd = ['start'=>'inset-inline-start: var(--obx-arrow-h, 0px); inset-inline-end: auto; --obx-arrow-tx: 0%;','center'=>'inset-inline-start: calc(50% + var(--obx-arrow-h, 0px)); inset-inline-end: auto; --obx-arrow-tx: -50%;','end'=>'inset-inline-start: auto; inset-inline-end: var(--obx-arrow-h, 0px); --obx-arrow-tx: 0%;'];
+        $vd = ['start'=>'top: var(--obx-arrow-v, 0px); --obx-arrow-ty: 0%;','center'=>'top: calc(50% + var(--obx-arrow-v, 0px)); --obx-arrow-ty: -50%;','end'=>'top: calc(100% - var(--obx-arrow-v, 0px)); --obx-arrow-ty: -100%;'];
+        $when = [$arrows_key=>'yes'] + $condition;
+        foreach (['previous'=>['prev','start'],'next'=>['next','end']] as $name => [$class, $side]) {
+            $selector = '{{WRAPPER}} .obx-carousel__arrow--' . $class;
+            $label = $name === 'previous' ? 'anterior' : 'siguiente';
+            $this->add_responsive_control('navigation_' . $name . '_icon_horizontal_orientation', ['label'=>'Flecha ' . $label . ': horizontal','type'=>Controls_Manager::CHOOSE,'default'=>$side,'options'=>$h,'toggle'=>false,'selectors_dictionary'=>$hd,'selectors'=>[$selector=>'{{VALUE}}'],'condition'=>$when,'separator'=>$name === 'previous' ? 'before' : 'none']);
+            $this->add_responsive_control('navigation_' . $name . '_icon_horizontal_position', ['label'=>'Desplazamiento horizontal','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vw'],'default'=>['unit'=>'px','size'=>0],'range'=>['px'=>['min'=>-500,'max'=>500],'%'=>['min'=>-100,'max'=>100]],'selectors'=>[$selector=>'--obx-arrow-h: {{SIZE}}{{UNIT}};'],'condition'=>$when]);
+            $this->add_responsive_control('navigation_' . $name . '_icon_vertical_orientation', ['label'=>'Flecha ' . $label . ': vertical','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>$v,'toggle'=>false,'selectors_dictionary'=>$vd,'selectors'=>[$selector=>'{{VALUE}}'],'condition'=>$when]);
+            $this->add_responsive_control('navigation_' . $name . '_icon_vertical_position', ['label'=>'Desplazamiento vertical','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vh'],'default'=>['unit'=>'px','size'=>0],'range'=>['px'=>['min'=>-500,'max'=>500],'%'=>['min'=>-100,'max'=>100]],'selectors'=>[$selector=>'--obx-arrow-v: {{SIZE}}{{UNIT}};'],'condition'=>$when]);
+        }
+    }
+
+    /** Arrows, dots, fraction and progress bar styles with Pro's keys («section_design_navigation», «section_pagination_design»). */
+    protected function carousel_pro_navigation_style(string $arrows_key, array $condition = []): void {
+        $arrow = '{{WRAPPER}} .obx-carousel__arrow';
+        $when = [$arrows_key=>'yes'] + $condition;
+        $this->start_controls_section('section_design_navigation', ['label'=>'Flechas','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$when]);
+        $this->slider('arrows_size', 'Tamaño', '.obx-carousel__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>6,'max'=>100]]], true);
+        $this->add_control('arrows_position', ['label'=>'Posición','type'=>Controls_Manager::SELECT,'default'=>'inside','options'=>['inside'=>'Dentro','outside'=>'Fuera'],'prefix_class'=>'obx-carousel-arrows-']);
+        $this->start_controls_tabs('arrows_colors_border_shadow');
+        foreach (['normal'=>[$arrow, 'Normal'],'hover'=>[$arrow . ':hover, ' . $arrow . ':focus-visible', 'Al pasar el ratón']] as $state => [$selector, $label]) {
+            $this->start_controls_tab('arrows_' . $state . '_tab', ['label'=>$label]);
+            $this->add_control('arrow_' . $state . '_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>[$selector=>'color: {{VALUE}}; fill: {{VALUE}};']]);
+            $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'arrows_' . $state . '_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>$selector]);
+            $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'arrows_' . $state . '_border_type','selector'=>$selector]);
+            $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'arrows_' . $state . '_box_shadow','selector'=>$selector]);
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
+        $this->dimensions('arrows_border_radius', 'Radio del borde', '.obx-carousel__arrow', 'border-radius', ['separator'=>'before']);
+        $this->dimensions('arrows_padding', 'Relleno', '.obx-carousel__arrow', 'padding');
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_pagination_design', ['label'=>'Paginación','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['pagination!'=>''] + $condition]);
+        $bullets = ['pagination'=>'bullets'];
+        $fraction = ['pagination'=>'fraction'];
+        $progress = ['pagination'=>'progressbar'];
+        $this->slider('dots_gap', 'Separación entre puntos', '.obx-carousel__pagination--bullets', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>40]],'condition'=>$bullets], true);
+        $this->slider('dots_size', 'Tamaño de los puntos', '.obx-carousel__pagination', '--obx-dot: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>30]],'condition'=>$bullets], true);
+        $this->start_controls_tabs('dots_colors', ['condition'=>$bullets]);
+        $this->start_controls_tab('dots_normal_tab', ['label'=>'Normal']);
+        $this->color('dots_normal_color', 'Color', '.obx-carousel__pagination', '--obx-dot-inactive');
+        $this->end_controls_tab();
+        $this->start_controls_tab('dots_hover_tab', ['label'=>'Activo y al pasar el ratón']);
+        $this->color('dots_hover_color', 'Color', '.obx-carousel__pagination', '--obx-dot-active');
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
+        $this->position_controls('dots', $bullets);
+        $this->typography('typography_fraction', '.obx-carousel__pagination--fraction', ['condition'=>$fraction]);
+        $this->color('fraction_color', 'Color', '.obx-carousel__pagination--fraction', 'color', ['condition'=>$fraction]);
+        $this->position_controls('fraction', $fraction);
+        $this->slider('progressbar_height', 'Altura', '.obx-carousel__pagination--progressbar', 'height: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>20]],'condition'=>$progress], true);
+        $this->start_controls_tabs('progressbar_colors', ['condition'=>$progress]);
+        $this->start_controls_tab('progressbar_normal_tab', ['label'=>'Fondo']);
+        $this->color('progressbar_normal_color', 'Color', '.obx-carousel__pagination--progressbar', '--obx-dot-inactive');
+        $this->end_controls_tab();
+        $this->start_controls_tab('progressbar_hover_tab', ['label'=>'Progreso']);
+        $this->color('progressbar_hover_color', 'Color', '.obx-carousel__pagination--progressbar', '--obx-dot-active');
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
+        $this->slider('dots_pagination_spacing', 'Distancia a las diapositivas', '.obx-carousel__pagination--bullets', 'margin-top: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]],'condition'=>$bullets,'separator'=>'before'], true);
+        $this->slider('fraction_pagination_spacing', 'Distancia a las diapositivas', '.obx-carousel__pagination--fraction, .obx-carousel__pagination--progressbar', 'margin-top: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]],'condition'=>['pagination'=>['fraction','progressbar']],'separator'=>'before'], true);
+        $this->end_controls_section();
+    }
+
+    /** {dots,fraction}_custom_position, _{horizontal,vertical}_{position,offset} and _position (inside/outside). */
+    private function position_controls(string $p, array $condition): void {
+        $selector = '{{WRAPPER}} .obx-carousel__pagination--' . ($p === 'dots' ? 'bullets' : 'fraction');
+        $h = ['start'=>['title'=>'Inicio','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'end'=>['title'=>'Final','icon'=>'eicon-h-align-right']];
+        $v = ['start'=>['title'=>'Arriba','icon'=>'eicon-v-align-top'],'center'=>['title'=>'Centro','icon'=>'eicon-v-align-middle'],'end'=>['title'=>'Abajo','icon'=>'eicon-v-align-bottom']];
+        $this->add_control($p . '_position', ['label'=>'Posición','type'=>Controls_Manager::SELECT,'default'=>'outside','options'=>['outside'=>'Fuera','inside'=>'Dentro'],'prefix_class'=>'obx-carousel-' . $p . '-','condition'=>$condition,'separator'=>'before']);
+        $this->add_control($p . '_custom_position', ['label'=>'Posición personalizada','type'=>Controls_Manager::SWITCHER,'prefix_class'=>'obx-carousel-' . $p . '-custom-','condition'=>$condition]);
+        $on = $condition + [$p . '_custom_position'=>'yes'];
+        $this->add_responsive_control($p . '_horizontal_position', ['label'=>'Horizontal','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>$h,'toggle'=>false,'selectors_dictionary'=>['start'=>'flex-start','center'=>'center','end'=>'flex-end'],'selectors'=>[$selector=>'justify-content: {{VALUE}};'],'condition'=>$on]);
+        $this->add_responsive_control($p . '_horizontal_offset', ['label'=>'Desplazamiento horizontal','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vw'],'default'=>['unit'=>'px','size'=>0],'range'=>['px'=>['min'=>-500,'max'=>500]],'selectors'=>[$selector=>'--obx-pag-x: {{SIZE}}{{UNIT}};'],'condition'=>$on]);
+        $this->add_responsive_control($p . '_vertical_position', ['label'=>'Vertical','type'=>Controls_Manager::CHOOSE,'default'=>'end','options'=>$v,'toggle'=>false,'selectors_dictionary'=>['start'=>'top: 0; bottom: auto; --obx-pag-ty: 0%;','center'=>'top: 50%; bottom: auto; --obx-pag-ty: -50%;','end'=>'top: auto; bottom: 0; --obx-pag-ty: 0%;'],'selectors'=>[$selector=>'{{VALUE}}'],'condition'=>$on]);
+        $this->add_responsive_control($p . '_vertical_offset', ['label'=>'Desplazamiento vertical','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vh'],'default'=>['unit'=>'px','size'=>0],'range'=>['px'=>['min'=>-500,'max'=>500]],'selectors'=>[$selector=>'--obx-pag-y: {{SIZE}}{{UNIT}};'],'condition'=>$on]);
     }
 
     /** @return string data-carousel JSON */

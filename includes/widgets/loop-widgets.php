@@ -141,7 +141,7 @@ final class Loop_Grid extends Element {
     }
 
     /** @return array<string,string> taxonomies for a term skin. */
-    private static function skin_taxonomies(string $skin): array {
+    public static function skin_taxonomies(string $skin): array {
         $taxonomies = [];
         foreach (get_taxonomies(['public'=>true], 'objects') as $taxonomy) {
             $product = in_array('product', (array) $taxonomy->object_type, true);
@@ -298,60 +298,90 @@ final class Loop_Carousel extends Element {
     use Loop_Renderer;
     use Carousel;
     public const PRO = 'loop-carousel';
+    private const TERM_SKINS = ['post_taxonomy','product_taxonomy'];
+    /** Keys of OBX 0.5–0.8 → Pro's. */
+    protected const V03 = ['arrows_normal_color'=>'arrow_normal_color','arrows_hover_color'=>'arrow_hover_color','dots_color_inactive'=>'dots_normal_color','dots_color_active'=>'dots_hover_color'];
 
     public function get_title(): string { return 'Carrusel de bucle'; }
     public function get_icon(): string { return 'eicon-carousel-loop'; }
-    public function get_keywords(): array { return ['loop','bucle','carousel','carrusel','slider','query','posts','entradas']; }
+    public function get_keywords(): array { return ['loop','bucle','carousel','carrusel','slider','query','posts','entradas','productos','términos']; }
     protected function is_dynamic_content(): bool { return true; }
 
+    private function skin(): string {
+        $skin = (string) $this->get_settings('_skin');
+        return isset(Loop_Grid::SKINS[$skin]) ? $skin : 'post';
+    }
+
     protected function register_controls(): void {
+        $has_template = ['template_id!'=>''];
         $this->start_controls_section('section_layout', ['label'=>'Diseño']);
+        $skins = Loop_Grid::SKINS;
+        if (!post_type_exists('product')) { unset($skins['product'], $skins['product_taxonomy']); }
+        $this->add_control('_skin', ['label'=>'Mostrar','type'=>Controls_Manager::SELECT,'default'=>'post','options'=>$skins,'label_block'=>true]);
         $this->template_control();
+        $this->add_control('edit_handle_selector', ['type'=>Controls_Manager::HIDDEN,'default'=>'.elementor-loop-container']);
         $this->add_control('posts_per_page', ['label'=>'Elementos','type'=>Controls_Manager::NUMBER,'default'=>6,'min'=>1,'max'=>50,'separator'=>'before']);
         $this->add_control('equal_height', ['label'=>'Misma altura','type'=>Controls_Manager::SWITCHER,'selectors'=>self::css('.obx-carousel__slide > .e-loop-item, .obx-carousel__slide > .e-loop-item > .elementor', 'height: 100%;')]);
+        $numbers = [''=>'Por defecto'] + array_combine(array_map('strval', range(1, 10)), array_map('strval', range(1, 10)));
+        $this->add_responsive_control('slides_to_show', ['label'=>'Diapositivas visibles','type'=>Controls_Manager::SELECT,'options'=>$numbers,'default'=>'3','tablet_default'=>'2','mobile_default'=>'1','selectors'=>['{{WRAPPER}} .obx-carousel'=>'--obx-slides: {{VALUE}};'],'frontend_available'=>true,'separator'=>'before']);
+        $this->add_responsive_control('slides_to_scroll', ['label'=>'Diapositivas por avance','type'=>Controls_Manager::SELECT,'options'=>$numbers,'default'=>'1','selectors'=>['{{WRAPPER}} .obx-carousel'=>'--obx-scroll: {{VALUE}};'],'frontend_available'=>true]);
         $this->end_controls_section();
 
-        Query::controls($this, 'post_query_');
-
-        $this->start_controls_section('section_carousel_options', ['label'=>'Carrusel']);
-        $this->carousel_controls(['show'=>'slides_to_show','scroll'=>'slides_to_scroll','gap'=>'image_spacing_custom','arrows'=>'arrows','loop'=>'infinite'], ['show'=>'3','show_tablet'=>'2','show_mobile'=>'1']);
-        $this->add_control('navigation_previous_icon', ['label'=>'Icono anterior','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'fas fa-chevron-left','library'=>'fa-solid'],'condition'=>['arrows'=>'yes']]);
-        $this->add_control('navigation_next_icon', ['label'=>'Icono siguiente','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'fas fa-chevron-right','library'=>'fa-solid'],'condition'=>['arrows'=>'yes']]);
+        Query::controls($this, 'post_query_', 'section_query', ['_skin'=>'post'], false);
+        Query::product_controls($this, 'product_query_', ['_skin'=>'product']);
+        Query::term_controls($this, 'post_taxonomy_', Loop_Grid::skin_taxonomies('post_taxonomy'), 'category', ['_skin'=>'post_taxonomy']);
+        Query::term_controls($this, 'product_taxonomy_', Loop_Grid::skin_taxonomies('product_taxonomy'), 'product_cat', ['_skin'=>'product_taxonomy']);
         $this->end_controls_section();
 
-        $this->start_controls_section('section_design_layout', ['label'=>'Diapositivas','tab'=>Controls_Manager::TAB_STYLE]);
-        $this->slider('image_spacing_custom', 'Separación', '.obx-carousel', '--obx-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'default'=>['size'=>10],'range'=>['px'=>['max'=>100]]], true);
+        $this->start_controls_section('section_carousel_settings', ['label'=>'Carrusel']);
+        $this->add_control('autoplay', ['label'=>'Reproducción automática','type'=>Controls_Manager::SWITCHER,'default'=>'yes','frontend_available'=>true]);
+        $this->add_control('autoplay_speed', ['label'=>'Intervalo (ms)','type'=>Controls_Manager::NUMBER,'default'=>5000,'condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control('pause_on_hover', ['label'=>'Pausar al pasar el ratón','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control('pause_on_interaction', ['label'=>'Pausar al interactuar','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['autoplay'=>'yes'],'frontend_available'=>true]);
+        $this->add_control('infinite', ['label'=>'Bucle infinito','type'=>Controls_Manager::SWITCHER,'default'=>'yes','frontend_available'=>true]);
+        $this->add_control('speed', ['label'=>'Duración de la transición (ms)','type'=>Controls_Manager::NUMBER,'default'=>500,'frontend_available'=>true]);
+        $this->carousel_offset_controls('infinite');
         $this->end_controls_section();
 
-        $this->start_controls_section('section_navigation_style', ['label'=>'Navegación','tab'=>Controls_Manager::TAB_STYLE]);
-        $this->slider('arrows_size', 'Tamaño de las flechas', '.obx-carousel__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>6,'max'=>100]],'condition'=>['arrows'=>'yes']], true);
-        $this->color('arrows_normal_color', 'Color', '.obx-carousel__arrow', 'color', ['condition'=>['arrows'=>'yes']]);
-        $this->color('arrows_hover_color', 'Color al pasar el ratón', '.obx-carousel__arrow:hover', 'color', ['condition'=>['arrows'=>'yes']]);
-        $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'arrows_normal_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-carousel__arrow','condition'=>['arrows'=>'yes']]);
-        $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'arrows_normal_border_type','selector'=>'{{WRAPPER}} .obx-carousel__arrow','condition'=>['arrows'=>'yes']]);
-        $this->dimensions('arrows_border_radius', 'Radio del borde', '.obx-carousel__arrow', 'border-radius', ['condition'=>['arrows'=>'yes']]);
-        $this->dimensions('arrows_padding', 'Relleno', '.obx-carousel__arrow', 'padding', ['condition'=>['arrows'=>'yes']]);
-        $this->slider('dots_gap', 'Separación entre puntos', '.obx-carousel__pagination', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>40]],'condition'=>['pagination!'=>''],'separator'=>'before'], true);
-        $this->slider('dots_size', 'Tamaño de los puntos', '.obx-carousel__pagination', '--obx-dot: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>30]],'condition'=>['pagination!'=>'']], true);
-        $this->slider('dots_pagination_spacing', 'Distancia al contenido', '.obx-carousel__pagination', 'margin-top: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]],'condition'=>['pagination!'=>'']], true);
-        $this->color('dots_color_inactive', 'Color de los puntos', '.obx-carousel__pagination', '--obx-dot-inactive', ['condition'=>['pagination!'=>'']]);
-        $this->color('dots_color_active', 'Color del punto activo', '.obx-carousel__pagination', '--obx-dot-active', ['condition'=>['pagination!'=>'']]);
+        $this->start_controls_section('section_navigation_settings', ['label'=>'Flechas','condition'=>$has_template]);
+        $this->add_control('arrows', ['label'=>'Flechas','type'=>Controls_Manager::SWITCHER,'default'=>'yes','frontend_available'=>true]);
+        $this->add_control('navigation_previous_icon', ['label'=>'Icono anterior','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'eicon-chevron-left','library'=>'eicons'],'condition'=>['arrows'=>'yes']]);
+        $this->add_control('navigation_next_icon', ['label'=>'Icono siguiente','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'eicon-chevron-right','library'=>'eicons'],'condition'=>['arrows'=>'yes']]);
+        $this->carousel_arrow_position_controls('arrows', $has_template);
         $this->end_controls_section();
+
+        $this->start_controls_section('section_carousel_pagination', ['label'=>'Paginación']);
+        $this->add_control('pagination', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'bullets','options'=>[''=>'Ninguna','bullets'=>'Puntos','fraction'=>'Fracción','progressbar'=>'Barra de progreso'],'frontend_available'=>true]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('section_layout_style', ['label'=>'Diapositivas','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->slider('image_spacing_custom', 'Separación', '.obx-carousel', '--obx-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'default'=>['unit'=>'px','size'=>10],'range'=>['px'=>['max'=>100]]], true);
+        $this->end_controls_section();
+
+        $this->carousel_pro_navigation_style('arrows', $has_template);
     }
 
     protected function render(): void {
         $s = $this->get_settings_for_display();
         $template = (int) ($s['template_id'] ?? 0);
         if (!$template) { $this->no_template_notice(); return; }
-        $query = $this->loop_query($s, max(1, min(50, (int) ($s['posts_per_page'] ?? 6) ?: 6)), 1);
-        if (!$query->have_posts()) { $this->placeholder('No hay entradas que coincidan con la consulta.'); return; }
+        $count = max(1, min(50, (int) ($s['posts_per_page'] ?? 6) ?: 6));
+        $skin = $this->skin();
+        $items = [];
+        if (in_array($skin, self::TERM_SKINS, true)) {
+            foreach (Query::terms($s, $skin . '_', $skin === 'product_taxonomy' ? 'product_cat' : 'category', $count) as $i => $term) { $items[] = $this->loop_term_item($template, $term, $i === 0); Query::$shown_terms[] = $term->term_id; }
+        } else {
+            $query = $this->loop_query($s, $count, 1, $skin === 'product' ? 'product_query_' : 'post_query_');
+            foreach ($query->posts as $i => $post) { $items[] = $this->loop_item($template, $post, $i === 0); Query::$shown[] = $post->ID; }
+        }
+        if (!$items) { $this->placeholder('No hay contenido que coincida con la consulta.'); return; }
         $prev = !empty($s['navigation_previous_icon']['value']) ? (string) Icons_Manager::try_get_icon_html($s['navigation_previous_icon'], ['aria-hidden'=>'true']) : '';
         $next = !empty($s['navigation_next_icon']['value']) ? (string) Icons_Manager::try_get_icon_html($s['navigation_next_icon'], ['aria-hidden'=>'true']) : '';
-        $count = count($query->posts);
-        echo '<div class="obx-carousel obx-loop-carousel" data-carousel="' . esc_attr($this->carousel_options($s, 'arrows', 'infinite')) . '" role="region" aria-roledescription="carrusel" aria-label="Carrusel"><div class="obx-carousel__track">';
-        foreach ($query->posts as $i => $post) {
-            echo '<div class="obx-carousel__slide" role="group" aria-roledescription="diapositiva" aria-label="' . esc_attr(($i + 1) . ' / ' . $count) . '">' . $this->loop_item($template, $post, $i === 0) . '</div>'; // Elementor output.
-            Query::$shown[] = $post->ID;
+        $total = count($items);
+        $dir = ($s['direction'] ?? 'ltr') === 'rtl' ? ' dir="rtl"' : '';
+        echo '<div class="obx-carousel obx-loop-carousel elementor-loop-container" data-carousel="' . esc_attr($this->carousel_options($s, 'arrows', 'infinite')) . '"' . $dir . ' role="region" aria-roledescription="carrusel" aria-label="Carrusel"><div class="obx-carousel__track">';
+        foreach ($items as $i => $item) {
+            echo '<div class="obx-carousel__slide" role="group" aria-roledescription="diapositiva" aria-label="' . esc_attr(($i + 1) . ' / ' . $total) . '">' . $item . '</div>'; // Elementor output.
         }
         echo '</div>' . $this->carousel_controls_html($s, 'arrows', $prev, $next) . '</div>';
     }
