@@ -543,7 +543,6 @@ try {
         $assert(($old['order_summary_color'] ?? '') === '#123456' && ($old['order_summary_items_typography_typography'] ?? '') === 'custom' && !isset($old['woo_color']), 'woocommerce-cart: los ajustes de versiones anteriores se convierten.');
     }
 
-    if (!empty($pcat)) { wp_delete_term($pchild['term_id'], 'product_cat'); wp_delete_term($pcat['term_id'], 'product_cat'); }
 
     // §5 Search: Pro's keys and defaults, live results through REST, pagination and nothing found.
     $sc = Elementor::$instance->widgets_manager->get_widget_types('search')->get_controls();
@@ -682,6 +681,8 @@ try {
     restore_error_handler();
     foreach (array_reverse($created) as $id) { if (get_post($id)) { wp_delete_post($id, true); } }
     foreach ($terms as $term) { wp_delete_term($term, 'category'); }
+    // Also when a check fails half-way, so failed runs leave no test categories behind.
+    if (!empty($pcat) && is_array($pcat)) { wp_delete_term($pchild['term_id'], 'product_cat'); wp_delete_term($pcat['term_id'], 'product_cat'); }
     Locations::flush();
 }
 WP_CLI::success("{$checks} pruebas de paridad con Elementor Pro superadas.");
