@@ -155,6 +155,7 @@ final class Module {
         require_once DIR . '/includes/widgets/media-widgets.php';
         require_once DIR . '/includes/widgets/lottie-widget.php';
         require_once DIR . '/includes/widgets/portfolio-widget.php';
+        require_once DIR . '/includes/widgets/swiper-widgets.php';
         // Elementor includes its widget files itself (no require_once): ours extending them wait for them.
         if (class_exists('\\Elementor\\Widget_Image', false) && !class_exists('\\OldBearExpansion\\Widgets\\Hotspot', false)) { require DIR . '/includes/widgets/image-widgets.php'; }
         require_once DIR . '/includes/widgets/loop-widgets.php';
@@ -223,6 +224,7 @@ final class Module {
         wp_register_script('obx-widgets', Plugin::url('assets/js/widgets.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         // lottie-web 5.12.2 (MIT, Airbnb) plays the Lottie widget's animations.
         wp_register_script('obx-lottie-web', Plugin::url('assets/vendor/lottie/lottie.min.js'), [], '5.12.2', ['strategy'=>'defer','in_footer'=>true]);
+        wp_register_script('obx-carousels', Plugin::url('assets/js/carousels.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-portfolio', Plugin::url('assets/js/portfolio.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-lottie', Plugin::url('assets/js/lottie.js'), ['obx-lottie-web'], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_add_inline_script('obx-lottie', 'window.obxLottie = ' . wp_json_encode(['defaultAnimationUrl'=>Plugin::url('assets/lottie/default.json')]) . ';', 'before');
