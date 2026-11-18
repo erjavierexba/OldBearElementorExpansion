@@ -818,6 +818,37 @@ try {
         $assert(isset($c['content_wrapper_html_tag'], $c['preview_type']), 'Botones flotantes: claves de vista previa y envoltorio.');
     }
 
+    // 1.0.0 Display conditions per element: Pro's hidden key with [ JSON ] of OR groups of AND conditions.
+    $DC = \OldBearExpansion\Extras\Display_Conditions::class;
+    foreach (['heading'=>'widget','container'=>'container','section'=>'section','column'=>'column'] as $name => $kind) {
+        $element = $kind === 'widget' ? Elementor::$instance->widgets_manager->get_widget_types($name) : Elementor::$instance->elements_manager->get_element_types($name);
+        $ec = $element ? $element->get_controls() : [];
+        $assert(($ec['e_display_conditions']['type'] ?? '') === 'hidden' && isset($ec['e_display_conditions_trigger']), "{$name}: condiciones de visualización con la clave de Pro.");
+    }
+    $json = static fn(array $groups) => [wp_json_encode($groups)];
+    $out = ['condition'=>'login_status','comparator'=>'is','status'=>'logged_out'];
+    $in = ['condition'=>'login_status','comparator'=>'is','status'=>'logged_in'];
+    $page = $save('page', 'Paridad condiciones', [$container([$widget('heading', ['title'=>'Visible para todos']), $widget('heading', ['title'=>'Solo con sesión', 'e_display_conditions'=>$json([[$in]])]), $widget('heading', ['title'=>'Grupo alternativo', 'e_display_conditions'=>$json([[$in], [$out]])])]), $container([$widget('heading', ['title'=>'Hijo oculto'])], ['e_display_conditions'=>$json([[$in]])])]);
+    $was_user = get_current_user_id();
+    wp_set_current_user(0);
+    $assert($DC::groups($json([$out, $in])) === [[$out, $in]], 'Condiciones: una lista plana antigua cuenta como un grupo.');
+    $assert($DC::passes([[$out]]) && !$DC::passes([[$in]]) && !$DC::passes([[$out, $in]]) && $DC::passes([[$in], [$out]]), 'Condiciones: «y» dentro del grupo y «o» entre grupos.');
+    $today = gmdate('m-d-Y');
+    $assert($DC::check(['condition'=>'current_date','comparator'=>'is','date'=>$today]) && $DC::check(['condition'=>'current_date','comparator'=>'is_after','date'=>'01-01-2000']) && !$DC::check(['condition'=>'current_date','comparator'=>'is_before','date'=>'01-01-2000']) && !$DC::check(['condition'=>'current_date','comparator'=>'is','date'=>'2000-01-01']), 'Condiciones: fecha actual (m-d-Y), antes y después.');
+    $assert($DC::check(['condition'=>'day_of_the_week','comparator'=>'is_one_of','days'=>[strtolower(gmdate('l'))]]) && !$DC::check(['condition'=>'day_of_the_week','comparator'=>'is_none_of','days'=>[strtolower(gmdate('l'))]]), 'Condiciones: día de la semana.');
+    $assert($DC::check(['condition'=>'time_of_the_day','comparator'=>'is_after_inclusive','time'=>'01-01-2000 00:00']) && !$DC::check(['condition'=>'time_of_the_day','comparator'=>'is_after','time'=>'01-01-2000 23:59']), 'Condiciones: hora del día.');
+    $assert($DC::check(['condition'=>'from_url','comparator'=>'not_contain','from_url'=>'example']) && $DC::check(['condition'=>'unknown_condition']) && $DC::check(['condition'=>'user_role','comparator'=>'is_none_of','roles'=>['administrator']]), 'Condiciones: URL de origen, condiciones desconocidas y roles.');
+    $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($page);
+    $assert(str_contains($html, 'Visible para todos') && !str_contains($html, 'Solo con sesión') && str_contains($html, 'Grupo alternativo') && !str_contains($html, 'Hijo oculto'), 'Condiciones: oculta widgets y contenedores con sus hijos sin sesión.');
+    $admin = get_users(['role'=>'administrator','number'=>1,'fields'=>'ID']);
+    if ($admin) {
+        wp_set_current_user((int) $admin[0]);
+        $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($page);
+        $assert(str_contains($html, 'Solo con sesión') && str_contains($html, 'Hijo oculto') && !$DC::check(['condition'=>'user_role','comparator'=>'is_none_of','roles'=>['administrator']]), 'Condiciones: con sesión se muestran y el rol se comprueba.');
+    }
+    wp_set_current_user($was_user);
+    $assert(apply_filters('elementor/element/is_dynamic_content', false, ['settings'=>['e_display_conditions'=>$json([[$in]])]], null) === true, 'Condiciones: los elementos con condiciones no salen de la caché de elementos.');
+
     $assert(!$errors, 'Avisos PHP: ' . implode(' | ', array_slice($errors, 0, 4)));
 } finally {
     $frontend->setValue(null, $was_frontend);

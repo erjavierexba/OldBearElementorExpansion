@@ -39,6 +39,8 @@ final class Plugin {
         Dynamic\Tags::boot();
         require_once DIR . '/includes/extras/class-extras.php';
         Extras\Extras::boot();
+        require_once DIR . '/includes/extras/class-display-conditions.php';
+        Extras\Display_Conditions::boot();
         require_once DIR . '/includes/extras/class-site-settings.php';
         Extras\Site_Settings::boot();
         // Site Settings → WooCommerce (store pages, purchase summary page and notices), with Pro's keys.

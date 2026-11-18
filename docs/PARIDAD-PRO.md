@@ -66,9 +66,10 @@ Para regenerarlos:
 - [x] Opción vacía `''` en `motion_fx_translateY_direction`, `motion_fx_translateX_direction` y `motion_fx_rotateZ_direction`.
 - [x] `handle_motion_fx_asset_loading` (oculto).
 - [x] **Efectos de movimiento del fondo** en contenedor, sección y columna: `background_motion_fx_*` (scroll: translateY, translateX, opacidad, desenfoque, rotación y escala; ratón: seguimiento e inclinación; `devices` y `range`). El sitio de referencia A los usa en su cabecera.
-- [ ] **Condiciones de visualización por elemento**: `e_display_conditions` (oculto, cadena JSON escrita por el editor de condiciones de Pro).
-  - Pendiente obtener ejemplos reales del formato guardado: no hay ninguno en los sitios de referencia.
-  - Hace falta interfaz propia (modal en el editor) y evaluación en el servidor: no renderizar el elemento si no se cumple.
+- [x] **Condiciones de visualización por elemento**: `e_display_conditions` (oculto) en widgets, contenedores, secciones y columnas, junto a «Clases CSS» de la pestaña Avanzado, como en Pro.
+  - Formato de Pro: `[ JSON ]`, una lista de grupos (basta con que se cumpla uno) de condiciones (deben cumplirse todas): `{"condition":…,"comparator":…,…}`; fechas `m-d-Y`, horas `m-d-Y H:i`, valores buscables `[{id, text}]`. Una lista plana antigua cuenta como un grupo.
+  - Las 22 condiciones de Pro: sesión, rol, fecha de registro, fecha actual, día de la semana, hora del día (UTC, como Pro), título/padre/autor de la página, título/autor/categorías/etiquetas/imagen destacada/comentarios/fecha de publicación y de modificación de la entrada, archivo de categorías/etiquetas/autores, URL de origen y etiquetas dinámicas (título del archivo, datos de la imagen destacada, datos del autor y campos personalizados).
+  - Modal propio en el editor (grupos «o», condiciones «y», búsqueda de entradas, términos y autores) con el número de condiciones junto al botón. En el editor el elemento siempre se ve; en la web se omite con sus hijos y no sale de la caché de elementos.
 
 ### 3.2 Plantillas del Theme Builder (cabecera, pie, individual, archivo, búsqueda, 404, producto y archivo de productos)
 
