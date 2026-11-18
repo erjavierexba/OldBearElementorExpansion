@@ -89,7 +89,7 @@ try {
         $configured = ['theme-site-logo','theme-post-featured-image','nav-menu','template','gallery','media-carousel','loop-grid','loop-carousel','taxonomy-filter','woocommerce-product-images','woocommerce-product-rating','woocommerce-product-data-tabs','woocommerce-product-related','woocommerce-product-upsell','woocommerce-archive-products'];
         $needs_woo_context = is_subclass_of($class, \OldBearExpansion\Widgets\Woo_Element::class);
         if ($class::PRO !== '' && $class::available() && !$needs_woo_context && !in_array($class::PRO, $configured, true)
-            && !preg_match('/elementor-widget-' . preg_quote($class::PRO, '/') . '[\s"]/', $html)) { $missing[] = $class::PRO; }
+            && !preg_match('/elementor-widget-(' . preg_quote($class::PRO, '/') . ($class::PRO === 'mega-menu' ? '|n-menu' : '') . ')[\s"]/', $html)) { $missing[] = $class::PRO; }
     }
     $assert(!$missing, 'No se han renderizado: ' . implode(', ', $missing));
     foreach (['obx-countdown','obx-price-table','obx-flip','obx-cta','obx-quote','obx-share','obx-headline','obx-toc','obx-progress','obx-code','obx-breadcrumbs','obx-postnav','obx-posts','obx-login'] as $class) {

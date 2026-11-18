@@ -3,7 +3,7 @@
 	'use strict';
 	const openStack = [];
 	const editing = () => document.body.classList.contains('elementor-editor-active');
-	const panel = (id) => document.querySelector('[data-obx-off-canvas="' + (window.CSS && CSS.escape ? CSS.escape(String(id)) : String(id)) + '"]');
+	const panel = (id) => document.getElementById('off-canvas-' + id);
 	const settings = (el) => {
 		const widget = el.closest('[data-settings]');
 		try { return JSON.parse((widget && widget.dataset.settings) || '{}'); } catch (e) { return {}; }
@@ -18,21 +18,21 @@
 	};
 	const focusable = (el) => Array.from(el.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter((n) => n.offsetParent !== null || n.getClientRects().length);
 	const isOpen = (el) => el.getAttribute('aria-hidden') === 'false';
-	const main = (el) => el.querySelector('.obx-off-canvas__main');
-	const lock = () => { document.body.classList.toggle('obx-off-canvas-lock', openStack.some((id) => { const el = panel(id); return el && settings(el).prevent_scroll === 'yes'; })); };
+	const main = (el) => el.querySelector('.e-off-canvas__main');
+	const lock = () => { document.body.classList.toggle('e-off-canvas__no-scroll', openStack.some((id) => { const el = panel(id); return el && settings(el).prevent_scroll === 'yes'; })); };
 
 	const open = (el) => {
 		if (!el || (isOpen(el) && !el._closing)) { return; }
 		clearTimeout(el._timer); el._closing = false;
 		el._return = document.activeElement;
 		el.removeAttribute('inert'); el.setAttribute('aria-hidden', 'false');
-		openStack.push(el.dataset.obxOffCanvas); lock();
+		openStack.push(el.id.slice(11)); lock();
 		const enter = responsive(settings(el), 'entrance_animation'), box = main(el);
-		if (box) { box.className = 'obx-off-canvas__main' + (enter && enter !== 'none' ? ' animated ' + enter : ''); }
+		if (box) { box.className = 'e-off-canvas__main' + (enter && enter !== 'none' ? ' animated ' + enter : ''); }
 		// Widgets inside often transition «all» (Elementor buttons), so visibility turns visible a frame later.
 		setTimeout(() => {
 			if (!isOpen(el) || el.contains(document.activeElement)) { return; }
-			const first = focusable(el.querySelector('.obx-off-canvas__content') || el)[0];
+			const first = focusable(el.querySelector('.e-off-canvas__content') || el)[0];
 			if (first) { first.focus({ preventScroll: true }); }
 		}, 50);
 		el.dispatchEvent(new CustomEvent('obx/off-canvas/open', { bubbles: true }));
@@ -43,15 +43,15 @@
 		const done = () => {
 			clearTimeout(el._timer); el._closing = false;
 			el.setAttribute('aria-hidden', 'true'); el.setAttribute('inert', '');
-			if (box) { box.className = 'obx-off-canvas__main'; }
-			const i = openStack.lastIndexOf(el.dataset.obxOffCanvas); if (i !== -1) { openStack.splice(i, 1); }
+			if (box) { box.className = 'e-off-canvas__main'; }
+			const i = openStack.lastIndexOf(el.id.slice(11)); if (i !== -1) { openStack.splice(i, 1); }
 			lock();
 			if (el._return && el._return.focus && document.contains(el._return)) { el._return.focus({ preventScroll: true }); }
 			el.dispatchEvent(new CustomEvent('obx/off-canvas/close', { bubbles: true }));
 		};
 		if (box && leave && leave !== 'none') {
 			el._closing = true;
-			box.className = 'obx-off-canvas__main animated reverse ' + leave;
+			box.className = 'e-off-canvas__main animated reverse ' + leave;
 			box.addEventListener('animationend', done, { once: true });
 			const duration = parseFloat(getComputedStyle(box).animationDuration) || 1.5;
 			el._timer = setTimeout(done, duration * 1000 + 200);
@@ -71,7 +71,7 @@
 	};
 	const run = (name, data, link) => {
 		const mode = name.split(':')[1] || data.displayMode || 'open';
-		const el = data.id ? panel(data.id) : (link && link.closest('[data-obx-off-canvas]'));
+		const el = data.id ? panel(data.id) : (link && link.closest('.e-off-canvas'));
 		if (!el) { return; }
 		if (mode === 'close') { close(el); } else if (mode === 'toggle') { toggle(el); } else { open(el); }
 	};
@@ -82,9 +82,9 @@
 			if (action && action.name.startsWith('off_canvas:')) { e.preventDefault(); run(action.name, action.data, link); }
 			return;
 		}
-		const overlay = e.target.closest && e.target.closest('.obx-off-canvas__overlay');
+		const overlay = e.target.closest && e.target.closest('.e-off-canvas__overlay');
 		if (overlay) {
-			const el = overlay.closest('[data-obx-off-canvas]');
+			const el = overlay.closest('.e-off-canvas');
 			if (el && settings(el).is_not_close_on_overlay !== 'yes') { close(el); }
 		}
 	});

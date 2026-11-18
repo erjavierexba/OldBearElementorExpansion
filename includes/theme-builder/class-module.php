@@ -203,8 +203,8 @@ final class Module {
         if (!class_exists('\\Elementor\\Plugin') || !isset(\Elementor\Plugin::$instance->breakpoints)) { return $css; }
         foreach (\Elementor\Plugin::$instance->breakpoints->get_active_breakpoints() as $key => $breakpoint) {
             if ($key === 'widescreen') { continue; }
-            $class = '.elementor .elementor-widget-mega-menu.obx-mm-bp-' . sanitize_html_class((string) $key);
-            $css .= '@media (max-width:' . (int) $breakpoint->get_value() . 'px){' . $class . '{--obx-mm-wrapper-display:none}' . $class . ' > .obx-mm > .obx-mm__toggle{display:flex}}';
+            $class = '.elementor .elementor-widget-n-menu.e-n-menu-' . sanitize_html_class((string) $key);
+            $css .= '@media (max-width:' . (int) $breakpoint->get_value() . 'px){' . $class . '{--n-menu-wrapper-display:none}' . $class . ' > .e-n-menu > .e-n-menu-toggle{display:flex}}';
         }
         return $css;
     }

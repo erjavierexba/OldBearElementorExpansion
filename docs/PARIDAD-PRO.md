@@ -148,6 +148,8 @@ Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_ch
 
 ## 4. Widgets ausentes (49; quedan 39)
 
+Los widgets nuevos usan en el HTML los nombres de clase, ID y variables CSS de Pro (`e-n-menu`, `e-off-canvas`, `--n-menu-*`, `--e-off-canvas-*`, envoltorio `elementor-widget-n-menu`), así el CSS personalizado de las webs que vienen de Pro sigue funcionando. Los widgets anteriores (`obx-…`) se migran en el punto 4.
+
 | Prioridad | Widgets |
 | --- | --- |
 | Alta | `global` |

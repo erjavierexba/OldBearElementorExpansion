@@ -861,7 +861,7 @@ try {
         $panel['elements'] = [$container([$widget('heading', ['title'=>'Dentro del panel'])], ['content_width'=>'full'])];
         $oc_page = $save('page', 'Paridad off-canvas', [$container([$widget('button', ['text'=>'Abrir', '__dynamic__'=>['link'=>'[elementor-tag id="a1b2c3d" name="off-canvas" settings="' . rawurlencode(wp_json_encode(['action'=>'toggle','off_canvas'=>$panel['id']])) . '"]']]), $panel])]);
         $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($oc_page);
-        $assert(str_contains($html, '<aside id="off-canvas-' . $panel['id'] . '" class="obx-off-canvas" role="dialog" aria-hidden="true" aria-modal="true" aria-label="Menú lateral" data-obx-off-canvas="' . $panel['id'] . '" inert>') && str_contains($html, 'Dentro del panel') && str_contains($html, 'obx-off-canvas__overlay'), 'Off-Canvas: panel cerrado con su contenedor, etiqueta y nombre accesible.');
+        $assert(str_contains($html, '<aside id="off-canvas-' . $panel['id'] . '" class="e-off-canvas" role="dialog" aria-hidden="true" aria-modal="true" aria-label="Menú lateral" inert>') && str_contains($html, 'Dentro del panel') && str_contains($html, 'e-off-canvas__overlay'), 'Off-Canvas: panel cerrado con su contenedor, etiqueta y nombre accesible.');
         $hash = '';
         if (preg_match('/href="(#elementor-action[^"]+)"/', $html, $m)) { $hash = rawurldecode(html_entity_decode($m[1])); }
         parse_str((string) substr($hash, strlen('#elementor-action:')), $query);
@@ -891,11 +891,12 @@ try {
         $menu['elements'] = [$child([$widget('heading', ['title'=>'Contenido del desplegable'])]), $child([]), $child([$widget('heading', ['title'=>'Oculto sin desplegable'])]), $child([])];
         $mm_page = $save('page', 'Paridad menú', [$container([$menu])]);
         $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($mm_page);
-        $assert(str_contains($html, '<nav class="obx-mm" data-layout="horizontal" aria-label="Principal">') && str_contains($html, 'aria-controls="obx-mm-bar-' . $menu['id'] . '"'), 'Menú: navegación con nombre accesible y botón del menú.');
-        $assert(str_contains($html, 'Contenido del desplegable') && str_contains($html, 'id="obx-mm-content-' . $menu['id'] . '1"') && str_contains($html, 'class="obx-mm__title is-click"'), 'Menú: el desplegable con contenido se pinta tras su título y se abre al hacer clic.');
-        $assert(substr_count($html, 'class="obx-mm__dropdown-icon"') === 2 && !str_contains($html, 'Oculto sin desplegable') && !str_contains($html, 'id="obx-mm-content-' . $menu['id'] . '2"'), 'Menú: sin «Contenido desplegable» o sin elementos no hay desplegable.');
-        $assert(str_contains($html, 'id="mi-id"') && (bool) preg_match('/<a class="obx-mm__title-container is-link" href="https:\/\/example.com\/" target="_blank"/', $html) && str_contains($html, 'obx-mm__title is-anchor'), 'Menú: enlaces, ID propio y anclas.');
-        $assert(str_contains(\OldBearExpansion\ThemeBuilder\Module::menu_breakpoints_css(), '.obx-mm-bp-tablet{--obx-mm-wrapper-display:none}'), 'Menú: el botón sustituye a la barra por debajo del punto de ruptura.');
+        $number = substr((string) hexdec($menu['id']), 0, 3);
+        $assert(str_contains($html, '<nav class="e-n-menu" data-widget-number="' . $number . '" data-layout="horizontal" aria-label="Principal">') && str_contains($html, 'aria-controls="menubar-' . $number . '"') && (bool) preg_match('/class="elementor-element elementor-element-' . $menu['id'] . ' [^"]*elementor-widget-n-menu"/', $html), 'Menú: navegación con nombre accesible y botón del menú.');
+        $assert(str_contains($html, 'Contenido del desplegable') && str_contains($html, '<div class="e-n-menu-content"><div id="e-n-menu-content-' . $number . '1"') && str_contains($html, 'class="e-n-menu-title e-click"'), 'Menú: el desplegable con contenido se pinta tras su título y se abre al hacer clic.');
+        $assert(substr_count($html, 'class="e-n-menu-dropdown-icon"') === 2 && !str_contains($html, 'Oculto sin desplegable') && !str_contains($html, 'id="e-n-menu-content-' . $number . '2"'), 'Menú: sin «Contenido desplegable» o sin elementos no hay desplegable.');
+        $assert(str_contains($html, 'id="mi-id"') && (bool) preg_match('/<a class="e-n-menu-title-container e-link" href="https:\/\/example.com\/" target="_blank"/', $html) && str_contains($html, 'e-n-menu-title e-anchor'), 'Menú: enlaces, ID propio y anclas.');
+        $assert(str_contains(\OldBearExpansion\ThemeBuilder\Module::menu_breakpoints_css(), '.e-n-menu-tablet{--n-menu-wrapper-display:none}'), 'Menú: el botón sustituye a la barra por debajo del punto de ruptura.');
     }
 
     $assert(!$errors, 'Avisos PHP: ' . implode(' | ', array_slice($errors, 0, 4)));
