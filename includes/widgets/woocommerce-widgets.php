@@ -99,36 +99,11 @@ final class Woo_Product_Additional_Information extends Woo_Element {
     protected function render(): void { $this->with_product(function($p){ wc_get_template('single-product/tabs/additional-information.php',['product'=>$p,'heading'=>$this->get_settings_for_display('title')==='yes'?__('Additional information','woocommerce'):'']); }); }
 }
 
-abstract class Woo_Product_List extends Woo_Element {
-    protected function list_controls(): void { $this->start_controls_section('section_products',['label'=>'Productos']); $this->add_control('posts_per_page',['label'=>'Productos','type'=>Controls_Manager::NUMBER,'default'=>4,'min'=>1,'max'=>24]); $this->add_responsive_control('columns',['label'=>'Columnas','type'=>Controls_Manager::NUMBER,'default'=>4,'tablet_default'=>2,'mobile_default'=>1,'min'=>1,'max'=>6]); $this->add_control('orderby',['label'=>'Ordenar por','type'=>Controls_Manager::SELECT,'default'=>'date','options'=>['date'=>'Fecha','title'=>'Título','price'=>'Precio','popularity'=>'Popularidad','rating'=>'Valoración','rand'=>'Aleatorio']]); $this->add_control('order',['label'=>'Orden','type'=>Controls_Manager::SELECT,'default'=>'desc','options'=>['asc'=>'Ascendente','desc'=>'Descendente']]); $this->end_controls_section(); }
-}
-final class Woo_Product_Related extends Woo_Product_List {
-    public const PRO='woocommerce-product-related'; public function get_title():string{return 'Productos relacionados';} public function get_icon():string{return 'eicon-product-related';}
-    protected function register_controls():void{$this->list_controls();}
-    protected function render():void{$this->with_product(function(){woocommerce_output_related_products(['posts_per_page'=>max(1,(int)$this->get_settings_for_display('posts_per_page')),'columns'=>max(1,(int)$this->get_settings_for_display('columns')),'orderby'=>$this->get_settings_for_display('orderby'),'order'=>$this->get_settings_for_display('order')]);});}
-}
-final class Woo_Product_Upsell extends Woo_Product_List {
-    public const PRO='woocommerce-product-upsell'; public function get_title():string{return 'Ventas dirigidas';} public function get_icon():string{return 'eicon-product-upsell';}
-    protected function register_controls():void{$this->list_controls();}
-    protected function render():void{$this->with_product(function(){woocommerce_upsell_display(max(1,(int)$this->get_settings_for_display('posts_per_page')),max(1,(int)$this->get_settings_for_display('columns')),$this->get_settings_for_display('orderby'),$this->get_settings_for_display('order'));});}
-}
-
 final class Woo_Archive_Description extends Woo_Element {
     public const PRO='woocommerce-archive-description'; public const PRO_CATEGORY='woocommerce-elements-archive'; public function get_title():string{return 'Descripción del archivo';} public function get_icon():string{return 'eicon-archive-description';}
     protected function register_controls():void{$this->basic_style('.woocommerce-archive-description');}
     protected function render():void{echo '<div class="woocommerce-archive-description">'; do_action('woocommerce_archive_description'); echo '</div>';}
 }
-final class Woo_Archive_Products extends Woo_Element {
-    public const PRO='woocommerce-archive-products'; public const PRO_CATEGORY='woocommerce-elements-archive'; public function get_title():string{return 'Productos del archivo';} public function get_icon():string{return 'eicon-products';}
-    protected function register_controls():void{$this->start_controls_section('section_archive',['label'=>'Productos']);$this->add_responsive_control('columns',['label'=>'Columnas','type'=>Controls_Manager::NUMBER,'default'=>4,'min'=>1,'max'=>6]);$this->end_controls_section();}
-    protected function render():void{if(woocommerce_product_loop()){woocommerce_product_loop_start();while(have_posts()){the_post();do_action('woocommerce_shop_loop');wc_get_template_part('content','product');}woocommerce_product_loop_end();do_action('woocommerce_after_shop_loop');}else{do_action('woocommerce_no_products_found');}}
-}
-final class Woo_Products extends Woo_Product_List {
-    public const PRO='woocommerce-products'; public const PRO_CATEGORY='woocommerce-elements'; public function get_title():string{return 'Productos';} public function get_icon():string{return 'eicon-products';}
-    protected function register_controls():void{$this->list_controls();$this->start_controls_section('section_source',['label'=>'Origen']);$this->add_control('query_post_type',['label'=>'Mostrar','type'=>Controls_Manager::SELECT,'default'=>'current_query','options'=>['current_query'=>'Selección reciente','sale'=>'En oferta','featured'=>'Destacados','by_id'=>'Selección manual']]);$this->add_control('query_posts_ids',['label'=>'IDs de productos','type'=>Controls_Manager::TEXT,'condition'=>['query_post_type'=>'by_id']]);$this->end_controls_section();}
-    protected function render():void{$s=$this->get_settings_for_display();$attrs=['limit'=>max(1,(int)$s['posts_per_page']),'columns'=>max(1,(int)$s['columns']),'orderby'=>sanitize_key((string)$s['orderby']),'order'=>strtoupper((string)$s['order'])];if(($s['query_post_type']??'')==='sale'){$attrs['on_sale']='true';}if(($s['query_post_type']??'')==='featured'){$attrs['visibility']='featured';}if(($s['query_post_type']??'')==='by_id'){$attrs['ids']=implode(',',array_map('absint',preg_split('/[\s,]+/',(string)($s['query_posts_ids']??''))));}echo do_shortcode('[products '.implode(' ',array_map(static fn($k,$v)=>$k.'="'.esc_attr((string)$v).'"',array_keys($attrs),$attrs)).']');}
-}
-
 abstract class Woo_Page extends Woo_Element { public const PRO_CATEGORY='woocommerce-elements'; protected function register_controls():void{$this->basic_style('.woocommerce');} }
 final class Woo_Cart extends Woo_Page { public const PRO='woocommerce-cart'; public function get_title():string{return 'Carrito';} public function get_icon():string{return 'eicon-cart';} protected function render():void{echo do_shortcode('[woocommerce_cart]');} }
 final class Woo_Checkout extends Woo_Page { public const PRO='woocommerce-checkout-page'; public function get_title():string{return 'Finalizar compra';} public function get_icon():string{return 'eicon-checkout';} protected function render():void{echo do_shortcode('[woocommerce_checkout]');} }

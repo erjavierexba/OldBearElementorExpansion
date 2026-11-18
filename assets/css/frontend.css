@@ -572,3 +572,15 @@ html.obx-pt-loading .obx-preloader{opacity:0;animation:obx-preloader-in .2s var(
 @keyframes obx-progress{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .obx-page-transition--preview{display:none}.obx-page-transition--preview.is-active{display:flex}
 @media (prefers-reduced-motion:reduce){.obx-page-transition{animation:none!important}}
+/* WooCommerce product grids (Products, Archive Products, Related, Upsells). */
+.obx-products{--obx-products-columns:4;--obx-products-column-gap:20px;--obx-products-row-gap:40px}
+.obx-products ul.products{display:grid;grid-template-columns:repeat(var(--obx-products-columns),minmax(0,1fr));column-gap:var(--obx-products-column-gap);row-gap:var(--obx-products-row-gap);margin:0;padding:0;list-style:none}
+.obx-products ul.products::before,.obx-products ul.products::after{content:none;display:none}
+.obx-products ul.products li.product{position:relative;width:auto;float:none;margin:0;box-sizing:border-box;transition:background-color .3s,border-color .3s,box-shadow .3s}
+.obx-products ul.products li.product .star-rating{margin:var(--obx-products-stars-margin,0 0 .5em)}
+.obx-products ul.products li.product span.onsale{position:absolute;top:0;left:0;right:auto;z-index:1}
+.obx-products--no-sale ul.products li.product span.onsale{display:none}
+.obx-products--no-heading .products>h2{display:none}
+.obx-products--no-pagination-border nav.woocommerce-pagination ul,.obx-products--no-pagination-border nav.woocommerce-pagination ul li{border:0}
+.obx-products .woocommerce-result-count,.obx-products .woocommerce-ordering{margin-bottom:1em}
+.obx-products__title{margin:0 0 1em}

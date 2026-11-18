@@ -284,6 +284,52 @@ try {
         $assert(!str_contains($html, 'data-post-id="' . $pid . '"'), 'Skin de productos: destacados (el de prueba no lo es).');
     }
 
+    // 0.10.0 WooCommerce product grids: Pro's keys, WooCommerce's loop templates, grid and pagination.
+    if (!empty($pid) && get_post($pid)) {
+        $wc = Elementor::$instance->widgets_manager->get_widget_types('woocommerce-products')->get_controls();
+        foreach (['rows','paginate','allow_order','show_result_count','query_post_type','query_posts_ids','query_include','query_include_term_ids','query_exclude','query_exclude_ids','query_orderby','query_order','products_title_show','products_related_products_title_text','products_upsells_title_text','products_cross_sells_title_text','products_title_alignment','products_class','column_gap','row_gap','align','image_border_border','image_border_radius','image_spacing','title_color','title_typography_typography','title_spacing','star_color','empty_star_color','star_size','rating_spacing','price_color','price_typography_typography','old_price_color','old_price_typography_typography','button_text_color','button_background_color','button_border_color','button_typography_typography','button_hover_color','button_hover_background_color','button_hover_border_color','button_border_border','button_border_radius','button_text_padding','button_spacing','automatically_align_buttons','view_cart_color','view_cart_typography_typography','view_cart_spacing','products_title_color','products_title_typography_typography','products_title_spacing','box_border_width','box_border_radius','box_padding','box_shadow_box_shadow_type','box_bg_color','box_border_color','box_shadow_hover_box_shadow_type','box_bg_color_hover','box_border_color_hover','pagination_spacing','show_pagination_border','pagination_border_color','pagination_padding','pagination_typography_typography','pagination_link_color','pagination_link_bg_color','pagination_link_color_hover','pagination_link_bg_color_hover','pagination_link_color_active','pagination_link_bg_color_active','show_onsale_flash','onsale_text_color','onsale_text_background_color','onsale_typography_typography','onsale_border_radius','onsale_width','onsale_height','onsale_horizontal_position','onsale_distance'] as $key) { $assert(isset($wc[$key]), "woocommerce-products: falta {$key}."); }
+        $assert(($wc['rows']['default'] ?? 0) === 4 && ($wc['columns']['default'] ?? 0) === 4 && ($wc['query_post_type']['default'] ?? '') === 'product' && ($wc['column_gap']['default']['size'] ?? 0) === 20 && ($wc['row_gap']['default']['size'] ?? 0) === 40 && ($wc['show_onsale_flash']['default'] ?? '') === 'yes' && ($wc['products_class']['default'] ?? '') === 'wc-products' && array_keys($wc['query_post_type']['options']) === ['current_query','product','sale','featured','by_id','related_products','upsells','cross_sells'] && !isset($wc['posts_per_page']), 'woocommerce-products: valores por defecto de Pro.');
+        $wa = Elementor::$instance->widgets_manager->get_widget_types('woocommerce-archive-products')->get_controls();
+        $assert(($wa['query_post_type']['default'] ?? '') === 'current_query' && ($wa['paginate']['default'] ?? '') === 'yes' && isset($wa['nothing_found_message'], $wa['nothing_found_color'], $wa['nothing_found_typography_typography']), 'woocommerce-archive-products: consulta actual, paginación y mensaje sin resultados.');
+        foreach (['woocommerce-product-related'=>['posts_per_page','columns','orderby','order','show_heading','heading_color','heading_typography_typography','heading_text_align','heading_spacing','box_bg_color','onsale_distance'],'woocommerce-product-upsell'=>['columns','orderby','order','show_heading','heading_spacing','button_spacing']] as $type => $keys) {
+            $c = Elementor::$instance->widgets_manager->get_widget_types($type)->get_controls();
+            foreach ($keys as $key) { $assert(isset($c[$key]), "{$type}: falta {$key}."); }
+            $assert(($c['show_heading']['default'] ?? '') === 'yes' && isset($c['orderby']['options']['menu_order']), "{$type}: valores por defecto de Pro.");
+        }
+        $shop = [];
+        foreach ([3, 1, 2] as $i) { $item = new WC_Product_Simple(); $item->set_name("Paridad tienda {$i}"); $item->set_status('publish'); $item->set_regular_price((string) (10 * $i)); $shop[$i] = $created[] = $item->save(); }
+        $html = $render(['__widget'=>'woocommerce-products','columns'=>2,'rows'=>1,'query_post_type'=>'by_id','query_posts_ids'=>array_map('strval', array_values($shop)),'query_orderby'=>'price','query_order'=>'asc','paginate'=>'yes','show_result_count'=>'yes','show_onsale_flash'=>'']);
+        $assert(substr_count($html, 'type-product') === 2 && strpos($html, 'Paridad tienda 1') !== false && strpos($html, 'Paridad tienda 1') < strpos($html, 'Paridad tienda 2') && !str_contains($html, 'Paridad tienda 3'), 'woocommerce-products: columnas × filas por página, ordenados por precio.');
+        $assert(str_contains($html, 'obx-products woocommerce obx-products--no-sale') && str_contains($html, 'woocommerce-pagination') && str_contains($html, 'product-page=2') && str_contains($html, 'woocommerce-result-count') && str_contains($html, 'elementor-products-grid elementor-wc-products'), 'woocommerce-products: plantillas de WooCommerce, paginación propia y clases de Pro.');
+        $_GET['product-page'] = '2';
+        $html = $render(['__widget'=>'woocommerce-products','columns'=>2,'rows'=>1,'query_post_type'=>'by_id','query_posts_ids'=>array_map('strval', array_values($shop)),'query_orderby'=>'price','query_order'=>'asc','paginate'=>'yes']);
+        unset($_GET['product-page']);
+        $assert(str_contains($html, 'Paridad tienda 3') && !str_contains($html, 'Paridad tienda 1'), 'woocommerce-products: segunda página.');
+        $old = \OldBearExpansion\Widgets\Woo_Products::convert('woocommerce-products', ['posts_per_page'=>8,'columns'=>4,'orderby'=>'price','order'=>'asc','query_post_type'=>'current_query','query_posts_ids'=>'1, 2']);
+        $assert(($old['rows'] ?? 0) === 2 && ($old['query_orderby'] ?? '') === 'price' && ($old['query_post_type'] ?? '') === 'product' && ($old['query_posts_ids'] ?? []) === ['1','2'] && !isset($old['posts_per_page']), 'woocommerce-products: los ajustes de versiones anteriores se convierten.');
+
+        $shop_archive = $save('archive', 'Paridad archivo tienda', [$container([$widget('woocommerce-archive-products', ['columns'=>3,'rows'=>2])])]);
+        update_post_meta($shop_archive, '_elementor_conditions', ['include/product_archive']);
+        Locations::flush(); Locations::reset();
+        $saved_main = [$GLOBALS['wp_the_query'], $GLOBALS['wp_query']];
+        try {
+            $main = new WP_Query(); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'] = $main;
+            $main->query(['post_type'=>'product']);
+            $assert((int) $main->get('posts_per_page') === 6, 'woocommerce-archive-products: la tienda pagina con columnas × filas del widget.');
+        } finally {
+            [$GLOBALS['wp_the_query'], $GLOBALS['wp_query']] = $saved_main;
+            Locations::reset();
+        }
+        $html = $render(['__widget'=>'woocommerce-archive-products','query_post_type'=>'by_id','query_posts_ids'=>['999999'],'nothing_found_message'=>'Sin productos']);
+        $assert(str_contains($html, '<div class="elementor-products-nothing-found obx-products__nothing">Sin productos</div>'), 'woocommerce-archive-products: mensaje sin resultados.');
+
+        $main_product = wc_get_product($pid); $main_product->set_upsell_ids(array_values($shop)); $main_product->save();
+        $single_product = $save('product', 'Paridad producto individual', [$container([$widget('woocommerce-product-upsell', ['columns'=>3,'show_heading'=>'','orderby'=>'price','order'=>'desc'])])], ['preview_type'=>'single/product','preview_id'=>(string) $pid]);
+        $previous_post = $GLOBALS['post'] ?? null; $GLOBALS['post'] = get_post($pid);
+        try { $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($single_product); } finally { $GLOBALS['post'] = $previous_post; }
+        $assert(substr_count($html, 'type-product') === 3 && str_contains($html, 'obx-products--no-heading') && strpos($html, 'Paridad tienda 3') < strpos($html, 'Paridad tienda 1') && str_contains($html, 'upsells'), 'woocommerce-product-upsell: ventas dirigidas del producto, ordenadas, sin encabezado.');
+    }
+
     if (!empty($pcat)) { wp_delete_term($pchild['term_id'], 'product_cat'); wp_delete_term($pcat['term_id'], 'product_cat'); }
 
     // §5 Search: Pro's keys and defaults, live results through REST, pagination and nothing found.

@@ -63,6 +63,12 @@ final class Module {
         add_action('elementor/widgets/register', [self::class, 'widgets']);
         // Live results of the Search widget; the widget files load only when the route is registered.
         add_action('rest_api_init', static function() { self::load_widgets(); \OldBearExpansion\Widgets\Search::routes(); });
+        // Shop archives paginate with the «columns × rows» of the Archive Products widget that prints them.
+        add_action('pre_get_posts', static function($query) {
+            if (Plugin::pro_active() || !class_exists('WooCommerce') || !$query instanceof \WP_Query || !$query->is_main_query() || is_admin()) { return; }
+            self::load_widgets();
+            \OldBearExpansion\Widgets\Woo_Archive_Products::main_query($query);
+        }, 20);
         add_action('init', [self::class, 'assets'], 5);
         add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); });
         add_action('elementor/editor/after_enqueue_scripts', static function() {
@@ -119,6 +125,7 @@ final class Module {
         require_once DIR . '/includes/widgets/media-widgets.php';
         require_once DIR . '/includes/widgets/loop-widgets.php';
         require_once DIR . '/includes/widgets/woocommerce-widgets.php';
+        require_once DIR . '/includes/widgets/woocommerce-products.php';
     }
 
     public static function documents($manager): void {

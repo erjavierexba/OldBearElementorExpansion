@@ -189,7 +189,7 @@ El detalle de cada ajuste está en el anexo A. Las carencias funcionales que má
 - **WooCommerce**:
   - carrito, finalizar compra y Mi cuenta: diseño en una o dos columnas, columna fija, textos y secciones personalizables, todos sus estilos;
   - mini carrito: tipo lateral o desplegable, apertura y actualización automáticas, botones y estilos;
-  - productos, relacionados y ventas dirigidas: consulta completa, títulos y estilos de caja, insignia y paginación;
+  - [x] Productos, Productos del archivo, Relacionados y Ventas dirigidas (0.10.0): claves de Pro (`rows`, `paginate`, `allow_order`, `show_result_count`, `query_*`, títulos por origen, caja, imagen, título, valoración, precio, botón, «Ver carrito», paginación e insignia de oferta). Se pintan con las plantillas de WooCommerce (`content-product.php`) en una rejilla propia; la tienda pagina con «columnas × filas» del widget de la plantilla de archivo que la muestra. Los ajustes de versiones anteriores (`posts_per_page`, `orderby`…) se convierten al abrir;
   - widgets de producto (título, precio, meta, pestañas, añadir al carrito, imágenes…): sus secciones de estilo.
 - **Entradas y archivo de entradas**: columnas y alineación por diseño, masonry, sombra de tarjetas, estilos del bloque y opciones de "cargar más".
 - **Diapositivas**:
@@ -219,7 +219,7 @@ Orden pensado para que lo que se importa desde Pro se vea igual cuanto antes:
 | 0.8.1 | §3.5 condiciones, §3.6 etiquetas dinámicas (excepto `off-canvas`, Toolset y Pods) y vista previa de secciones guardadas | ✅ |
 | 0.9.0 | Loop Grid/Carousel completos y Search | ✅ |
 | 0.9.1 | Formulario: integraciones y acción de popup | ✅ |
-| 0.10.0 | WooCommerce: widgets ausentes, ajustes de kit y estilos | ☐ |
+| 0.10.0 | WooCommerce: widgets ausentes, ajustes de kit y estilos | ⏳ rejillas de productos hechas |
 | 0.11.0 | Carruseles, galería, menú, mapa del sitio y resto del anexo A | ☐ |
 | 0.12.0 | Mega menú, Off-canvas, widget global y shortcode | ☐ |
 | 0.13.0 | Hotspot, Lottie, Portafolio, Reseñas y Lista de vídeos | ☐ |
