@@ -69,6 +69,12 @@ final class Module {
             self::load_widgets();
             \OldBearExpansion\Widgets\Woo_Archive_Products::main_query($query);
         }, 20);
+        // Menu carts refresh their count, subtotal and contents with WooCommerce's cart fragments.
+        add_filter('woocommerce_add_to_cart_fragments', static function($fragments) {
+            if (Plugin::pro_active() || !is_array($fragments)) { return $fragments; }
+            self::load_widgets();
+            return \OldBearExpansion\Widgets\Woo_Menu_Cart::fragments($fragments);
+        });
         add_action('init', [self::class, 'assets'], 5);
         add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); });
         add_action('elementor/editor/after_enqueue_scripts', static function() {
@@ -127,6 +133,7 @@ final class Module {
         require_once DIR . '/includes/widgets/woocommerce-widgets.php';
         require_once DIR . '/includes/widgets/woocommerce-products.php';
         require_once DIR . '/includes/widgets/woocommerce-single.php';
+        require_once DIR . '/includes/widgets/woocommerce-cart.php';
     }
 
     public static function documents($manager): void {

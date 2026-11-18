@@ -677,9 +677,50 @@
         if (gallery.dataset.initial !== undefined) { show(gallery.dataset.initial); }
     };
 
+    /* Menu cart: opens the side panel or dropdown; WooCommerce refreshes its contents through cart fragments. */
+    const menuCarts = new Set();
+    const menuCart = (el) => {
+        if (!once(el, 'obxReady')) { return; }
+        let config = {};
+        try { config = JSON.parse(el.dataset.obxMenuCart || '{}'); } catch (e) { config = {}; }
+        const button = el.querySelector('.obx-menu-cart__toggle-button');
+        const container = el.querySelector('.obx-menu-cart__container');
+        if (!button || !container) { return; }
+        const editor = document.body.classList.contains('elementor-editor-active');
+        let timer = 0;
+        const set = (open) => {
+            el.classList.toggle('is-open', open);
+            button.setAttribute('aria-expanded', String(open));
+            container.setAttribute('aria-hidden', String(!open));
+            if (open && el.classList.contains('obx-menu-cart--side-cart')) { const close = container.querySelector('.obx-menu-cart__close'); if (close) { close.focus({ preventScroll: true }); } }
+        };
+        el.obxMenuCart = { open: () => set(true), close: () => set(false), config };
+        menuCarts.add(el);
+        button.addEventListener('click', (event) => { event.preventDefault(); set(!el.classList.contains('is-open')); });
+        if (config.open === 'mouseover') {
+            el.addEventListener('mouseenter', () => { clearTimeout(timer); set(true); });
+            el.addEventListener('mouseleave', () => { if (!editor) { timer = setTimeout(() => set(false), 250); } });
+        }
+        container.addEventListener('click', (event) => {
+            if (event.target === container || event.target.closest('.obx-menu-cart__close')) { event.preventDefault(); set(false); button.focus({ preventScroll: true }); return; }
+            // Without automatic updates, removing a product reloads the page through WooCommerce's remove URL.
+            const remove = event.target.closest('.remove_from_cart_button');
+            if (remove && !config.live) { event.stopImmediatePropagation(); }
+        }, true);
+        el.addEventListener('keydown', (event) => { if (event.key === 'Escape' && el.classList.contains('is-open')) { set(false); button.focus(); } });
+        document.addEventListener('click', (event) => {
+            if (!editor && el.classList.contains('obx-menu-cart--mini-cart') && el.classList.contains('is-open') && !el.contains(event.target)) { set(false); }
+        });
+    };
+    if (window.jQuery) {
+        window.jQuery(document.body).on('added_to_cart', () => {
+            menuCarts.forEach((el) => { if (el.isConnected && el.obxMenuCart.config.autoOpen) { el.obxMenuCart.open(); } });
+        });
+    }
+
     const handlers = {
         '.obx-countdown': countdown, '.obx-headline': headline, '.obx-toc': toc, '.obx-progress': progress, '.obx-code': code,
-        '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, '.obx-search[data-live]': liveSearch, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters,
+        '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, '.obx-search[data-live]': liveSearch, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters, '[data-obx-menu-cart]': menuCart,
     };
     const init = (root) => {
         Object.entries(handlers).forEach(([selector, fn]) => {
