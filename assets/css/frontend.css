@@ -433,11 +433,11 @@ textarea.obx-form__input{min-height:0;resize:vertical}input[type=file].obx-form_
 .obx-ncarousel>.obx-carousel__track>.e-con{flex:0 0 calc((100% - (var(--obx-slides) - 1) * var(--obx-gap)) / var(--obx-slides))!important;width:auto!important;max-width:none!important;min-width:0;margin:0!important;scroll-snap-align:start}
 .obx-ncarousel--equal- .obx-ncarousel>.obx-carousel__track{align-items:flex-start}
 .obx-carousel__arrow{--obx-arrow-x:0px;--obx-arrow-y:0px;position:absolute;top:50%;z-index:2;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;background:none;color:rgba(0,0,0,.6);font-size:25px;line-height:1;cursor:pointer;transform:translate(var(--obx-arrow-tx,0%),var(--obx-arrow-ty,-50%)) translate(var(--obx-arrow-x),var(--obx-arrow-y))}
-.obx-carousel__arrow svg{width:1em;height:1em;fill:currentColor}
+.obx-carousel__arrow svg{width:1em;height:1em;fill:currentColor}.obx-carousel__arrow,.obx-carousel__dot{-webkit-user-select:none;user-select:none}
 .obx-carousel__arrow--prev{inset-inline-start:10px}.obx-carousel__arrow--next{inset-inline-end:10px}
 .obx-carousel__arrow:focus-visible,.obx-carousel__dot:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 .obx-carousel__pagination{display:flex;justify-content:center;gap:calc(var(--obx-dot) * .75);margin-top:12px;min-height:var(--obx-dot)}
-.obx-carousel__dot{width:var(--obx-dot);height:var(--obx-dot);padding:0;border:0;border-radius:50%;background:var(--obx-dot-inactive);cursor:pointer}.obx-carousel__dot.is-active{background:var(--obx-dot-active)}
+.obx-carousel__dot{display:inline-block;width:var(--obx-dot);height:var(--obx-dot);padding:0;border:0;border-radius:50%;background:var(--obx-dot-inactive);cursor:pointer}.obx-carousel__dot.is-active{background:var(--obx-dot-active)}
 .obx-carousel__pagination--fraction{font-size:.9em}
 .obx-carousel__pagination--progressbar{--obx-progress:0;position:relative;height:var(--obx-dot,4px);min-height:0;background:var(--obx-dot-inactive);overflow:hidden}
 .obx-carousel__pagination--progressbar::after{content:"";position:absolute;inset:0;background:var(--obx-dot-active);transform-origin:left;transform:scaleX(var(--obx-progress));transition:transform .3s}

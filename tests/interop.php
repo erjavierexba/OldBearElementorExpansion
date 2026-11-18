@@ -253,6 +253,7 @@ try {
         ];
         $html = $render([$nested]);
         $assert(str_contains($html, 'obx-ncarousel') && str_contains($html, 'Contenido de la diapositiva uno') && str_contains($html, 'Contenido de la diapositiva dos') && preg_match_all('~<div class="obx-carousel__track">\\s*<div class="elementor-element[^"]*e-con~', $html) === 1 && str_contains($html, 'obx-carousel__pagination--fraction') && str_contains($html, 'obx-carousel__arrow--next'), 'nested-carousel: diapositivas con contenedores hijos.');
+        $assert(str_contains($html, '<div class="obx-carousel__arrow obx-carousel__arrow--next" role="button" tabindex="0"') && !str_contains($html, '<button type="button" class="obx-carousel__arrow'), 'nested-carousel: flechas con role="button", fuera del alcance de los estilos de botón del tema (como en Pro).');
     }
     $img = wp_insert_attachment(['post_title'=>'obx-interop-img','post_mime_type'=>'image/png','post_status'=>'inherit','post_excerpt'=>'Leyenda ficticia'], false);
     $created[] = $img;

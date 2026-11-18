@@ -110,6 +110,10 @@ try {
     // OldBear's mark: badges in the widget panel, help links, admin headings and generator tag.
     $names = \OldBearExpansion\Admin\Branding::widget_names();
     $assert(in_array('posts', $names, true) && in_array('woocommerce-cart', $names, true) && in_array('nested-carousel', $names, true) && !in_array('heading', $names, true), 'Branding: insignia en los widgets de la expansión y solo en ellos.');
+    update_option(\OldBearExpansion\ThemeBuilder\Upgrade::MARKUP_OPTION, '0.0.1');
+    update_post_meta(1, '_elementor_element_cache', ['timeout'=>time() + 3600,'value'=>['content'=>'viejo']]);
+    \OldBearExpansion\ThemeBuilder\Upgrade::maybe_flush();
+    $assert(get_option(\OldBearExpansion\ThemeBuilder\Upgrade::MARKUP_OPTION) === \OldBearExpansion\VERSION && get_post_meta(1, '_elementor_element_cache', true) === '', 'Al actualizar el plugin se vacía la caché de Elementor (HTML y CSS de la versión anterior).');
     $assert(str_starts_with((string) ($types['posts']->get_config()['help_url'] ?? ''), \OldBearExpansion\Admin\Branding::URL) && str_starts_with((string) ($types['nested-carousel']->get_config()['help_url'] ?? ''), \OldBearExpansion\Admin\Branding::URL), 'Branding: «¿Necesitas ayuda?» lleva a la documentación de la expansión.');
     $heading = \OldBearExpansion\Admin\Branding::heading('Theme Builder');
     $assert(str_contains($heading, 'oldbear-32.png') && str_contains($heading, 'oldbear-64.png 2x') && str_contains($heading, 'OldBear Expansion'), 'Branding: logo y nombre en las pantallas de administración.');

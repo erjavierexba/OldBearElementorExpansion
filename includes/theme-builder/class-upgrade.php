@@ -11,8 +11,22 @@ final class Upgrade {
     /** Template types used before v0.4.0 → Elementor Pro's types. */
     public const LEGACY_TYPES = ['obx-header'=>'header','obx-footer'=>'footer','obx-single'=>'single-post','obx-archive'=>'archive','obx-error-404'=>'error-404'];
 
+    /** Plugin version whose markup Elementor's caches hold. */
+    public const MARKUP_OPTION = 'obx_markup_version';
+
     public static function boot(): void {
         add_action('init', [self::class, 'maybe_run'], 20);
+        add_action('init', [self::class, 'maybe_flush'], 21);
+    }
+
+    /**
+     * After an update of this plugin, Elementor would keep serving widget HTML and CSS rendered by the
+     * previous version (element cache, post CSS files) for up to a day: flush them once.
+     */
+    public static function maybe_flush(): void {
+        if (get_option(self::MARKUP_OPTION) === \OldBearExpansion\VERSION || !isset(\Elementor\Plugin::$instance->files_manager)) { return; }
+        update_option(self::MARKUP_OPTION, \OldBearExpansion\VERSION, true);
+        \Elementor\Plugin::$instance->files_manager->clear_cache();
     }
 
     public static function maybe_run(): void {

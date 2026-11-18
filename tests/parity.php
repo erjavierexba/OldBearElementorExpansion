@@ -260,6 +260,17 @@ try {
     $assert(str_contains($html, 'obx-posts--read-more-bottom') && !str_contains($html, 'obx-posts--masonry'), 'posts: «Leer más» alineado abajo.');
     $html = $render(['__widget'=>'posts','posts_post_type'=>'post','classic_masonry'=>'yes','classic_thumbnail'=>'left']);
     $assert(!str_contains($html, 'obx-posts--masonry'), 'posts: sin mampostería si la imagen no va arriba (como en Pro).');
+    // 0.11.0 Nested Carousel: Pro's offset, arrow placement, slide box and navigation style keys.
+    if (\OldBearExpansion\Widgets\Nested_Carousel::available()) {
+        $nc = Elementor::$instance->widgets_manager->get_widget_types('nested-carousel')->get_controls();
+        foreach (['direction','offset_sides','offset_width','navigation_previous_icon_horizontal_orientation','navigation_next_icon_vertical_orientation','navigation_next_icon_horizontal_position','content_background_background','content_border_border','border_radius','content_padding',
+            'arrows_position','arrows_colors_border_shadow','arrow_normal_color','arrow_hover_color','arrows_hover_background_background','arrows_normal_box_shadow_box_shadow_type','arrows_border_radius','arrows_padding',
+            'dots_gap','dots_size','dots_colors','dots_normal_color','dots_hover_color','dots_position','dots_custom_position','dots_vertical_offset','typography_fraction_typography','fraction_color','fraction_position','fraction_pagination_spacing','progressbar_height','progressbar_normal_color','progressbar_hover_color','dots_pagination_spacing'] as $key) { $assert(isset($nc[$key]), "nested-carousel: falta {$key}."); }
+        foreach (['arrows_normal_color','arrows_hover_color','dots_color_inactive','dots_color_active'] as $key) { $assert(!isset($nc[$key]), "nested-carousel: {$key} ya no existe en Pro."); }
+        $assert(($nc['navigation_previous_icon_horizontal_orientation']['default'] ?? '') === 'start' && ($nc['navigation_next_icon_horizontal_orientation']['default'] ?? '') === 'end' && ($nc['offset_sides']['default'] ?? '') === 'none' && ($nc['offset_width']['default']['size'] ?? 0) === 80 && ($nc['arrows_position']['default'] ?? '') === 'inside', 'nested-carousel: valores por defecto de Pro.');
+        $old = \OldBearExpansion\Widgets\Nested_Carousel::convert('nested-carousel', ['arrows_normal_color'=>'#111','dots_color_active'=>'#222','dots_hover_color'=>'#333']);
+        $assert(($old['arrow_normal_color'] ?? '') === '#111' && ($old['dots_hover_color'] ?? '') === '#333' && !isset($old['arrows_normal_color']) && !isset($old['dots_color_active']), 'nested-carousel: las claves antiguas pasan a las de Pro.');
+    }
     $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
     $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);
     $assert(wp_list_pluck($kids, 'term_id') === [$sub['term_id']], 'Bucle de términos: hijos de un término.');

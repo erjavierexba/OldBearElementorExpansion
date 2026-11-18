@@ -603,6 +603,8 @@
             page = target;
             paint();
         };
+        // Arrows and dots are role="button" elements (not <button>, so theme button styles stay away): Enter and Space press them.
+        const pressable = (node) => node.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); node.click(); } });
         const paint = () => {
             if (!pagination) { return; }
             const total = pages();
@@ -610,9 +612,11 @@
                 if (pagination.children.length !== total) {
                     pagination.textContent = '';
                     for (let i = 0; i < total; i++) {
-                        const dot = document.createElement('button');
-                        dot.type = 'button';
+                        const dot = document.createElement('span');
                         dot.className = 'obx-carousel__dot';
+                        dot.setAttribute('role', 'button');
+                        dot.tabIndex = 0;
+                        pressable(dot);
                         dot.setAttribute('aria-label', 'Ir a la diapositiva ' + (i + 1));
                         dot.addEventListener('click', () => { interact(); go(i); });
                         pagination.appendChild(dot);
@@ -631,6 +635,7 @@
         const start = () => { stop(); if (options.autoplay && !stopped && pages() > 1) { timer = setInterval(() => go(page + 1), options.autoplaySpeed || 5000); } };
         const interact = () => { if (options.pauseOnInteraction) { stopped = true; stop(); } };
         el.querySelectorAll(':scope > .obx-carousel__arrow').forEach((arrow) => {
+            pressable(arrow);
             arrow.addEventListener('click', () => { interact(); go(page + (arrow.classList.contains('obx-carousel__arrow--next') ? 1 : -1)); });
         });
         let settle = null;

@@ -7,6 +7,7 @@ use Elementor\Group_Control_Border;
 use Elementor\Group_Control_Box_Shadow;
 use Elementor\Group_Control_Css_Filter;
 use Elementor\Group_Control_Image_Size;
+use Elementor\Group_Control_Typography;
 use Elementor\Icons_Manager;
 use Elementor\Modules\NestedElements\Base\Widget_Nested_Base;
 use Elementor\Repeater;
@@ -154,8 +155,8 @@ trait Carousel {
     protected function carousel_controls_html(array $s, string $arrows_key, string $prev = '', string $next = ''): string {
         $html = '';
         if (($s[$arrows_key] ?? 'yes') === 'yes') {
-            $html .= '<button type="button" class="obx-carousel__arrow obx-carousel__arrow--prev" aria-label="Diapositiva anterior">' . ($prev ?: '<span aria-hidden="true">‹</span>') . '</button>';
-            $html .= '<button type="button" class="obx-carousel__arrow obx-carousel__arrow--next" aria-label="Diapositiva siguiente">' . ($next ?: '<span aria-hidden="true">›</span>') . '</button>';
+            $html .= '<div class="obx-carousel__arrow obx-carousel__arrow--prev" role="button" tabindex="0" aria-label="Diapositiva anterior">' . ($prev ?: '<span aria-hidden="true">‹</span>') . '</div>';
+            $html .= '<div class="obx-carousel__arrow obx-carousel__arrow--next" role="button" tabindex="0" aria-label="Diapositiva siguiente">' . ($next ?: '<span aria-hidden="true">›</span>') . '</div>';
         }
         $type = (string) ($s['pagination'] ?? 'bullets');
         if (in_array($type, ['bullets','fraction','progressbar'], true)) { $html .= '<div class="obx-carousel__pagination obx-carousel__pagination--' . $type . '"></div>'; }
@@ -257,8 +258,6 @@ final class Nested_Carousel extends Widget_Nested_Base {
     public const PRO_CATEGORY = 'pro-elements';
 
     public static function names(): array { return [self::PRO]; }
-    public static function wants_upgrade(string $name, array $settings): bool { return false; }
-    public static function convert(string $name, array $settings): array { return $settings; }
     public static function available(): bool {
         $experiments = \Elementor\Plugin::$instance->experiments;
         return class_exists(Widget_Nested_Base::class) && $experiments->is_feature_active('nested-elements') && $experiments->is_feature_active('container');
@@ -277,12 +276,34 @@ final class Nested_Carousel extends Widget_Nested_Base {
     protected function editing(): bool { return \OldBearExpansion\Context::is_editor(); }
     protected function placeholder(string $message): void { if ($this->editing()) { echo '<div class="obx-placeholder">' . esc_html($message) . '</div>'; } }
 
+    /** Keys saved by earlier versions of this plugin → Pro's keys. */
+    private const OLD_KEYS = ['arrows_normal_color'=>'arrow_normal_color','arrows_hover_color'=>'arrow_hover_color','dots_color_inactive'=>'dots_normal_color','dots_color_active'=>'dots_hover_color'];
+    public static function wants_upgrade(string $name, array $settings): bool { return $name === self::PRO && (bool) array_intersect_key($settings, self::OLD_KEYS); }
+    public static function convert(string $name, array $settings): array {
+        if (!self::wants_upgrade($name, $settings)) { return $settings; }
+        foreach (self::OLD_KEYS as $old => $new) {
+            if (!array_key_exists($new, $settings)) { $settings[$new] = $settings[$old] ?? null; }
+            unset($settings[$old]);
+        }
+        return array_filter($settings, static fn($value) => $value !== null);
+    }
+
+    private static function css(string $selector, string $declaration): array {
+        return ['{{WRAPPER}} ' . implode(', {{WRAPPER}} ', array_map('trim', explode(',', $selector))) => $declaration];
+    }
     private function slider(string $key, string $label, string $selector, string $declaration, array $extra = [], bool $responsive = false): void {
-        $args = ['label'=>$label,'type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','%','custom'],'selectors'=>['{{WRAPPER}} ' . $selector=>$declaration]] + $extra;
+        $args = ['label'=>$label,'type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','%','custom'],'selectors'=>self::css($selector, $declaration)] + $extra;
         $responsive ? $this->add_responsive_control($key, $args) : $this->add_control($key, $args);
     }
     private function color(string $key, string $label, string $selector, string $property = 'color', array $extra = []): void {
-        $this->add_control($key, ['label'=>$label,'type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} ' . $selector=>$property . ': {{VALUE}};']] + $extra);
+        $this->add_control($key, ['label'=>$label,'type'=>Controls_Manager::COLOR,'selectors'=>self::css($selector, $property . ': {{VALUE}};')] + $extra);
+    }
+    private function dimensions(string $key, string $label, string $selector, string $property, array $extra = [], bool $responsive = true): void {
+        $args = ['label'=>$label,'type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','custom'],'selectors'=>self::css($selector, $property . ': {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};')] + $extra;
+        $responsive ? $this->add_responsive_control($key, $args) : $this->add_control($key, $args);
+    }
+    private function typography(string $name, string $selector, array $extra = []): void {
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>$name,'selector'=>(string) array_key_first(self::css($selector, ''))] + $extra);
     }
 
     private function slide_container(int $index): array {
@@ -305,32 +326,21 @@ final class Nested_Carousel extends Widget_Nested_Base {
         $this->carousel_controls(['show'=>'slides_to_show','scroll'=>'slides_to_scroll','gap'=>'image_spacing_custom','arrows'=>'arrows','loop'=>'infinite'], ['show'=>'3','show_tablet'=>'2','show_mobile'=>'1']);
         $this->add_control('navigation_previous_icon', ['label'=>'Icono anterior','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'fas fa-chevron-left','library'=>'fa-solid'],'condition'=>['arrows'=>'yes']]);
         $this->add_control('navigation_next_icon', ['label'=>'Icono siguiente','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'fas fa-chevron-right','library'=>'fa-solid'],'condition'=>['arrows'=>'yes']]);
+        $this->carousel_arrow_position_controls('arrows');
+        $this->carousel_offset_controls('infinite');
         $this->add_control('equal_height', ['label'=>'Misma altura','type'=>Controls_Manager::SWITCHER,'default'=>'yes','prefix_class'=>'obx-ncarousel--equal-','separator'=>'before']);
         $this->end_controls_section();
 
         $this->start_controls_section('section_slides_style', ['label'=>'Diapositivas','tab'=>Controls_Manager::TAB_STYLE]);
         $this->slider('image_spacing_custom', 'Separación', '.obx-carousel', '--obx-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'default'=>['size'=>10],'range'=>['px'=>['max'=>100]]], true);
-        $this->add_responsive_control('content_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],'selectors'=>['{{WRAPPER}} .obx-carousel__track > .e-con'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
+        $slide = '{{WRAPPER}} .obx-carousel__track > .e-con';
+        $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'content_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>$slide,'separator'=>'before']);
+        $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'content_border','selector'=>$slide]);
+        $this->dimensions('border_radius', 'Radio del borde', '.obx-carousel__track > .e-con', 'border-radius');
+        $this->dimensions('content_padding', 'Relleno', '.obx-carousel__track > .e-con', 'padding');
         $this->end_controls_section();
 
-        $this->start_controls_section('section_navigation_style', ['label'=>'Navegación','tab'=>Controls_Manager::TAB_STYLE]);
-        $this->slider('arrows_size', 'Tamaño de las flechas', '.obx-carousel__arrow', 'font-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>6,'max'=>100]],'condition'=>['arrows'=>'yes']], true);
-        $this->color('arrows_normal_color', 'Color', '.obx-carousel__arrow', 'color', ['condition'=>['arrows'=>'yes']]);
-        $this->color('arrows_hover_color', 'Color al pasar el ratón', '.obx-carousel__arrow:hover', 'color', ['condition'=>['arrows'=>'yes']]);
-        $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'arrows_normal_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-carousel__arrow','condition'=>['arrows'=>'yes']]);
-        $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'arrows_normal_border_type','selector'=>'{{WRAPPER}} .obx-carousel__arrow','condition'=>['arrows'=>'yes']]);
-        $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'arrows_hover_border_type','selector'=>'{{WRAPPER}} .obx-carousel__arrow:hover','condition'=>['arrows'=>'yes']]);
-        $this->add_responsive_control('arrows_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em'],'selectors'=>['{{WRAPPER}} .obx-carousel__arrow'=>'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};'],'condition'=>['arrows'=>'yes']]);
-        $this->add_responsive_control('arrows_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em'],'selectors'=>['{{WRAPPER}} .obx-carousel__arrow'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};'],'condition'=>['arrows'=>'yes']]);
-        foreach (['previous'=>'anterior','next'=>'siguiente'] as $dir => $label) {
-            $this->slider('navigation_' . $dir . '_icon_horizontal_position', 'Desplazamiento horizontal (' . $label . ')', '.obx-carousel__arrow--' . ($dir === 'previous' ? 'prev' : 'next'), '--obx-arrow-x: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%','em','rem','vw'],'range'=>['px'=>['min'=>-300,'max'=>300]],'condition'=>['arrows'=>'yes']], true);
-            $this->slider('navigation_' . $dir . '_icon_vertical_position', 'Desplazamiento vertical (' . $label . ')', '.obx-carousel__arrow--' . ($dir === 'previous' ? 'prev' : 'next'), '--obx-arrow-y: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%','em','rem','vh'],'range'=>['px'=>['min'=>-300,'max'=>300]],'condition'=>['arrows'=>'yes']], true);
-        }
-        $this->slider('dots_size', 'Tamaño de los puntos', '.obx-carousel__pagination', '--obx-dot: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>30]],'condition'=>['pagination!'=>''],'separator'=>'before'], true);
-        $this->slider('dots_pagination_spacing', 'Distancia al contenido', '.obx-carousel__pagination', 'margin-top: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]],'condition'=>['pagination!'=>'']], true);
-        $this->color('dots_color_inactive', 'Color de los puntos', '.obx-carousel__pagination', '--obx-dot-inactive', ['condition'=>['pagination!'=>'']]);
-        $this->color('dots_color_active', 'Color del punto activo', '.obx-carousel__pagination', '--obx-dot-active', ['condition'=>['pagination!'=>'']]);
-        $this->end_controls_section();
+        $this->carousel_pro_navigation_style('arrows');
     }
 
     protected function render(): void {
@@ -338,7 +348,8 @@ final class Nested_Carousel extends Widget_Nested_Base {
         $items = array_values(array_filter((array) ($s['carousel_items'] ?? []), 'is_array'));
         $prev = !empty($s['navigation_previous_icon']['value']) ? (string) Icons_Manager::try_get_icon_html($s['navigation_previous_icon'], ['aria-hidden'=>'true']) : '';
         $next = !empty($s['navigation_next_icon']['value']) ? (string) Icons_Manager::try_get_icon_html($s['navigation_next_icon'], ['aria-hidden'=>'true']) : '';
-        echo '<div class="obx-carousel obx-ncarousel" data-carousel="' . esc_attr($this->carousel_options($s, 'arrows', 'infinite')) . '" role="region" aria-roledescription="carrusel" aria-label="' . esc_attr((string) ($s['carousel_name'] ?? 'Carrusel')) . '"><div class="obx-carousel__track">';
+        $dir = ($s['direction'] ?? 'ltr') === 'rtl' ? ' dir="rtl"' : '';
+        echo '<div class="obx-carousel obx-ncarousel" data-carousel="' . esc_attr($this->carousel_options($s, 'arrows', 'infinite')) . '"' . $dir . ' role="region" aria-roledescription="carrusel" aria-label="' . esc_attr((string) ($s['carousel_name'] ?? 'Carrusel')) . '"><div class="obx-carousel__track">';
         // The slide containers are the carousel slides (direct children of the track, as in the editor).
         foreach (array_keys($items) as $index) { $this->print_child($index); }
         echo '</div>' . $this->carousel_controls_html($s, 'arrows', $prev, $next) . '</div>';
@@ -346,12 +357,12 @@ final class Nested_Carousel extends Widget_Nested_Base {
 
     protected function content_template(): void {
         ?>
-        <div class="obx-carousel obx-ncarousel" data-carousel="{}">
+        <div class="obx-carousel obx-ncarousel" data-carousel="{}"<# if ( 'rtl' === settings.direction ) { #> dir="rtl"<# } #>>
             <div class="obx-carousel__track">
             </div>
             <# if ( 'yes' === settings.arrows ) { #>
-            <button type="button" class="obx-carousel__arrow obx-carousel__arrow--prev" aria-label="Diapositiva anterior">{{{ elementor.helpers.renderIcon( view, settings.navigation_previous_icon, { 'aria-hidden': true }, 'i', 'object' )?.value || '‹' }}}</button>
-            <button type="button" class="obx-carousel__arrow obx-carousel__arrow--next" aria-label="Diapositiva siguiente">{{{ elementor.helpers.renderIcon( view, settings.navigation_next_icon, { 'aria-hidden': true }, 'i', 'object' )?.value || '›' }}}</button>
+            <div class="obx-carousel__arrow obx-carousel__arrow--prev" role="button" tabindex="0" aria-label="Diapositiva anterior">{{{ elementor.helpers.renderIcon( view, settings.navigation_previous_icon, { 'aria-hidden': true }, 'i', 'object' )?.value || '‹' }}}</div>
+            <div class="obx-carousel__arrow obx-carousel__arrow--next" role="button" tabindex="0" aria-label="Diapositiva siguiente">{{{ elementor.helpers.renderIcon( view, settings.navigation_next_icon, { 'aria-hidden': true }, 'i', 'object' )?.value || '›' }}}</div>
             <# } #>
             <# if ( settings.pagination ) { #><div class="obx-carousel__pagination obx-carousel__pagination--{{ settings.pagination }}"></div><# } #>
         </div>
