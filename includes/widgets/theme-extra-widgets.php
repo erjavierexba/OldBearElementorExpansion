@@ -5,6 +5,7 @@ use Elementor\Controls_Manager;
 use Elementor\Group_Control_Box_Shadow;
 use Elementor\Group_Control_Typography;
 use Elementor\Icons_Manager;
+use Elementor\Repeater;
 use Elementor\Utils;
 use OldBearExpansion\Context;
 
@@ -321,51 +322,149 @@ final class Breadcrumbs extends Base {
 
 final class Sitemap extends Base {
     public const PRO = 'sitemap';
+    private const TAGS = ['h1'=>'H1','h2'=>'H2','h3'=>'H3','h4'=>'H4','h5'=>'H5','h6'=>'H6','div'=>'div','span'=>'span','p'=>'p'];
     public function get_title(): string { return 'Mapa del sitio'; }
     public function get_icon(): string { return 'eicon-sitemap'; }
-    public function get_keywords(): array { return ['sitemap','mapa','indice','paginas']; }
-    protected function register_controls(): void {
-        $types = [];
-        foreach (get_post_types(['public'=>true], 'objects') as $type) { if ($type->name !== 'attachment') { $types[$type->name] = $type->labels->name; } }
-        foreach (get_taxonomies(['public'=>true], 'objects') as $tax) { $types['tax:' . $tax->name] = $tax->labels->name; }
-        $this->start_controls_section('content', ['label'=>'Mapa del sitio']);
-        $this->add_control('sources', ['label'=>'Contenido','type'=>Controls_Manager::SELECT2,'multiple'=>true,'options'=>$types,'default'=>['page','post'],'label_block'=>true]);
-        $this->add_responsive_control('columns', ['label'=>'Columnas','type'=>Controls_Manager::SELECT,'options'=>['1'=>'1','2'=>'2','3'=>'3','4'=>'4'],'default'=>'2','tablet_default'=>'2','mobile_default'=>'1','selectors'=>['{{WRAPPER}} .obx-sitemap'=>'grid-template-columns: repeat({{VALUE}}, minmax(0, 1fr));']]);
-        $this->add_control('show_titles', ['label'=>'Títulos de sección','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'yes']);
-        $this->add_control('limit', ['label'=>'Máximo por sección','type'=>Controls_Manager::NUMBER,'min'=>1,'max'=>500,'default'=>50]);
-        $this->end_controls_section();
-        $this->text_style('.obx-sitemap__title', 'Títulos de sección', 'section', false);
-        $this->text_style('.obx-sitemap__list', 'Enlaces', 'links', false);
+    public function get_keywords(): array { return ['sitemap','mapa','indice','índice','paginas','páginas']; }
+
+    public static function wants_upgrade(string $name, array $settings): bool { return $name === self::PRO && (bool) array_intersect_key($settings, array_flip(['sources','columns','show_titles','limit'])); }
+
+    protected static function upgrade_settings(array $s): array {
+        if (array_key_exists('sources', $s) && !isset($s['sitemap_items'])) {
+            $rows = [];
+            foreach ((array) $s['sources'] as $source) {
+                $source = (string) $source;
+                $tax = str_starts_with($source, 'tax:') ? substr($source, 4) : '';
+                $object = $tax !== '' ? get_taxonomy($tax) : get_post_type_object($source);
+                $title = ($s['show_titles'] ?? 'yes') === 'yes' && $object ? (string) $object->labels->name : '';
+                $rows[] = ['_id'=>substr(md5($source), 0, 7),'sitemap_type_selector'=>$tax !== '' ? 'taxonomy' : 'post_type','sitemap_title'=>$title] + ($tax !== '' ? ['sitemap_source_taxonomy'=>$tax] : ['sitemap_source_post_type'=>$source]);
+            }
+            $s['sitemap_items'] = $rows;
+        } elseif (!array_key_exists('sources', $s) && ($s['show_titles'] ?? 'yes') !== 'yes') {
+            $s['sitemap_items'] = [['_id'=>'pages01','sitemap_type_selector'=>'post_type','sitemap_source_post_type'=>'page','sitemap_title'=>''],['_id'=>'posts01','sitemap_type_selector'=>'post_type','sitemap_source_post_type'=>'post','sitemap_title'=>'']];
+        } elseif (!array_key_exists('sources', $s)) {
+            // Before 0.11.0 the default listed pages and posts.
+            $s['sitemap_items'] = [['_id'=>'pages01','sitemap_type_selector'=>'post_type','sitemap_source_post_type'=>'page','sitemap_title'=>'Páginas'],['_id'=>'posts01','sitemap_type_selector'=>'post_type','sitemap_source_post_type'=>'post','sitemap_title'=>'Entradas']];
+        }
+        $s = self::rename($s, ['columns'=>'sitemap_columns','columns_tablet'=>'sitemap_columns_tablet','columns_mobile'=>'sitemap_columns_mobile']);
+        unset($s['sources'], $s['show_titles'], $s['limit']);
+        return $s;
     }
+
+    protected function register_controls(): void {
+        $post_types = [];
+        foreach (get_post_types(['public'=>true], 'objects') as $type) { if ($type->name !== 'attachment') { $post_types[$type->name] = $type->labels->name; } }
+        $taxonomies = [];
+        foreach (get_taxonomies(['public'=>true], 'objects') as $tax) { $taxonomies[$tax->name] = $tax->labels->name; }
+
+        $this->start_controls_section('sitemap_section', ['label'=>'Mapa del sitio']);
+        $r = new Repeater();
+        $r->add_control('sitemap_type_selector', ['label'=>'Tipo','type'=>Controls_Manager::SELECT,'default'=>'post_type','options'=>['post_type'=>'Tipo de contenido','taxonomy'=>'Taxonomía']]);
+        $r->add_control('sitemap_source_post_type', ['label'=>'Fuente','type'=>Controls_Manager::SELECT,'default'=>'page','options'=>$post_types,'condition'=>['sitemap_type_selector'=>'post_type']]);
+        $r->add_control('sitemap_source_taxonomy', ['label'=>'Fuente','type'=>Controls_Manager::SELECT,'default'=>'category','options'=>$taxonomies,'condition'=>['sitemap_type_selector'=>'taxonomy']]);
+        $r->add_control('sitemap_title', ['label'=>'Título','type'=>Controls_Manager::TEXT,'dynamic'=>['active'=>true]]);
+        $r->add_control('sitemap_orderby_post_type', ['label'=>'Ordenar por','type'=>Controls_Manager::SELECT,'default'=>'post_date','options'=>['post_date'=>'Fecha','post_title'=>'Título','menu_order'=>'Orden del menú','rand'=>'Aleatorio'],'condition'=>['sitemap_type_selector'=>'post_type']]);
+        $r->add_control('sitemap_orderby_taxonomy', ['label'=>'Ordenar por','type'=>Controls_Manager::SELECT,'default'=>'name','options'=>['id'=>'ID','name'=>'Nombre'],'condition'=>['sitemap_type_selector'=>'taxonomy']]);
+        $r->add_control('sitemap_order', ['label'=>'Orden','type'=>Controls_Manager::SELECT,'default'=>'desc','options'=>['asc'=>'Ascendente','desc'=>'Descendente']]);
+        $r->add_control('sitemap_hide_empty', ['label'=>'Ocultar vacías','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['sitemap_type_selector'=>'taxonomy']]);
+        $r->add_control('sitemap_hierarchical', ['label'=>'Jerárquico','type'=>Controls_Manager::SWITCHER,'default'=>'no']);
+        $r->add_control('sitemap_depth', ['label'=>'Profundidad','type'=>Controls_Manager::SELECT,'default'=>'0','options'=>['0'=>'Todos','1'=>'1','2'=>'2','3'=>'3','4'=>'4','5'=>'5','6'=>'6'],'condition'=>['sitemap_hierarchical'=>'yes']]);
+        $this->add_control('sitemap_items', ['label'=>'Elementos del mapa','type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'default'=>[
+            ['sitemap_type_selector'=>'post_type','sitemap_title'=>'Páginas','sitemap_source_post_type'=>'page'],
+            ['sitemap_type_selector'=>'taxonomy','sitemap_title'=>'Categorías','sitemap_source_taxonomy'=>'category'],
+        ],'title_field'=>'{{{ sitemap_title }}}']);
+        $columns = array_combine(array_map('strval', range(1, 6)), array_map('strval', range(1, 6)));
+        $this->add_responsive_control('sitemap_columns', ['label'=>'Columnas','type'=>Controls_Manager::SELECT,'default'=>'4','tablet_default'=>'2','mobile_default'=>'1','options'=>$columns,'selectors'=>['{{WRAPPER}} .obx-sitemap__section'=>'flex-basis: calc(100% / {{VALUE}});'],'separator'=>'before']);
+        $this->add_control('sitemap_title_tag', ['label'=>'Etiqueta HTML del título','type'=>Controls_Manager::SELECT,'default'=>'h2','options'=>self::TAGS]);
+        $this->add_control('sitemap_add_nofollow', ['label'=>'Añadir nofollow','type'=>Controls_Manager::SWITCHER]);
+        $this->end_controls_section();
+
+        $posts = [];
+        foreach (get_posts(['post_type'=>array_keys($post_types),'numberposts'=>200,'post_status'=>'publish']) as $post) { $posts[(string) $post->ID] = get_the_title($post) ?: '#' . $post->ID; }
+        $this->start_controls_section('sitemap_query_section', ['label'=>'Consulta']);
+        $this->add_control('sitemap_exclude', ['label'=>'Excluir','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>['current_post'=>'Entrada actual','manual_selection'=>'Selección manual']]);
+        $this->add_control('sitemap_exclude_ids', ['label'=>'Buscar y seleccionar','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'options'=>$posts,'condition'=>['sitemap_exclude'=>'manual_selection']]);
+        $this->add_control('sitemap_password_protected', ['label'=>'Incluir protegidas con contraseña','type'=>Controls_Manager::SWITCHER]);
+        $this->end_controls_section();
+
+        $w = '{{WRAPPER}} ';
+        $this->start_controls_section('section_sitemap_style', ['label'=>'Lista','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_responsive_control('sitemap_list_indent', ['label'=>'Sangría','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>50]],'selectors'=>[$w . '.obx-sitemap__list, ' . $w . '.obx-sitemap__list .children'=>'padding-inline-start: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('sitemap_section_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem','vw','custom'],'selectors'=>[$w . '.obx-sitemap__section'=>'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']]);
+        $this->add_control('heading_sitemap_title', ['label'=>'Título','type'=>Controls_Manager::HEADING,'separator'=>'before']);
+        $this->add_control('sitemap_title_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>[$w . '.obx-sitemap__title'=>'color: {{VALUE}};']]);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'sitemap_title_typography','selector'=>$w . '.obx-sitemap__title']);
+        $this->add_control('heading_sitemap_list_item', ['label'=>'Elementos','type'=>Controls_Manager::HEADING,'separator'=>'before']);
+        $this->add_control('sitemap_list_item_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>[$w . '.obx-sitemap__item > a'=>'color: {{VALUE}};']]);
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'sitemap_list_item_typography','selector'=>$w . '.obx-sitemap__item, ' . $w . '.obx-sitemap__item > a']);
+        $this->add_control('heading_sitemap_bullet', ['label'=>'Viñeta','type'=>Controls_Manager::HEADING,'separator'=>'before']);
+        $this->add_control('sitemap_bullet_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'selectors'=>[$w . '.obx-sitemap__item'=>'color: {{VALUE}};']]);
+        $this->add_control('sitemap_list_item_bullet_style', ['label'=>'Estilo','type'=>Controls_Manager::CHOOSE,'default'=>'disc','options'=>['disc'=>['title'=>'Disco','icon'=>'eicon-circle'],'circle'=>['title'=>'Círculo','icon'=>'eicon-circle-o'],'square'=>['title'=>'Cuadrado','icon'=>'eicon-square'],'none'=>['title'=>'Ninguno','icon'=>'eicon-ban']],'toggle'=>false,'selectors'=>[$w . '.obx-sitemap__list, ' . $w . '.obx-sitemap__list .children'=>'list-style-type: {{VALUE}};']]);
+        $this->end_controls_section();
+    }
+
+    /** IDs left out of every list: the current post and/or a manual selection. */
+    private static function excluded(array $s): array {
+        $exclude = (array) ($s['sitemap_exclude'] ?? []);
+        $ids = in_array('manual_selection', $exclude, true) ? array_map('intval', (array) ($s['sitemap_exclude_ids'] ?? [])) : [];
+        if (in_array('current_post', $exclude, true) && get_queried_object_id()) { $ids[] = (int) get_queried_object_id(); }
+        return array_values(array_filter(array_unique($ids)));
+    }
+
+    /** <li> items for a branch of $items (objects with ID/term_id and a parent), down to $depth (0 = no limit). */
+    private function branch(array $by_parent, int $parent, string $kind, int $level, int $depth, string $rel): string {
+        $html = '';
+        foreach ($by_parent[$parent] ?? [] as $item) {
+            $id = $kind === 'post' ? (int) $item->ID : (int) $item->term_id;
+            $url = $kind === 'post' ? get_permalink($item) : get_term_link($item);
+            if (is_wp_error($url) || !$url) { continue; }
+            $label = $kind === 'post' ? (get_the_title($item) ?: '#' . $id) : $item->name;
+            $html .= '<li class="obx-sitemap__item obx-sitemap__item--' . esc_attr($kind === 'post' ? $item->post_type : $item->taxonomy) . '"><a href="' . esc_url($url) . '"' . $rel . '>' . esc_html($label) . '</a>';
+            if (($depth === 0 || $level < $depth) && !empty($by_parent[$id])) { $html .= '<ul class="children">' . $this->branch($by_parent, $id, $kind, $level + 1, $depth, $rel) . '</ul>'; }
+            $html .= '</li>';
+        }
+        return $html;
+    }
+
+    private function section(array $row, array $s, array $exclude): string {
+        $rel = ($s['sitemap_add_nofollow'] ?? '') === 'yes' ? ' rel="nofollow"' : '';
+        $hierarchical = ($row['sitemap_hierarchical'] ?? 'no') === 'yes';
+        $depth = max(0, (int) ($row['sitemap_depth'] ?? 0));
+        $order = strtolower((string) ($row['sitemap_order'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC';
+        if (($row['sitemap_type_selector'] ?? 'post_type') === 'taxonomy') {
+            $tax = get_taxonomy((string) ($row['sitemap_source_taxonomy'] ?? 'category'));
+            if (!$tax || !$tax->public) { return ''; }
+            $terms = get_terms(['taxonomy'=>$tax->name,'hide_empty'=>($row['sitemap_hide_empty'] ?? 'yes') === 'yes','orderby'=>($row['sitemap_orderby_taxonomy'] ?? 'name') === 'id' ? 'term_id' : 'name','order'=>$order]);
+            if (is_wp_error($terms) || !$terms) { return ''; }
+            $items = $terms; $kind = 'term'; $class = $tax->name; $parent_of = static fn($t) => $hierarchical ? (int) $t->parent : 0;
+        } else {
+            $type = get_post_type_object((string) ($row['sitemap_source_post_type'] ?? 'page'));
+            if (!$type || !$type->public) { return ''; }
+            $orderby = in_array($row['sitemap_orderby_post_type'] ?? 'post_date', ['post_date','post_title','menu_order','rand'], true) ? (string) ($row['sitemap_orderby_post_type'] ?? 'post_date') : 'post_date';
+            $args = ['post_type'=>$type->name,'post_status'=>'publish','posts_per_page'=>-1,'orderby'=>$orderby,'order'=>$order,'post__not_in'=>$exclude,'ignore_sticky_posts'=>true,'no_found_rows'=>true];
+            if (($s['sitemap_password_protected'] ?? '') !== 'yes') { $args['has_password'] = false; }
+            $items = get_posts($args);
+            if (!$items) { return ''; }
+            $kind = 'post'; $class = $type->name;
+            $present = array_flip(wp_list_pluck($items, 'ID'));
+            // A child whose parent is not listed hangs from the top level.
+            $parent_of = static fn($p) => $hierarchical && $type->hierarchical && isset($present[(int) $p->post_parent]) ? (int) $p->post_parent : 0;
+        }
+        $by_parent = [];
+        foreach ($items as $item) { $by_parent[$parent_of($item)][] = $item; }
+        $list = $this->branch($by_parent, 0, $kind, 1, $hierarchical ? $depth : 1, $rel);
+        if ($list === '') { return ''; }
+        $tag = array_key_exists((string) ($s['sitemap_title_tag'] ?? 'h2'), self::TAGS) ? (string) ($s['sitemap_title_tag'] ?? 'h2') : 'h2';
+        $title = trim((string) ($row['sitemap_title'] ?? ''));
+        return '<div class="obx-sitemap__section obx-sitemap__section--' . esc_attr($class) . '">' . ($title !== '' ? '<' . $tag . ' class="obx-sitemap__title">' . esc_html($title) . '</' . $tag . '>' : '') . '<ul class="obx-sitemap__list">' . $list . '</ul></div>';
+    }
+
     protected function render(): void {
         $s = $this->get_settings_for_display();
-        $limit = max(1, min(500, (int) $s['limit']));
-        echo '<div class="obx-sitemap">';
-        foreach ((array) $s['sources'] as $source) {
-            $source = (string) $source;
-            if (str_starts_with($source, 'tax:')) {
-                $tax = get_taxonomy(substr($source, 4));
-                if (!$tax || !$tax->public) { continue; }
-                $list = wp_list_categories(['taxonomy'=>$tax->name,'title_li'=>'','echo'=>false,'number'=>$limit,'show_option_none'=>'']);
-                $label = $tax->labels->name;
-            } else {
-                $type = get_post_type_object($source);
-                if (!$type || !$type->public) { continue; }
-                $label = $type->labels->name;
-                if ($type->hierarchical) {
-                    $list = wp_list_pages(['post_type'=>$source,'title_li'=>'','echo'=>false,'number'=>$limit]);
-                } else {
-                    $list = '';
-                    foreach (get_posts(['post_type'=>$source,'posts_per_page'=>$limit,'post_status'=>'publish']) as $item) {
-                        $list .= '<li><a href="' . esc_url(get_permalink($item)) . '">' . esc_html(get_the_title($item)) . '</a></li>';
-                    }
-                }
-            }
-            if (!$list) { continue; }
-            echo '<section class="obx-sitemap__section">';
-            if ($s['show_titles'] === 'yes') { echo '<h3 class="obx-sitemap__title">' . esc_html($label) . '</h3>'; }
-            echo '<ul class="obx-sitemap__list">' . $list . '</ul></section>'; // Core list markup.
-        }
-        echo '</div>';
+        $exclude = self::excluded($s);
+        $html = '';
+        foreach ((array) ($s['sitemap_items'] ?? []) as $row) { if (is_array($row)) { $html .= $this->section($row, $s, $exclude); } }
+        if ($html === '') { if (Context::is_editor()) { echo '<div class="obx-placeholder">El mapa del sitio no tiene elementos.</div>'; } return; }
+        echo '<div class="obx-sitemap">' . $html . '</div>';
     }
 }

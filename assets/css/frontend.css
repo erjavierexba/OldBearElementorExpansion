@@ -172,7 +172,7 @@
 /* Breadcrumbs */
 .obx-breadcrumbs ol{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}.obx-breadcrumbs a{color:inherit}.obx-breadcrumbs__sep{opacity:.6}
 /* Sitemap */
-.obx-sitemap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:30px}.obx-sitemap__title{margin:0 0 10px}.obx-sitemap__list{margin:0;padding-left:1.2em}.obx-sitemap__list .children{padding-left:1.2em}
+.obx-sitemap{display:flex;flex-wrap:wrap}.obx-sitemap__section{flex:0 0 25%;box-sizing:border-box;min-width:0;padding-inline-end:20px;margin-bottom:1.5em}.obx-sitemap__title{margin:0 0 .5em}.obx-sitemap__list{margin:0;padding-inline-start:1.2em;list-style-type:disc}.obx-sitemap__list .children{margin:0;padding-inline-start:1.2em;list-style-type:disc}
 /* Blockquote */
 .obx-quote{--obx-quote-mark:rgba(128,128,128,.35);--obx-quote-size:1;--obx-tweet-bg:#000;margin:0;padding:0;font-style:normal;transition-property:border,padding,background,border-radius,box-shadow;transition-duration:.3s}
 .obx-quote__content{margin:0 0 16px;font-size:1.3em;line-height:1.5}
@@ -377,7 +377,7 @@
 .obx-code--dark .obx-tok-comment{color:#7f849c;font-style:italic}.obx-code--dark .obx-tok-string{color:#a6e3a1}.obx-code--dark .obx-tok-number{color:#fab387}.obx-code--dark .obx-tok-keyword{color:#cba6f7}.obx-code--dark .obx-tok-tag{color:#89b4fa}
 .obx-code--light{background:#f7f7fa;color:#24292f;border:1px solid #e3e3ea}.obx-code--light .obx-code__bar{background:#ececf2;color:#57606a}.obx-code--light .is-highlighted{background:rgba(255,213,0,.18)}
 .obx-code--light .obx-tok-comment{color:#6e7781;font-style:italic}.obx-code--light .obx-tok-string{color:#0a7a32}.obx-code--light .obx-tok-number{color:#b35900}.obx-code--light .obx-tok-keyword{color:#8250df}.obx-code--light .obx-tok-tag{color:#0550ae}
-@media (max-width:767px){.obx-sitemap{grid-template-columns:1fr}.obx-postnav{flex-direction:column}.obx-postnav a{max-width:none}}
+@media (max-width:767px){.obx-postnav{flex-direction:column}.obx-postnav a{max-width:none}}
 .obx-code--theme-okaidia{background:#272822;color:#f8f8f2}.obx-code--theme-okaidia .obx-code__bar{background:#1e1f1c}.obx-code--theme-okaidia .obx-tok-keyword{color:#f92672}.obx-code--theme-okaidia .obx-tok-string{color:#a6e22e}
 .obx-code--theme-tomorrow{background:#2d2d2d;color:#ccc}.obx-code--theme-tomorrow .obx-code__bar{background:#232323}.obx-code--theme-tomorrow .obx-tok-keyword{color:#cc99cd}.obx-code--theme-tomorrow .obx-tok-string{color:#7ec699}
 .obx-code--theme-twilight{background:#141414;color:#f5f5f5}.obx-code--theme-twilight .obx-code__bar{background:#0c0c0c}.obx-code--theme-twilight .obx-tok-keyword{color:#cda869}.obx-code--theme-twilight .obx-tok-string{color:#8f9d6a}
