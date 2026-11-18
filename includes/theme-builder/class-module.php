@@ -61,6 +61,8 @@ final class Module {
     public static function boot_widgets(): void {
         add_action('elementor/elements/categories_registered', [self::class, 'categories']);
         add_action('elementor/widgets/register', [self::class, 'widgets']);
+        // Live results of the Search widget; the widget files load only when the route is registered.
+        add_action('rest_api_init', static function() { self::load_widgets(); \OldBearExpansion\Widgets\Search::routes(); });
         add_action('init', [self::class, 'assets'], 5);
         add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); });
         add_action('elementor/editor/after_enqueue_scripts', static function() {

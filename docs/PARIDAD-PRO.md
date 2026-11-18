@@ -171,9 +171,13 @@ El detalle de cada ajuste está en el anexo A. Las carencias funcionales que má
   - [x] `direction`, `offset_sides`/`offset_width` (diapositivas vecinas visibles), posición de cada flecha por orientación y desplazamiento, flechas dentro o fuera, estilos normal/hover de flechas (color, fondo, borde y sombra), puntos (colores, posición personalizada, dentro o fuera), fracción (tipografía, color y posición) y barra de progreso.
   - [x] Iconos y valores por defecto de Pro (`eicon-chevron-*`, 3/2/1 diapositivas). Las claves propias anteriores (`arrows_normal_color`, `dots_color_*`) se convierten al abrir.
   - Los métodos de navegación de Pro están en el trait `Carousel` para aplicarlos después al carrusel anidado (§5, fase 0.11.0).
-- **Search** (buscador de Pro):
-  - resultados en directo (`live_results`, `template_id`, `minimum_search_characters`, `number_of_items`, `enable_loader`) y consulta `search_query_*`;
-  - paginación, mensaje de "sin resultados", botón de limpiar y estilos de resultados.
+- **Search** (0.9.0, a la par salvo `e_display_conditions`):
+  - [x] Resultados en directo (`live_results`, `template_id`, `minimum_search_characters`, `number_of_columns`, `number_of_items`, `equal_height`, `enable_loader`): cada resultado se pinta con una plantilla «Elemento de bucle». Se piden a la ruta REST `obx/v1/search`, que lee los ajustes guardados del widget (solo de documentos publicados o editables por el usuario).
+  - [x] Consulta `search_query_*` con «Todos» (`any`) por defecto, inclusiones, exclusiones, fecha, orden e `query_id` (acción `elementor/query/{ID}`).
+  - [x] Paginación de resultados (números, anterior/siguiente, límite de páginas, acortar) y mensaje de «sin resultados» con su etiqueta.
+  - [x] Estilos del campo en normal y al escribir (fondo, texto, icono, borde, sombra, transición), icono de borrar, botón (posición del icono, normal/hover, animación), caja de resultados (ancho del campo o del widget, ancho personalizado, alineación, altura máxima, separaciones, indicador de carga), paginación y mensaje.
+  - [x] Teclado: flechas para recorrer los resultados, Escape para cerrar; `autocomplete` del navegador desactivado por defecto, como en Pro.
+  - Queda en el inventario solo ruido: tipos de contenido propios de cada sitio y la pestaña `search_query_query_args`.
 - **Formulario**:
   - integraciones Mailchimp, Drip, ActiveCampaign, GetResponse, ConvertKit, MailerLite, Slack y Discord;
   - acción de popup (`popup_action`…), `submissions_metadata` y `steps_state`.
@@ -208,7 +212,7 @@ Orden pensado para que lo que se importa desde Pro se vea igual cuanto antes:
 | --- | --- | --- |
 | 0.8.0 | §3.1 (excepto condiciones por elemento), §3.2, §3.3 y §3.4 (excepto WooCommerce): claves de Pro en plantillas, popups, kit y fondos | ✅ |
 | 0.8.1 | §3.5 condiciones, §3.6 etiquetas dinámicas (excepto `off-canvas`, Toolset y Pods) y vista previa de secciones guardadas | ✅ |
-| 0.9.0 | Loop Grid/Carousel completos y Search | ⏳ Loop Grid hecho |
+| 0.9.0 | Loop Grid/Carousel completos y Search | ✅ |
 | 0.9.1 | Formulario: integraciones y acción de popup | ☐ |
 | 0.10.0 | WooCommerce: widgets ausentes, ajustes de kit y estilos | ☐ |
 | 0.11.0 | Carruseles, galería, menú, mapa del sitio y resto del anexo A | ☐ |
@@ -240,6 +244,16 @@ Nuevo inventario de OBX comparado con Pro 4.2.3 (ajustes ausentes por tipo de do
 - Condiciones: se leen y escriben con los nombres de Pro, también con el grupo delante (`include/woocommerce/product_archive/shop_page`). Las reglas antiguas `singular/product` y `archive/product_archive` se convierten en `product` y `product_archive`.
 - Etiquetas dinámicas: solo falta `off-canvas` respecto a Pro 4.2.3 (con WooCommerce).
 - `tests/parity.php`: 194 pruebas.
+
+### Estado tras 0.9.0
+
+| Widget | Antes | Después |
+| --- | --- | --- |
+| `loop-grid` | 169 | 13 (opciones propias de cada sitio y pestañas sin datos) |
+| `loop-carousel` | 114 | 12 |
+| `search` | 296 | 3 (opciones propias de cada sitio, una pestaña y `e_display_conditions`) |
+
+- `tests/parity.php`: 405 pruebas.
 
 Cada fase:
 

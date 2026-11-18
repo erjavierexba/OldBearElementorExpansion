@@ -24,6 +24,7 @@
 | 11 | Theme Builder dentro de la app de Elementor (pantalla completa y modal del editor), con condiciones al publicar | ✅ v0.7.0 |
 | 12 | Formato de Pro en plantillas (vista previa, envoltorio, lienzo, estilo), popups, efectos de movimiento del fondo, transiciones de página, precargador y scroll snap | ✅ v0.8.0 |
 | 13 | Condiciones de Pro completas (hijos de término, formatos, medios y grupo WooCommerce), etiquetas dinámicas de Pro y ACF, vista previa de secciones guardadas | ✅ v0.8.1 |
+| 14 | Loop Grid y Loop Carousel con los skins y la paginación de Pro; Buscador con resultados en directo | ✅ v0.9.0 |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 

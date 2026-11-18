@@ -479,3 +479,322 @@ final class Taxonomy_Filter extends Element {
         echo '</div>';
     }
 }
+
+/**
+ * Elementor Pro's current «Search» widget: field with icon, clear button and submit, plus live results
+ * printed with a «loop-item» template and loaded from the REST route obx/v1/search.
+ */
+final class Search extends Base {
+    use Loop_Renderer;
+    public const PRO = 'search';
+    public const PRO_CATEGORY = 'pro-elements';
+    public const ROUTE = '/search';
+    private const MAX_ITEMS = 50;
+    private const FIELD = '{{WRAPPER}} .obx-search__field';
+    private const SUBMIT = '{{WRAPPER}} .obx-search__submit';
+    private const RESULTS = '{{WRAPPER}} .obx-search__results';
+
+    public function get_title(): string { return 'Buscador'; }
+    public function get_icon(): string { return 'eicon-site-search'; }
+    public function get_keywords(): array { return ['search','buscar','buscador','busqueda','live','resultados','autocompletar']; }
+    public function get_script_depends(): array { return ['obx-widgets']; }
+    protected function content_template() {}
+
+    public static function routes(): void {
+        register_rest_route('obx/v1', self::ROUTE, ['methods'=>'GET','callback'=>[self::class, 'respond'],'permission_callback'=>'__return_true',
+            'args'=>['post'=>['type'=>'integer','required'=>true],'widget'=>['type'=>'string','required'=>true],'q'=>['type'=>'string','default'=>''],'page'=>['type'=>'integer','default'=>1]]]);
+    }
+
+    public static function respond(\WP_REST_Request $request): \WP_REST_Response {
+        $widget = self::saved((int) $request['post'], sanitize_key((string) $request['widget']));
+        if (!$widget) { return new \WP_REST_Response(['html'=>'','total'=>0,'pages'=>0], 404); }
+        $term = mb_substr(trim(sanitize_text_field((string) $request['q'])), 0, 200);
+        return new \WP_REST_Response($widget->results($term, max(1, (int) $request['page'])));
+    }
+
+    /** The Search widget $id saved in document $post_id (published, or editable by the current user). */
+    public static function saved(int $post_id, string $id): ?self {
+        $post = get_post($post_id);
+        if (!$post || $id === '' || post_password_required($post) || ($post->post_status !== 'publish' && !current_user_can('edit_post', $post_id))) { return null; }
+        $document = Elementor::$instance->documents->get($post_id);
+        $element = $document ? \OldBearExpansion\Forms\Handler::find((array) $document->get_elements_data(), $id) : null;
+        if (!$element || ($element['elType'] ?? '') !== 'widget' || ($element['widgetType'] ?? '') !== self::PRO) { return null; }
+        $widget = Elementor::$instance->elements_manager->create_element_instance($element);
+        return $widget instanceof self ? $widget : null;
+    }
+
+    private static function post_types(): array {
+        $types = ['any'=>'Todos'];
+        foreach (get_post_types(['public'=>true], 'objects') as $type) {
+            if (!in_array($type->name, ['attachment','elementor_library','e-landing-page'], true)) { $types[$type->name] = $type->labels->name; }
+        }
+        return $types;
+    }
+
+    protected function register_controls(): void {
+        $live = ['live_results'=>'yes'];
+        $has_template = $live + ['template_id!'=>''];
+        $nothing = $has_template + ['enable_nothing_found_message'=>'yes'];
+        $submit = ['submit_trigger!'=>'key_enter'];
+        $submit_icon = $submit + ['icon_submit[value]!'=>''];
+        $paged = ['pagination_type_options'=>['numbers_previous_next','previous_next','numbers']];
+        $dims = static fn(string $selector, string $property) => [$selector=>$property . ': {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};'];
+        $seconds = ['type'=>Controls_Manager::SLIDER,'size_units'=>['s','ms'],'default'=>['unit'=>'s'],'range'=>['s'=>['min'=>0,'max'=>3,'step'=>0.1],'ms'=>['min'=>0,'max'=>3000,'step'=>50]]];
+
+        $this->start_controls_section('content_section_search_field', ['label'=>'Campo de búsqueda']);
+        $this->add_control('search_input_placeholder_text', ['label'=>'Texto de ejemplo','type'=>Controls_Manager::TEXT,'default'=>'Escribe para buscar…','dynamic'=>['active'=>true]]);
+        $this->add_control('icon_search', ['label'=>'Icono del campo','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false]);
+        $this->add_control('autocomplete', ['label'=>'Autocompletado del navegador','type'=>Controls_Manager::SWITCHER,'description'=>'Deja que el navegador sugiera búsquedas anteriores.']);
+        $this->add_control('icon_clear', ['label'=>'Icono para borrar','type'=>Controls_Manager::ICONS,'default'=>['value'=>'fas fa-times','library'=>'fa-solid'],'skin'=>'inline','label_block'=>false]);
+        $this->add_control('submit_trigger', ['label'=>'Enviar con','type'=>Controls_Manager::SELECT,'default'=>'click_submit','options'=>['click_submit'=>'Botón','key_enter'=>'Tecla Intro','both'=>'Ambos'],'separator'=>'before']);
+        $this->add_control('submit_button_text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'Buscar','dynamic'=>['active'=>true],'condition'=>$submit]);
+        $this->add_control('icon_submit', ['label'=>'Icono del botón','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'condition'=>$submit]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('content_section_results', ['label'=>'Resultados en vivo']);
+        $this->add_control('live_results', ['label'=>'Mostrar resultados al escribir','type'=>Controls_Manager::SWITCHER]);
+        $this->add_control('template_id', ['label'=>'Plantilla del elemento','type'=>Controls_Manager::SELECT,'options'=>self::loop_templates(),'default'=>'','label_block'=>true,'condition'=>$live,
+            'description'=>'Cada resultado se muestra con una plantilla de tipo «Elemento de bucle».']);
+        $this->add_control('minimum_search_characters', ['label'=>'Caracteres mínimos','type'=>Controls_Manager::NUMBER,'default'=>3,'min'=>1,'max'=>10,'condition'=>$has_template]);
+        $this->add_responsive_control('number_of_columns', ['label'=>'Columnas','type'=>Controls_Manager::NUMBER,'default'=>1,'min'=>1,'max'=>6,'condition'=>$has_template,'selectors'=>['{{WRAPPER}} .obx-search__items'=>'--obx-search-columns: {{VALUE}};']]);
+        $this->add_control('number_of_items', ['label'=>'Resultados por página','type'=>Controls_Manager::NUMBER,'default'=>6,'min'=>1,'max'=>self::MAX_ITEMS,'condition'=>$has_template]);
+        $this->add_control('equal_height', ['label'=>'Misma altura','type'=>Controls_Manager::SWITCHER,'condition'=>$has_template,'selectors'=>['{{WRAPPER}} .obx-search__items > .e-loop-item > .elementor'=>'height: 100%;']]);
+        $this->add_control('enable_loader', ['label'=>'Indicador de carga','type'=>Controls_Manager::SWITCHER,'condition'=>$has_template]);
+        $this->add_control('enable_nothing_found_message', ['label'=>'Mensaje sin resultados','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>$has_template,'separator'=>'before']);
+        $this->add_control('nothing_found_message_text', ['label'=>'Mensaje','type'=>Controls_Manager::TEXTAREA,'default'=>'No hemos encontrado nada con esa búsqueda.','dynamic'=>['active'=>true],'condition'=>$nothing]);
+        $this->add_control('nothing_found_message_html_tag', ['label'=>'Etiqueta HTML','type'=>Controls_Manager::SELECT,'default'=>'div','options'=>['h1'=>'H1','h2'=>'H2','h3'=>'H3','h4'=>'H4','h5'=>'H5','h6'=>'H6','div'=>'div','span'=>'span'],'condition'=>$nothing]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('content_section_query', ['label'=>'Consulta','condition'=>$live]);
+        Query::controls($this, 'search_query_', '', [], false);
+        foreach (['archive_query_note','search_query_related_taxonomies','search_query_avoid_duplicates','search_query_offset','search_query_related_fallback','search_query_fallback_ids'] as $key) { $this->remove_control($key); }
+        $this->update_control('search_query_post_type', ['label'=>'Buscar en','default'=>'any','options'=>self::post_types()]);
+        $this->end_controls_section();
+
+        $this->start_controls_section('content_section_additional_settings', ['label'=>'Paginación de resultados','condition'=>$has_template]);
+        $this->add_control('pagination_type_options', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'none','options'=>['none'=>'Ninguna','numbers'=>'Números','previous_next'=>'Anterior / Siguiente','numbers_previous_next'=>'Números + Anterior / Siguiente']]);
+        $this->add_control('pagination_prev_label', ['label'=>'Texto «Anterior»','type'=>Controls_Manager::TEXT,'default'=>'Anterior','condition'=>['pagination_type_options'=>['previous_next','numbers_previous_next']]]);
+        $this->add_control('pagination_next_label', ['label'=>'Texto «Siguiente»','type'=>Controls_Manager::TEXT,'default'=>'Siguiente','condition'=>['pagination_type_options'=>['previous_next','numbers_previous_next']]]);
+        $this->add_control('page_limit_settings', ['label'=>'Límite de páginas','type'=>Controls_Manager::NUMBER,'default'=>5,'min'=>1,'condition'=>$paged]);
+        $this->add_control('pagination_shorten_settings', ['label'=>'Acortar','type'=>Controls_Manager::SWITCHER,'description'=>'Muestra solo la primera, la última y las páginas cercanas a la actual.','condition'=>['pagination_type_options'=>['numbers_previous_next','numbers']]]);
+        $this->end_controls_section();
+
+        // Style: field.
+        $this->start_controls_section('section_search_field_style', ['label'=>'Campo de búsqueda','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->add_group_control(\Elementor\Group_Control_Typography::get_type(), ['name'=>'search_field_typography','selector'=>self::FIELD]);
+        $this->add_control('placeholder_color', ['label'=>'Color del texto de ejemplo','type'=>Controls_Manager::COLOR,'selectors'=>[self::FIELD . '::placeholder'=>'color: {{VALUE}};']]);
+        $this->start_controls_tabs('search_field_tabs');
+        foreach (['normal'=>['Normal', '', ''], 'focus'=>['Al escribir', ':focus', ':focus-within']] as $state => [$label, $pseudo, $within]) {
+            $this->start_controls_tab('search_field_tab_' . $state, ['label'=>$label]);
+            $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'search_field_background_' . $state,'types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>self::FIELD . $pseudo]);
+            $this->add_control('search_field_input_text_color_' . $state, ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>[self::FIELD . $pseudo=>'color: {{VALUE}};']]);
+            $this->add_control('search_field_icon_search_normal_color_' . $state, ['label'=>'Color del icono','type'=>Controls_Manager::COLOR,'condition'=>['icon_search[value]!'=>''],
+                'selectors'=>['{{WRAPPER}} .obx-search__wrap' . $within . ' .obx-search__icon'=>'color: {{VALUE}}; fill: {{VALUE}};']]);
+            $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'search_field_border_' . $state,'selector'=>self::FIELD . $pseudo]);
+            $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'search_field_box_shadow__' . $state,'selector'=>self::FIELD . $pseudo]);
+            if ($state === 'focus') {
+                $this->add_control('search_field_search_input_transition', ['label'=>'Duración de la transición'] + $seconds + ['selectors'=>[self::FIELD . ', {{WRAPPER}} .obx-search__icon'=>'transition-duration: {{SIZE}}{{UNIT}};']]);
+            }
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
+        $this->add_responsive_control('search_field_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],'separator'=>'before','selectors'=>$dims(self::FIELD, 'border-radius')]);
+        $this->add_responsive_control('search_field_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],'selectors'=>$dims(self::FIELD, 'padding')]);
+        $this->add_responsive_control('search_field_icon_label_size', ['label'=>'Tamaño del icono','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>['icon_search[value]!'=>''],'selectors'=>['{{WRAPPER}} .obx-search'=>'--obx-search-icon-size: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('search_field_icon_gap', ['label'=>'Separación del icono','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>['icon_search[value]!'=>''],'selectors'=>['{{WRAPPER}} .obx-search'=>'--obx-search-icon-gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('search_field_submit_gap', ['label'=>'Separación con el botón','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'selectors'=>['{{WRAPPER}} .obx-search'=>'gap: {{SIZE}}{{UNIT}};']]);
+        $this->end_controls_section();
+
+        // Style: clear icon.
+        $clear = ['icon_clear[value]!'=>''];
+        $this->start_controls_section('style_section_clear', ['label'=>'Icono para borrar','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$clear]);
+        $this->add_responsive_control('icon_clear_size', ['label'=>'Tamaño','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$clear,'selectors'=>['{{WRAPPER}} .obx-search__clear'=>'font-size: {{SIZE}}{{UNIT}};']]);
+        $this->start_controls_tabs('icon_clear_color_tabs', ['condition'=>$clear]);
+        foreach (['normal'=>['Normal', ''], 'hover'=>['Al pasar el ratón', ':hover']] as $state => [$label, $pseudo]) {
+            $this->start_controls_tab('icon_clear_tab_' . $state, ['label'=>$label]);
+            $this->add_control('icon_clear_' . $state . '_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'condition'=>$clear,'selectors'=>['{{WRAPPER}} .obx-search__clear' . $pseudo=>'color: {{VALUE}}; fill: {{VALUE}}; opacity: 1;']]);
+            if ($state === 'hover') { $this->add_control('icon_clear_hover_transition', ['label'=>'Duración de la transición'] + $seconds + ['condition'=>$clear,'selectors'=>['{{WRAPPER}} .obx-search__clear'=>'transition-duration: {{SIZE}}{{UNIT}};']]); }
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
+        $this->end_controls_section();
+
+        // Style: submit button.
+        $this->start_controls_section('style_section_submit', ['label'=>'Botón','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$submit]);
+        $this->add_group_control(\Elementor\Group_Control_Typography::get_type(), ['name'=>'submit_typography','selector'=>self::SUBMIT,'condition'=>$submit]);
+        $this->add_control('icon_submit_position', ['label'=>'Posición del icono','type'=>Controls_Manager::CHOOSE,'options'=>['start'=>['title'=>'Antes','icon'=>'eicon-h-align-left'],'end'=>['title'=>'Después','icon'=>'eicon-h-align-right']],
+            'condition'=>$submit_icon,'selectors_dictionary'=>['start'=>'row','end'=>'row-reverse'],'selectors'=>[self::SUBMIT=>'flex-direction: {{VALUE}};']]);
+        $this->add_responsive_control('icon_submit_size', ['label'=>'Tamaño del icono','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$submit_icon,'selectors'=>[self::SUBMIT . ' .obx-search__submit-icon'=>'font-size: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('icon_submit_gap', ['label'=>'Separación del icono','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$submit_icon,'selectors'=>[self::SUBMIT=>'gap: {{SIZE}}{{UNIT}};']]);
+        $this->start_controls_tabs('submit_style_tabs', ['condition'=>$submit]);
+        foreach (['normal'=>['Normal', ''], 'hover'=>['Al pasar el ratón', ':hover, ' . self::SUBMIT . ':focus-visible']] as $state => [$label, $pseudo]) {
+            $selector = self::SUBMIT . $pseudo;
+            $this->start_controls_tab('submit_tab_' . $state, ['label'=>$label]);
+            $this->add_control('submit_text_color_' . $state, ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'condition'=>$submit,'selectors'=>[$selector=>'color: {{VALUE}};']]);
+            $this->add_control('submit_icon_color_' . $state, ['label'=>'Color del icono','type'=>Controls_Manager::COLOR,'condition'=>$submit_icon,
+                'selectors'=>[$state === 'hover' ? self::SUBMIT . ':hover .obx-search__submit-icon, ' . self::SUBMIT . ':focus-visible .obx-search__submit-icon' : self::SUBMIT . ' .obx-search__submit-icon'=>'color: {{VALUE}}; fill: {{VALUE}};']]);
+            $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'submit_background_' . $state,'types'=>['classic','gradient'],'exclude'=>['image'],'condition'=>$submit,'selector'=>$selector]);
+            $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'submit_border_' . $state,'condition'=>$submit,'selector'=>$selector]);
+            $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'submit_box_shadow_' . $state,'condition'=>$submit,'selector'=>$selector]);
+            if ($state === 'hover') {
+                $this->add_control('submit_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::HOVER_ANIMATION,'condition'=>$submit]);
+                $this->add_control('submit_hover_transition', ['label'=>'Duración de la transición'] + $seconds + ['condition'=>$submit,'selectors'=>[self::SUBMIT=>'transition-duration: {{SIZE}}{{UNIT}};']]);
+            }
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
+        $this->add_responsive_control('submit_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],'condition'=>$submit,'separator'=>'before','selectors'=>$dims(self::SUBMIT, 'border-radius')]);
+        $this->add_responsive_control('submit_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],'condition'=>$submit,'selectors'=>$dims(self::SUBMIT, 'padding')]);
+        $this->end_controls_section();
+
+        // Style: live results box.
+        $this->start_controls_section('style_section_results', ['label'=>'Resultados','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$live]);
+        $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'results_background','types'=>['classic','gradient'],'exclude'=>['image'],'condition'=>$live,'selector'=>self::RESULTS]);
+        $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'results_border_type','condition'=>$live,'selector'=>self::RESULTS]);
+        $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'results_box_shadow','condition'=>$live,'selector'=>self::RESULTS]);
+        $this->add_responsive_control('results_border_radius', ['label'=>'Radio del borde','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],'condition'=>$live,'selectors'=>$dims(self::RESULTS, 'border-radius')]);
+        $this->add_responsive_control('results_padding', ['label'=>'Relleno','type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],'condition'=>$live,'selectors'=>$dims(self::RESULTS, 'padding')]);
+        $this->add_responsive_control('results_distance_from_search_field', ['label'=>'Distancia al campo','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$live,'selectors'=>[self::RESULTS=>'margin-top: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('results_is_dropdown_width', ['label'=>'Ancho del desplegable','type'=>Controls_Manager::SELECT,'default'=>'search_field','options'=>['search_field'=>'El del campo','widget_width'=>'El del widget'],'condition'=>$live]);
+        $this->add_control('results_is_custom_width', ['label'=>'Ancho personalizado','type'=>Controls_Manager::SWITCHER,'condition'=>$live]);
+        $this->add_responsive_control('results_custom_width', ['label'=>'Ancho','type'=>Controls_Manager::SLIDER,'size_units'=>['px','%','em','rem','vw'],'range'=>['px'=>['min'=>100,'max'=>1600]],'condition'=>$live + ['results_is_custom_width'=>'yes'],
+            'selectors'=>[self::RESULTS=>'width: {{SIZE}}{{UNIT}}; right: auto;']]);
+        $this->add_responsive_control('results_alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::logical_align(),'condition'=>$live + ['results_is_custom_width'=>'yes'],
+            'selectors_dictionary'=>['start'=>'left: 0; right: auto; transform: none;','center'=>'left: 50%; right: auto; transform: translateX(-50%);','end'=>'left: auto; right: 0; transform: none;'],'selectors'=>[self::RESULTS=>'{{VALUE}}']]);
+        $this->add_responsive_control('results_max_height', ['label'=>'Altura máxima','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','vh'],'range'=>['px'=>['min'=>100,'max'=>1200]],'condition'=>$live,'selectors'=>[self::RESULTS=>'max-height: {{SIZE}}{{UNIT}}; overflow-y: auto;']]);
+        $this->add_responsive_control('search_result_column_gap', ['label'=>'Separación entre columnas','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$live,'selectors'=>['{{WRAPPER}} .obx-search__items'=>'column-gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('search_result_row_gap', ['label'=>'Separación entre filas','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$live,'selectors'=>['{{WRAPPER}} .obx-search__items'=>'row-gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('search_result_loader_icon_size', ['label'=>'Tamaño del indicador de carga','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','vw'],'condition'=>$has_template + ['enable_loader'=>'yes'],'selectors'=>['{{WRAPPER}} .obx-search__loader'=>'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};']]);
+        $this->add_control('search_result_loader_icon_color', ['label'=>'Color del indicador de carga','type'=>Controls_Manager::COLOR,'condition'=>$has_template + ['enable_loader'=>'yes'],'selectors'=>['{{WRAPPER}} .obx-search__loader'=>'color: {{VALUE}};']]);
+        $this->end_controls_section();
+
+        // Style: results pagination.
+        $page = '{{WRAPPER}} .obx-search__page';
+        $this->start_controls_section('style_additional_settings', ['label'=>'Paginación de resultados','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$has_template + $paged]);
+        $this->add_responsive_control('style_additional_settings_alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'condition'=>$paged,
+            'options'=>['flex-start'=>['title'=>'Inicio','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'flex-end'=>['title'=>'Final','icon'=>'eicon-h-align-right']],'selectors'=>['{{WRAPPER}} .obx-search__pages'=>'justify-content: {{VALUE}};']]);
+        $this->add_control('style_additional_settings_vertical_position', ['label'=>'Posición','type'=>Controls_Manager::CHOOSE,'condition'=>$paged,
+            'options'=>['top'=>['title'=>'Arriba','icon'=>'eicon-v-align-top'],'bottom'=>['title'=>'Abajo','icon'=>'eicon-v-align-bottom']],
+            'selectors_dictionary'=>['top'=>'order: -1; margin: 0 0 12px;','bottom'=>'order: 1;'],'selectors'=>['{{WRAPPER}} .obx-search__pages'=>'{{VALUE}}']]);
+        $this->add_group_control(\Elementor\Group_Control_Typography::get_type(), ['name'=>'typography_title','condition'=>$paged,'selector'=>$page]);
+        $this->start_controls_tabs('style_additional_settings_color_tabs', ['condition'=>$paged]);
+        foreach (['normal'=>['Normal', ''], 'hover'=>['Al pasar el ratón', ':hover']] as $state => [$label, $pseudo]) {
+            $this->start_controls_tab('style_additional_settings_tab_' . $state, ['label'=>$label]);
+            $this->add_control('style_additional_settings_' . $state . '_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'condition'=>$paged,'selectors'=>[$page . $pseudo=>'color: {{VALUE}};']]);
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
+        $this->add_control('style_button_color_icon_active', ['label'=>'Color de la página actual','type'=>Controls_Manager::COLOR,'condition'=>$paged,'selectors'=>[$page . '.is-current'=>'color: {{VALUE}};']]);
+        $this->add_responsive_control('page_numbers_space_between', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$paged,'separator'=>'before','selectors'=>['{{WRAPPER}} .obx-search__pages'=>'gap: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('top_spacing', ['label'=>'Espacio superior','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$paged,'selectors'=>['{{WRAPPER}} .obx-search__pages'=>'margin-top: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('bottom_spacing', ['label'=>'Espacio inferior','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$paged,'selectors'=>['{{WRAPPER}} .obx-search__pages'=>'margin-bottom: {{SIZE}}{{UNIT}};']]);
+        $this->end_controls_section();
+
+        // Style: nothing found message.
+        $message = '{{WRAPPER}} .obx-search__nothing';
+        $this->start_controls_section('style_section_nothing_found_message', ['label'=>'Mensaje sin resultados','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$nothing]);
+        $this->add_responsive_control('nothing_found_message_space_from_top', ['label'=>'Espacio superior','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$nothing,'selectors'=>[$message=>'margin-top: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('nothing_found_message_space_from_bottom', ['label'=>'Espacio inferior','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'condition'=>$nothing,'selectors'=>[$message=>'margin-bottom: {{SIZE}}{{UNIT}};']]);
+        $this->add_responsive_control('nothing_found_message_alignment', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::logical_align(),'condition'=>$nothing,'selectors'=>[$message=>'text-align: {{VALUE}};']]);
+        $this->add_group_control(\Elementor\Group_Control_Typography::get_type(), ['name'=>'nothing_found_message_typography','condition'=>$nothing,'selector'=>$message]);
+        $this->add_control('nothing_found_message_color', ['label'=>'Color','type'=>Controls_Manager::COLOR,'condition'=>$nothing,'selectors'=>[$message=>'color: {{VALUE}};']]);
+        $this->add_group_control(Group_Control_Text_Shadow::get_type(), ['name'=>'nothing_found_message_text_shadow','condition'=>$nothing,'selector'=>$message]);
+        $this->add_group_control(\Elementor\Group_Control_Text_Stroke::get_type(), ['name'=>'nothing_found_message_text_stroke','condition'=>$nothing,'selector'=>$message]);
+        $this->end_controls_section();
+    }
+
+    private function template(array $s): int {
+        $template = (int) ($s['template_id'] ?? 0);
+        return ($s['live_results'] ?? '') === 'yes' && $template && get_post_type($template) === 'elementor_library' ? $template : 0;
+    }
+
+    /**
+     * Results for $term: loop items, pagination and the «nothing found» message.
+     * @return array{html:string,total:int,pages:int}
+     */
+    public function results(string $term, int $page): array {
+        $s = $this->get_settings_for_display();
+        $template = $this->template($s);
+        if (!$template) { return ['html'=>'','total'=>0,'pages'=>0]; }
+        $per_page = min(self::MAX_ITEMS, max(1, (int) ($s['number_of_items'] ?? 6)));
+        $paginated = ($s['pagination_type_options'] ?? 'none') !== 'none';
+        $limit = $paginated ? max(1, (int) ($s['page_limit_settings'] ?? 5)) : 1;
+        $page = min($page, $limit);
+        $type = (string) ($s['search_query_post_type'] ?? 'any');
+        $extra = ['s'=>$term] + ($type === 'any' || !post_type_exists($type) ? ['post_type'=>'any'] : []);
+        $query = Query::build($s, 'search_query_', $per_page, $page, $this, $extra);
+        $pages = min((int) $query->max_num_pages, $limit);
+        $html = '';
+        if ($query->have_posts()) {
+            $items = '';
+            foreach ($query->posts as $i => $post) { if ($post instanceof \WP_Post) { $items .= $this->loop_item($template, $post, $i === 0); } }
+            $html = '<div class="obx-search__items">' . $items . '</div>' . $this->page_links($s, $page, $pages);
+        } elseif (($s['enable_nothing_found_message'] ?? 'yes') === 'yes') {
+            $tag = \Elementor\Utils::validate_html_tag((string) ($s['nothing_found_message_html_tag'] ?? 'div'));
+            $html = '<' . $tag . ' class="obx-search__nothing">' . wp_kses_post((string) ($s['nothing_found_message_text'] ?? '')) . '</' . $tag . '>';
+        }
+        return ['html'=>$html,'total'=>(int) $query->found_posts,'pages'=>$pages];
+    }
+
+    private function page_links(array $s, int $page, int $pages): string {
+        $type = (string) ($s['pagination_type_options'] ?? 'none');
+        if ($type === 'none' || $pages < 2) { return ''; }
+        $button = static fn(int $n, string $label, string $class, bool $current = false): string => '<button type="button" class="obx-search__page ' . $class . ($current ? ' is-current' : '') . '" data-page="' . $n . '"' . ($current ? ' aria-current="page"' : '') . '>' . $label . '</button>';
+        $arrows = in_array($type, ['previous_next','numbers_previous_next'], true);
+        $out = '';
+        if ($arrows && $page > 1) { $out .= $button($page - 1, esc_html((string) ($s['pagination_prev_label'] ?? 'Anterior')), 'obx-search__page--prev'); }
+        if (in_array($type, ['numbers','numbers_previous_next'], true)) {
+            $short = ($s['pagination_shorten_settings'] ?? '') === 'yes';
+            $gap = false;
+            for ($n = 1; $n <= $pages; $n++) {
+                if ($short && $n !== 1 && $n !== $pages && abs($n - $page) > 1) {
+                    if (!$gap) { $out .= '<span class="obx-search__page obx-search__page--dots" aria-hidden="true">…</span>'; }
+                    $gap = true;
+                    continue;
+                }
+                $gap = false;
+                $out .= $button($n, (string) $n, 'obx-search__page--number', $n === $page);
+            }
+        }
+        if ($arrows && $page < $pages) { $out .= $button($page + 1, esc_html((string) ($s['pagination_next_label'] ?? 'Siguiente')), 'obx-search__page--next'); }
+        return '<nav class="obx-search__pages" aria-label="Páginas de resultados">' . $out . '</nav>';
+    }
+
+    protected function render(): void {
+        $s = $this->get_settings_for_display();
+        $id = 'obx-search-' . $this->get_id();
+        $template = $this->template($s);
+        $editing = $this->editing();
+        $attrs = ' class="obx-search obx-search--classic obx-search--new" role="search" method="get" action="' . esc_url(home_url('/')) . '"';
+        $results = '';
+        if ($template) {
+            $config = ['url'=>rest_url('obx/v1' . self::ROUTE),'widget'=>$this->get_id(),'min'=>max(1, (int) ($s['minimum_search_characters'] ?? 3))];
+            if (is_user_logged_in()) { $config['nonce'] = wp_create_nonce('wp_rest'); }
+            $attrs .= " data-live='" . esc_attr((string) wp_json_encode($config)) . "'";
+            if (!$editing) { \Elementor\Core\Files\CSS\Post::create($template)->enqueue(); }
+            // In the editor the box shows the first results, so it can be designed.
+            $preview = $editing ? $this->results('', 1)['html'] : '';
+            $results = '<div class="obx-search__results" id="' . esc_attr($id) . '-results" role="region" aria-label="Resultados de búsqueda"' . ($preview === '' ? ' hidden' : '') . '>'
+                . (($s['enable_loader'] ?? '') === 'yes' ? '<span class="obx-search__loader" aria-hidden="true"></span>' : '')
+                . '<div class="obx-search__content" aria-live="polite">' . $preview . '</div></div>';
+        }
+        $in_field = ($s['results_is_dropdown_width'] ?? 'search_field') !== 'widget_width';
+        echo '<form' . $attrs . '><label class="screen-reader-text" for="' . esc_attr($id) . '">Buscar</label><span class="obx-search__wrap">';
+        if (!empty($s['icon_search']['value'])) { echo '<span class="obx-search__icon">'; Icons_Manager::render_icon($s['icon_search'], ['aria-hidden'=>'true']); echo '</span>'; }
+        echo '<input id="' . esc_attr($id) . '" class="obx-search__field" type="search" name="s" value="' . esc_attr(get_search_query()) . '" placeholder="' . esc_attr((string) ($s['search_input_placeholder_text'] ?? '')) . '" autocomplete="' . (($s['autocomplete'] ?? '') === 'yes' ? 'on' : 'off') . '"'
+            . ($template ? ' aria-controls="' . esc_attr($id) . '-results" aria-expanded="false"' : '') . '>';
+        if (!empty($s['icon_clear']['value'])) { echo '<button type="reset" class="obx-search__clear"><span class="screen-reader-text">Borrar</span>'; Icons_Manager::render_icon($s['icon_clear'], ['aria-hidden'=>'true']); echo '</button>'; }
+        if ($in_field) { echo $results; } // phpcs:ignore WordPress.Security.EscapeOutput -- built above.
+        echo '</span>';
+        if (($s['submit_trigger'] ?? 'click_submit') !== 'key_enter') {
+            $animation = (string) ($s['submit_hover_animation'] ?? '');
+            echo '<button class="obx-search__submit' . ($animation !== '' ? ' elementor-animation-' . esc_attr($animation) : '') . '" type="submit">';
+            if (!empty($s['icon_submit']['value'])) { echo '<span class="obx-search__submit-icon">'; Icons_Manager::render_icon($s['icon_submit'], ['aria-hidden'=>'true']); echo '</span>'; }
+            if (($s['submit_button_text'] ?? '') !== '') { echo '<span>' . esc_html($s['submit_button_text']) . '</span>'; }
+            if (($s['submit_button_text'] ?? '') === '' && empty($s['icon_submit']['value'])) { echo '<span class="screen-reader-text">Buscar</span>'; }
+            echo '</button>';
+        }
+        if (!$in_field) { echo $results; } // phpcs:ignore WordPress.Security.EscapeOutput -- built above.
+        echo '</form>';
+    }
+}

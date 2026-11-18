@@ -367,6 +367,81 @@
         });
     };
 
+    /* Search widget: live results printed with the widget's loop item template (REST route obx/v1/search). */
+    const liveSearch = (form) => {
+        if (!once(form, 'obxReady')) { return; }
+        let cfg;
+        try { cfg = JSON.parse(form.dataset.live); } catch (e) { return; }
+        const field = form.querySelector('.obx-search__field');
+        const box = form.querySelector('.obx-search__results');
+        const content = box && box.querySelector('.obx-search__content');
+        const doc = form.closest('[data-elementor-id]');
+        const widget = form.closest('[data-id]');
+        if (!field || !content || !doc || !widget) { return; }
+        const editor = document.body.classList.contains('elementor-editor-active');
+        const min = Number(cfg.min) || 3;
+        let timer = 0;
+        let seq = 0;
+        let controller = null;
+        let term = '';
+        const toggle = (open) => { box.hidden = !open; field.setAttribute('aria-expanded', String(open)); };
+        const load = (page, focusFirst) => {
+            const id = ++seq;
+            if (controller) { controller.abort(); }
+            controller = 'AbortController' in window ? new AbortController() : null;
+            const url = new URL(cfg.url, window.location.href);
+            url.searchParams.set('post', doc.dataset.elementorId);
+            url.searchParams.set('widget', cfg.widget || widget.dataset.id);
+            url.searchParams.set('q', term);
+            url.searchParams.set('page', String(page));
+            form.classList.add('is-loading');
+            box.setAttribute('aria-busy', 'true');
+            if (box.querySelector('.obx-search__loader')) { toggle(true); }
+            fetch(url.toString(), { credentials: 'same-origin', signal: controller ? controller.signal : undefined, headers: cfg.nonce ? { 'X-WP-Nonce': cfg.nonce } : {} })
+                .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
+                .then((data) => {
+                    if (id !== seq) { return; }
+                    content.innerHTML = (data && data.html) || '';
+                    ready(content);
+                    toggle(content.innerHTML.trim() !== '');
+                    if (focusFirst) { const first = box.querySelector('.e-loop-item a[href], .e-loop-item [tabindex]'); if (first) { first.focus({ preventScroll: true }); } }
+                })
+                .catch((error) => { if (id === seq && !(error && error.name === 'AbortError')) { toggle(false); } })
+                .finally(() => { if (id === seq) { form.classList.remove('is-loading'); box.removeAttribute('aria-busy'); } });
+        };
+        field.addEventListener('input', () => {
+            window.clearTimeout(timer);
+            const value = field.value.trim();
+            if (value.length < min) { seq += 1; term = ''; content.innerHTML = ''; form.classList.remove('is-loading'); toggle(false); return; }
+            timer = window.setTimeout(() => { if (value !== term) { term = value; load(1, false); } else { toggle(content.innerHTML.trim() !== ''); } }, 300);
+        });
+        field.addEventListener('focus', () => { if (term && field.value.trim() === term && content.innerHTML.trim() !== '') { toggle(true); } });
+        form.addEventListener('reset', () => { window.clearTimeout(timer); seq += 1; term = ''; content.innerHTML = ''; toggle(false); window.setTimeout(() => field.focus(), 0); });
+        box.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-page]');
+            if (!button || button.classList.contains('is-current')) { return; }
+            event.preventDefault();
+            load(Number(button.dataset.page) || 1, true);
+        });
+        const focusables = () => Array.from(box.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter((el) => el.offsetParent !== null);
+        form.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !box.hidden) { event.preventDefault(); toggle(false); field.focus(); return; }
+            if ((event.key !== 'ArrowDown' && event.key !== 'ArrowUp') || box.hidden) { return; }
+            if (event.target === field && event.key === 'ArrowUp') { return; }
+            const list = focusables();
+            if (!list.length) { return; }
+            event.preventDefault();
+            const at = list.indexOf(document.activeElement);
+            const next = at + (event.key === 'ArrowDown' ? 1 : -1);
+            if (next < 0) { field.focus(); return; }
+            list[Math.min(next, list.length - 1)].focus();
+        });
+        if (!editor) {
+            document.addEventListener('click', (event) => { if (!form.contains(event.target)) { toggle(false); } });
+            form.addEventListener('focusout', (event) => { if (event.relatedTarget && !form.contains(event.relatedTarget)) { toggle(false); } });
+        }
+    };
+
     /* Full screen search: open/close the overlay. */
     const searchToggle = (el) => {
         if (!once(el, 'obxReady')) { return; }
@@ -597,7 +672,7 @@
 
     const handlers = {
         '.obx-countdown': countdown, '.obx-headline': headline, '.obx-toc': toc, '.obx-progress': progress, '.obx-code': code,
-        '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters,
+        '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, '.obx-search[data-live]': liveSearch, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters,
     };
     const init = (root) => {
         Object.entries(handlers).forEach(([selector, fn]) => {

@@ -3,7 +3,8 @@
  * Elementor Pro parity (docs/PARIDAD-PRO.md): settings stored under Pro's keys and defaults, and what they do.
  * 0.8.0: Theme Builder templates, popups, motion effects (element and background), page transitions and scroll snap.
  * 0.8.1: Theme Builder conditions (child term archives, formats, media, WooCommerce), dynamic tags, saved sections.
- * 0.9.0: Loop Grid skins (posts, products, terms), pagination and «Load more», nothing-found message.
+ * 0.9.0: Loop Grid and Loop Carousel skins (posts, products, terms), pagination and «Load more», nothing-found message;
+ *        Search widget with live results (REST obx/v1/search), query, pagination and styles.
  */
 if (!defined('WP_CLI') || !WP_CLI) { exit; }
 
@@ -283,6 +284,36 @@ try {
     }
 
     if (!empty($pcat)) { wp_delete_term($pchild['term_id'], 'product_cat'); wp_delete_term($pcat['term_id'], 'product_cat'); }
+
+    // §5 Search: Pro's keys and defaults, live results through REST, pagination and nothing found.
+    $sc = Elementor::$instance->widgets_manager->get_widget_types('search')->get_controls();
+    foreach (['autocomplete','live_results','template_id','minimum_search_characters','number_of_columns','number_of_items','equal_height','enable_loader','enable_nothing_found_message','nothing_found_message_text','nothing_found_message_html_tag','search_query_post_type','search_query_include','search_query_exclude_ids','search_query_select_date','search_query_orderby','search_query_order','search_query_ignore_sticky_posts','search_query_query_id','pagination_type_options','pagination_prev_label','pagination_next_label','page_limit_settings','pagination_shorten_settings','search_field_background_normal_background','search_field_background_focus_background','search_field_input_text_color_focus','search_field_icon_search_normal_color_normal','search_field_border_focus_border','search_field_box_shadow__normal_box_shadow_type','search_field_box_shadow__focus_box_shadow_type','search_field_search_input_transition','search_field_icon_label_size','search_field_icon_gap','icon_clear_size','icon_clear_normal_color','icon_clear_hover_color','icon_clear_hover_transition','icon_submit_position','icon_submit_gap','submit_text_color_hover','submit_icon_color_normal','submit_background_hover_background','submit_border_normal_border','submit_box_shadow_hover_box_shadow_type','submit_hover_animation','submit_hover_transition','results_background_background','results_border_type_border','results_box_shadow_box_shadow_type','results_border_radius','results_padding','results_distance_from_search_field','results_is_dropdown_width','results_is_custom_width','results_custom_width','results_max_height','results_alignment','search_result_column_gap','search_result_row_gap','search_result_loader_icon_size','search_result_loader_icon_color','style_additional_settings_alignment','style_additional_settings_vertical_position','typography_title_typography','style_additional_settings_normal_color','style_additional_settings_hover_color','style_button_color_icon_active','page_numbers_space_between','top_spacing','bottom_spacing','nothing_found_message_space_from_top','nothing_found_message_alignment','nothing_found_message_typography_typography','nothing_found_message_color','nothing_found_message_text_shadow_text_shadow_type','nothing_found_message_text_stroke_text_stroke_type'] as $key) { $assert(isset($sc[$key]), "search: falta {$key}."); }
+    $assert(($sc['minimum_search_characters']['default'] ?? 0) === 3 && ($sc['number_of_items']['default'] ?? 0) === 6 && ($sc['enable_nothing_found_message']['default'] ?? '') === 'yes' && ($sc['pagination_type_options']['default'] ?? '') === 'none' && ($sc['page_limit_settings']['default'] ?? 0) === 5 && ($sc['search_query_post_type']['default'] ?? '') === 'any' && ($sc['search_query_orderby']['default'] ?? '') === 'post_date' && ($sc['results_is_dropdown_width']['default'] ?? '') === 'search_field' && ($sc['submit_trigger']['default'] ?? '') === 'click_submit', 'search: valores por defecto de Pro.');
+    $assert(!isset($sc['search_query_offset']) && !isset($sc['search_query_related_taxonomies']) && isset($sc['search_query_post_type']['options']['any']), 'search: consulta como la de Pro (sin desplazamiento ni relacionadas).');
+    $search_item = $save('loop-item', 'Paridad resultado', [$container([$widget('theme-post-title')])]);
+    $sw = $widget('search', ['live_results'=>'yes','template_id'=>(string) $search_item,'number_of_items'=>2,'pagination_type_options'=>'numbers_previous_next','search_query_post_type'=>'post','enable_loader'=>'yes','nothing_found_message_text'=>'Sin coincidencias','nothing_found_message_html_tag'=>'p','results_is_dropdown_width'=>'widget_width','icon_submit'=>['value'=>'fas fa-search','library'=>'fa-solid'],'submit_hover_animation'=>'grow']);
+    $search_page = $save('page', 'Paridad buscador', [$container([$sw])]);
+    $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($search_page);
+    $assert(str_contains($html, "data-live='") && str_contains($html, 'aria-controls="obx-search-' . $sw['id'] . '-results"') && str_contains($html, 'class="obx-search__results"') && str_contains($html, ' hidden>') && str_contains($html, 'obx-search__loader') && str_contains($html, 'autocomplete="off"'), 'search: formulario con resultados en vivo, ocultos hasta escribir.');
+    $assert(str_contains($html, 'elementor-animation-grow') && str_contains($html, 'obx-search__submit-icon') && strpos($html, 'obx-search__results') > strpos($html, 'obx-search__submit'), 'search: animación e icono del botón; desplegable del ancho del widget.');
+    $instance = \OldBearExpansion\Widgets\Search::saved($search_page, $sw['id']);
+    $assert($instance instanceof \OldBearExpansion\Widgets\Search, 'search: el widget guardado se encuentra en su documento.');
+    $res = $instance->results('Paridad carga', 1);
+    $assert($res['total'] === 3 && $res['pages'] === 2 && substr_count($res['html'], 'data-post-id=') === 2 && str_contains($res['html'], 'data-page="2"') && str_contains($res['html'], 'aria-current="page"') && str_contains($res['html'], '>Siguiente<') && !str_contains($res['html'], '>Anterior<'), 'search: resultados con plantilla y paginación.');
+    $res = $instance->results('Paridad carga', 2);
+    $assert(substr_count($res['html'], 'data-post-id=') === 1 && str_contains($res['html'], '>Anterior<'), 'search: segunda página de resultados.');
+    $assert(str_contains($instance->results('zzzz-nada-' . $uid(), 1)['html'], '<p class="obx-search__nothing">Sin coincidencias</p>'), 'search: mensaje sin resultados con su etiqueta.');
+    $request = new WP_REST_Request('GET', '/obx/v1/search');
+    $request->set_query_params(['post'=>$search_page,'widget'=>$sw['id'],'q'=>'Paridad carga','page'=>1]);
+    $response = rest_do_request($request);
+    $assert($response->get_status() === 200 && substr_count((string) ($response->get_data()['html'] ?? ''), 'data-post-id=') === 2, 'search: la ruta REST devuelve los resultados.');
+    $request->set_query_params(['post'=>$search_page,'widget'=>'nope','q'=>'x']);
+    $assert(rest_do_request($request)->get_status() === 404, 'search: la ruta REST no acepta widgets inexistentes.');
+    $draft = $save('page', 'Paridad buscador borrador', [$container([$sw])]);
+    wp_update_post(['ID'=>$draft,'post_status'=>'draft']);
+    $user = get_current_user_id(); wp_set_current_user(0);
+    $assert(\OldBearExpansion\Widgets\Search::saved($draft, $sw['id']) === null, 'search: los borradores no son públicos.');
+    wp_set_current_user($user);
 
     // Saved sections (and floating buttons): wrapper tag and preview settings, as in Pro.
     $section = $save('section', 'Paridad sección', [$container([$widget('heading', ['title'=>'Sección guardada'])])], ['content_wrapper_html_tag'=>'aside']);
