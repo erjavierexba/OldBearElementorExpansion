@@ -290,19 +290,14 @@ final class Archive_Description extends Text_Tag {
     public const GROUP = 'archive';
     public function get_name() { return 'archive-description'; }
     public function get_title() { return 'Descripción del archivo'; }
-    protected function value(): string { return (string) get_the_archive_description(); }
+    protected function value(): string { return wp_kses_post(Context::archive_description()); }
 }
 
 final class Archive_Url extends Value_Tag {
     public const GROUP = 'archive';
     public function get_name() { return 'archive-url'; }
     public function get_title() { return 'Dirección del archivo'; }
-    public function get_value(array $options = []) {
-        if (is_category() || is_tag() || is_tax()) { return (string) get_term_link(get_queried_object()); }
-        if (is_author()) { return get_author_posts_url((int) get_queried_object_id()); }
-        if (is_post_type_archive()) { return (string) get_post_type_archive_link((string) get_query_var('post_type')); }
-        return (string) home_url(add_query_arg([]));
-    }
+    public function get_value(array $options = []) { return Context::archive_url(); }
 }
 
 final class Site_Title extends Text_Tag {

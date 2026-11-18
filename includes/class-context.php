@@ -10,8 +10,34 @@ if (!defined('ABSPATH')) { exit; }
 final class Context {
     private static array $stack = [];
 
+    /** Terms being printed by a term loop (Loop Grid «post_taxonomy» / «product_taxonomy» skins). */
+    private static array $terms = [];
+
     public static function push(string $location): void { self::$stack[] = $location; }
     public static function pop(): void { array_pop(self::$stack); }
+
+    public static function push_term(\WP_Term $term): void { self::$terms[] = $term; }
+    public static function pop_term(): void { array_pop(self::$terms); }
+    public static function loop_term(): ?\WP_Term { return self::$terms ? end(self::$terms) : null; }
+
+    /** Description of the archive (or of the looped term). */
+    public static function archive_description(): string {
+        $object = self::loop_term() ?? (self::template() ? self::archive_object() : null);
+        if ($object instanceof \WP_Term) { return (string) term_description($object->term_id, $object->taxonomy); }
+        if ($object instanceof \WP_User) { return (string) get_the_author_meta('description', $object->ID); }
+        return (string) get_the_archive_description();
+    }
+
+    /** Link of the archive (or of the looped term). */
+    public static function archive_url(): string {
+        $object = self::loop_term() ?? (self::template() ? self::archive_object() : null);
+        if ($object instanceof \WP_Term) { $link = get_term_link($object); return is_wp_error($link) ? '' : (string) $link; }
+        if ($object instanceof \WP_User) { return (string) get_author_posts_url($object->ID); }
+        if (is_category() || is_tag() || is_tax()) { $link = get_term_link(get_queried_object()); return is_wp_error($link) ? '' : (string) $link; }
+        if (is_author()) { return (string) get_author_posts_url((int) get_queried_object_id()); }
+        if (is_post_type_archive()) { return (string) get_post_type_archive_link((string) get_query_var('post_type')); }
+        return (string) home_url(add_query_arg([]));
+    }
 
     public static function is_editor(): bool {
         $elementor = Elementor::$instance;
@@ -66,6 +92,7 @@ final class Context {
 
     /** Term or author of the archive being shown (or previewed), if any. */
     public static function archive_object(): ?object {
+        if ($term = self::loop_term()) { return $term; }
         $template = self::template();
         if (!$template) {
             $object = get_queried_object();
@@ -81,6 +108,7 @@ final class Context {
     }
 
     public static function archive_title(): string {
+        if ($term = self::loop_term()) { return $term->name; }
         $template = self::template();
         if ($template) {
             [$type, $id, $search] = $template->preview();

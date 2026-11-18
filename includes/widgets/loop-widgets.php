@@ -64,10 +64,24 @@ trait Loop_Renderer {
         return '<div class="e-loop-item obx-loop__item ' . esc_attr(implode(' ', get_post_class('', $post))) . '" data-elementor-type="loop-item" data-post-id="' . esc_attr((string) $post->ID) . '">' . $html . '</div>';
     }
 
-    /** Settings + query for this widget, with taxonomy-filter selections applied. */
-    protected function loop_query(array $s, int $per_page, int $paged): \WP_Query {
+    /** HTML of one loop item for a term (term loops): theme widgets and archive tags show $term. */
+    protected function loop_term_item(int $template_id, \WP_Term $term, bool $with_css): string {
+        if (!$template_id || isset(self::$printing[$template_id]) || get_post_type($template_id) !== 'elementor_library') { return ''; }
+        self::$printing[$template_id] = true;
+        Context::push_term($term);
+        try { $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($template_id, $with_css); }
+        finally { Context::pop_term(); unset(self::$printing[$template_id]); }
+        return '<div class="e-loop-item obx-loop__item e-loop-item-' . esc_attr((string) $term->term_id) . ' ' . esc_attr(sanitize_html_class($term->taxonomy . '-' . $term->slug)) . '" data-elementor-type="loop-item" data-term-id="' . esc_attr((string) $term->term_id) . '">' . $html . '</div>';
+    }
+
+    /**
+     * Settings + query for this widget, with taxonomy-filter selections applied.
+     * $p is the query prefix (post_query_ or product_query_); products use Query::products().
+     */
+    protected function loop_query(array $s, int $per_page, int $paged, string $p = 'post_query_'): \WP_Query {
+        $build = static fn() => $p === 'product_query_' ? Query::products($s, $p, $per_page, $paged, null) : Query::build($s, $p, $per_page, $paged, null);
         $filters = $this->url_filters();
-        if ($filters && ($s['post_query_post_type'] ?? 'post') !== 'current_query') {
+        if ($filters && ($s[$p . 'post_type'] ?? '') !== 'current_query') {
             $hook = static function (\WP_Query $q) use ($filters, &$hook) {
                 $tax = (array) $q->get('tax_query');
                 foreach ($filters as $taxonomy => $slugs) { $tax[] = ['taxonomy'=>$taxonomy,'field'=>'slug','terms'=>$slugs,'operator'=>'IN']; }
@@ -75,7 +89,7 @@ trait Loop_Renderer {
                 remove_action('pre_get_posts', $hook);
             };
             add_action('pre_get_posts', $hook);
-            $query = Query::build($s, 'post_query_', $per_page, $paged, $this);
+            $query = $build();
             remove_action('pre_get_posts', $hook);
             return $query;
         }
@@ -85,7 +99,7 @@ trait Loop_Renderer {
             $current = Context::query();
             return new \WP_Query(array_merge($current->query_vars, ['tax_query'=>['relation'=>'AND'] + $tax,'paged'=>$paged]));
         }
-        return Query::build($s, 'post_query_', $per_page, $paged, $this);
+        return $build();
     }
 
     protected function no_template_notice(): void {
@@ -96,37 +110,90 @@ trait Loop_Renderer {
 final class Loop_Grid extends Element {
     use Loop_Renderer;
     use Paginates;
+    use \Elementor\Includes\Widgets\Traits\Button_Trait;
     public const PRO = 'loop-grid';
+    /** Pro's `_skin`: what the grid loops over. */
+    public const SKINS = ['post'=>'Entradas','product'=>'Productos','post_taxonomy'=>'Términos de entradas','product_taxonomy'=>'Términos de productos'];
+    private const TERM_SKINS = ['post_taxonomy','product_taxonomy'];
 
     public function get_title(): string { return 'Rejilla de bucle'; }
     public function get_icon(): string { return 'eicon-loop-builder'; }
-    public function get_keywords(): array { return ['loop','bucle','grid','rejilla','query','consulta','posts','entradas','listing']; }
+    public function get_keywords(): array { return ['loop','bucle','grid','rejilla','query','consulta','posts','entradas','listing','productos','términos']; }
     protected function is_dynamic_content(): bool { return true; }
-    protected function page_arg(): ?string { return ($this->get_settings('post_query_post_type') === 'current_query') ? null : 'e-page-' . $this->get_id(); }
+    /** Rendered on the server: Button_Trait brings a JS template meant for the Button widget. */
+    protected function content_template() {}
+
+    public function skin(): string {
+        $skin = (string) $this->get_settings('_skin');
+        return isset(self::SKINS[$skin]) ? $skin : 'post';
+    }
+
+    /** Query prefix of the post skins. */
+    private function prefix(): string { return $this->skin() === 'product' ? 'product_query_' : 'post_query_'; }
+
+    /** Own page parameter (e-page-ID) for AJAX pages, «Load more» and «Individual pagination»; else WordPress's. */
+    protected function page_arg(): ?string {
+        $s = $this->get_settings();
+        if (($s[$this->prefix() . 'post_type'] ?? '') === 'current_query') { return null; }
+        $type = (string) ($s['pagination_type'] ?? '');
+        if (str_starts_with($type, 'load_more') || ($s['pagination_load_type'] ?? '') === 'ajax' || ($s['pagination_individual_handle'] ?? '') === 'yes') { return 'e-page-' . $this->get_id(); }
+        return null;
+    }
+
+    /** @return array<string,string> taxonomies for a term skin. */
+    private static function skin_taxonomies(string $skin): array {
+        $taxonomies = [];
+        foreach (get_taxonomies(['public'=>true], 'objects') as $taxonomy) {
+            $product = in_array('product', (array) $taxonomy->object_type, true);
+            if ($taxonomy->name === 'product_visibility' || $taxonomy->name === 'product_shipping_class') { continue; }
+            if ($skin === 'product_taxonomy' ? $product : !$product) { $taxonomies[$taxonomy->name] = $taxonomy->labels->name; }
+        }
+        return $taxonomies;
+    }
 
     protected function register_controls(): void {
+        $has_template = ['template_id!'=>''];
+        $not_terms = ['_skin!'=>self::TERM_SKINS];
         $this->start_controls_section('section_layout', ['label'=>'Diseño']);
+        $skins = self::SKINS;
+        if (!post_type_exists('product')) { unset($skins['product'], $skins['product_taxonomy']); }
+        $this->add_control('_skin', ['label'=>'Mostrar','type'=>Controls_Manager::SELECT,'default'=>'post','options'=>$skins,'label_block'=>true]);
         $this->template_control();
-        $this->add_responsive_control('columns', ['label'=>'Columnas','type'=>Controls_Manager::NUMBER,'default'=>3,'tablet_default'=>2,'mobile_default'=>1,'min'=>1,'max'=>12,'selectors'=>self::css('.obx-loop', '--obx-columns: {{VALUE}};'),'separator'=>'before']);
-        $this->add_control('posts_per_page', ['label'=>'Elementos por página','type'=>Controls_Manager::NUMBER,'default'=>6,'min'=>1,'max'=>100]);
-        $this->add_control('masonry', ['label'=>'Mampostería','type'=>Controls_Manager::SWITCHER,'condition'=>['columns!'=>'1']]);
-        $this->add_control('equal_height', ['label'=>'Misma altura','type'=>Controls_Manager::SWITCHER,'condition'=>['masonry!'=>'yes'],'selectors'=>self::css('.obx-loop > .e-loop-item > .elementor', 'height: 100%;')]);
+        $this->add_control('edit_handle_selector', ['type'=>Controls_Manager::HIDDEN,'default'=>'[data-elementor-type="loop-item"]']);
+        $this->add_responsive_control('columns', ['label'=>'Columnas','type'=>Controls_Manager::NUMBER,'default'=>3,'tablet_default'=>2,'mobile_default'=>1,'min'=>1,'max'=>12,'selectors'=>self::css('.obx-loop', '--obx-columns: {{VALUE}};'),'separator'=>'before','condition'=>$has_template]);
+        $this->add_control('posts_per_page', ['label'=>'Elementos por página','type'=>Controls_Manager::NUMBER,'default'=>6,'min'=>1,'max'=>100,'condition'=>$has_template]);
+        $this->add_control('masonry', ['label'=>'Mampostería','type'=>Controls_Manager::SWITCHER,'condition'=>['columns!'=>1] + $has_template]);
+        $this->add_control('equal_height', ['label'=>'Misma altura','type'=>Controls_Manager::SWITCHER,'condition'=>['columns!'=>1,'masonry'=>''] + $has_template,'selectors'=>self::css('.obx-loop > .e-loop-item > .elementor', 'height: 100%;')]);
         $r = new Repeater();
         $r->add_control('template_id', ['label'=>'Plantilla','type'=>Controls_Manager::SELECT,'options'=>self::loop_templates(),'default'=>'','label_block'=>true]);
-        $r->add_control('repeat_template', ['label'=>'Posición en la rejilla','type'=>Controls_Manager::NUMBER,'min'=>1,'default'=>2,'description'=>'Se usa cada N elementos (o solo en esa posición si se muestra una vez).']);
+        $r->add_control('repeat_template', ['label'=>'Posición en la rejilla','type'=>Controls_Manager::NUMBER,'min'=>1,'default'=>2]);
+        $r->add_control('repeat_template_note', ['type'=>Controls_Manager::RAW_HTML,'raw'=>'Se usa cada N elementos, o solo en esa posición si se muestra una vez.','content_classes'=>'elementor-descriptor','condition'=>['template_id!'=>'']]);
         $r->add_control('show_once', ['label'=>'Mostrar una sola vez','type'=>Controls_Manager::SWITCHER,'default'=>'yes']);
         $r->add_control('column_span', ['label'=>'Columnas que ocupa','type'=>Controls_Manager::SELECT,'default'=>'1','options'=>array_combine(array_map('strval', range(1, 12)), array_map('strval', range(1, 12)))]);
-        $this->add_control('alternate_template', ['label'=>'Plantillas alternativas','type'=>Controls_Manager::SWITCHER,'separator'=>'before']);
-        $this->add_control('alternate_templates', ['label'=>'Plantillas','type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'default'=>[],'title_field'=>'#{{{ repeat_template }}}','condition'=>['alternate_template'=>'yes']]);
+        $r->add_control('column_span_note', ['type'=>Controls_Manager::RAW_HTML,'raw'=>'Si ocupa más columnas de las que tiene la rejilla, se ajusta al ancho disponible.','content_classes'=>'elementor-descriptor','condition'=>['template_id!'=>'']]);
+        $r->add_control('column_span_masonry_note', ['type'=>Controls_Manager::RAW_HTML,'raw'=>'Con mampostería, ocupar varias columnas puede dejar huecos.','content_classes'=>'elementor-panel-alert elementor-panel-alert-warning','condition'=>['column_span!'=>'1']]);
+        $r->add_control('static_position', ['label'=>'Posición fija','type'=>Controls_Manager::SWITCHER,'condition'=>['template_id!'=>'']]);
+        $r->add_control('static_position_note', ['type'=>Controls_Manager::RAW_HTML,'raw'=>'Se inserta en esa posición sin ocupar el lugar de ninguna entrada: sirve para anuncios o llamadas a la acción.','content_classes'=>'elementor-descriptor','condition'=>['static_position!'=>'','template_id!'=>'']]);
+        $this->add_control('alternate_template', ['label'=>'Plantillas alternativas','type'=>Controls_Manager::SWITCHER,'separator'=>'before','condition'=>['posts_per_page!'=>1] + $has_template + $not_terms]);
+        $this->add_control('alternate_templates', ['label'=>'Plantillas','type'=>Controls_Manager::REPEATER,'fields'=>$r->get_controls(),'default'=>[],'title_field'=>'#{{{ repeat_template }}}','condition'=>['alternate_template'=>'yes'] + $not_terms]);
         $this->end_controls_section();
 
-        Query::controls($this, 'post_query_');
-        $this->pagination_controls(false);
+        Query::controls($this, 'post_query_', 'section_query', ['_skin'=>'post'], false);
+        Query::product_controls($this, 'product_query_', ['_skin'=>'product']);
+        Query::term_controls($this, 'post_taxonomy_', self::skin_taxonomies('post_taxonomy'), 'category', ['_skin'=>'post_taxonomy']);
+        Query::term_controls($this, 'product_taxonomy_', self::skin_taxonomies('product_taxonomy'), 'product_cat', ['_skin'=>'product_taxonomy']);
+        $this->end_controls_section();
 
-        $this->start_controls_section('section_nothing_found', ['label'=>'Sin resultados']);
+        $this->pagination_controls(false, $not_terms, true);
+
+        $this->start_controls_section('section_additional_options', ['label'=>'Sin resultados','condition'=>$has_template]);
         // Pro data key; every control must live inside a section or Elementor rejects the widgets config.
         $this->add_control('pagination_individual_divider', ['type'=>Controls_Manager::HIDDEN]);
-        $this->add_control('nothing_found_message_text', ['label'=>'Mensaje','type'=>Controls_Manager::TEXTAREA,'default'=>'Parece que no hay nada aquí.']);
+        $this->add_control('enable_nothing_found_message', ['label'=>'Mostrar un mensaje si no hay resultados','type'=>Controls_Manager::SWITCHER]);
+        $on = ['enable_nothing_found_message'=>'yes'];
+        $this->add_control('nothing_found_message_text', ['label'=>'Mensaje','type'=>Controls_Manager::TEXTAREA,'default'=>'Parece que no encontramos lo que buscas.','condition'=>$on]);
+        $this->add_responsive_control('nothing_found_message_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::flex_align_options(),'selectors_dictionary'=>['start'=>'start','center'=>'center','end'=>'end'],'selectors'=>['{{WRAPPER}} .e-loop-nothing-found-message'=>'text-align: {{VALUE}};'],'condition'=>$on]);
+        $this->add_control('nothing_found_message_html_tag', ['label'=>'Etiqueta HTML','type'=>Controls_Manager::SELECT,'default'=>'div','options'=>array_combine(['h1','h2','h3','h4','h5','h6','div','span'], ['H1','H2','H3','H4','H5','H6','div','span']),'condition'=>$on]);
         $this->end_controls_section();
 
         $this->start_controls_section('section_design_layout', ['label'=>'Diseño','tab'=>Controls_Manager::TAB_STYLE]);
@@ -135,24 +202,50 @@ final class Loop_Grid extends Element {
         $this->end_controls_section();
 
         $this->pagination_style();
-        $this->start_controls_section('section_nothing_found_style', ['label'=>'Sin resultados','tab'=>Controls_Manager::TAB_STYLE]);
-        $this->color('nothing_found_color', 'Color', '.e-loop-nothing-found-message');
-        $this->typography('nothing_found_typography', '.e-loop-nothing-found-message');
+        $this->load_more_style(true);
+
+        $this->start_controls_section('section_nothing_found_message_design', ['label'=>'Sin resultados','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$has_template + $on]);
+        $this->slider('nothing_found_message_space_from_top', 'Espacio superior', '.e-loop-nothing-found-message', 'margin-top: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','vh'],'range'=>['px'=>['max'=>200]]], true);
+        $this->slider('nothing_found_message_space_from_bottom', 'Espacio inferior', '.e-loop-nothing-found-message', 'margin-bottom: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem','vh'],'range'=>['px'=>['max'=>200]]], true);
+        $this->typography('nothing_found_message_typography', '.e-loop-nothing-found-message');
+        $this->color('nothing_found_message_color', 'Color', '.e-loop-nothing-found-message');
+        $this->add_group_control(Group_Control_Text_Shadow::get_type(), ['name'=>'nothing_found_message_text_shadow','selector'=>'{{WRAPPER}} .e-loop-nothing-found-message']);
+        $this->add_group_control(\Elementor\Group_Control_Text_Stroke::get_type(), ['name'=>'nothing_found_message_text_stroke','selector'=>'{{WRAPPER}} .e-loop-nothing-found-message']);
         $this->end_controls_section();
     }
 
-    /** Template for the item at 1-based position $n. */
-    private static function template_for(array $s, int $n, int $default): array {
-        if (($s['alternate_template'] ?? '') === 'yes') {
-            foreach ((array) ($s['alternate_templates'] ?? []) as $row) {
-                $position = max(1, (int) ($row['repeat_template'] ?? 0));
-                $id = (int) ($row['template_id'] ?? 0);
-                if (!$id) { continue; }
-                $match = ($row['show_once'] ?? 'yes') === 'yes' ? $n === $position : $n % $position === 0;
-                if ($match) { return [$id, max(1, (int) ($row['column_span'] ?? 1))]; }
-            }
+    /** Alternate template rows that apply: [template, column span, static]. */
+    private static function alternates(array $s): array {
+        if (($s['alternate_template'] ?? '') !== 'yes') { return []; }
+        $rows = [];
+        foreach ((array) ($s['alternate_templates'] ?? []) as $row) {
+            $id = (int) ($row['template_id'] ?? 0);
+            if ($id) { $rows[] = ['id'=>$id,'position'=>max(1, (int) ($row['repeat_template'] ?? 0)),'once'=>($row['show_once'] ?? 'yes') === 'yes','span'=>max(1, (int) ($row['column_span'] ?? 1)),'static'=>($row['static_position'] ?? '') === 'yes']; }
         }
-        return [$default, 1];
+        return $rows;
+    }
+
+    /** Template for the item at 1-based position $n. */
+    private static function template_for(array $rows, int $n, int $default, bool $static): array {
+        foreach ($rows as $row) {
+            if ($row['static'] !== $static) { continue; }
+            if ($row['once'] ? $n === $row['position'] : $n % $row['position'] === 0) { return [$row['id'], $row['span']]; }
+        }
+        return [$static ? 0 : $default, 1];
+    }
+
+    private function nothing_found(array $s): void {
+        $raw = $this->get_data('settings');
+        // Before 0.9.0 the message had no switch: an explicit message still shows.
+        $enabled = ($s['enable_nothing_found_message'] ?? '') === 'yes' || (!isset($raw['enable_nothing_found_message']) && !empty($raw['nothing_found_message_text']));
+        $message = (string) ($s['nothing_found_message_text'] ?? '');
+        $tag = (string) ($s['nothing_found_message_html_tag'] ?? 'div');
+        $tag = in_array($tag, ['h1','h2','h3','h4','h5','h6','div','span'], true) ? $tag : 'div';
+        echo '<div class="obx-loop-container">' . ($enabled && $message !== '' ? '<' . $tag . ' class="e-loop-nothing-found-message">' . wp_kses_post($message) . '</' . $tag . '>' : '') . '</div>';
+    }
+
+    private static function with_span(string $item, int $span): string {
+        return $span > 1 ? preg_replace('/^<div class="e-loop-item /', '<div style="grid-column: span ' . $span . '" class="e-loop-item ', $item, 1) : $item;
     }
 
     protected function render(): void {
@@ -160,23 +253,40 @@ final class Loop_Grid extends Element {
         $template = (int) ($s['template_id'] ?? 0);
         if (!$template) { $this->no_template_notice(); return; }
         $per_page = max(1, min(100, (int) ($s['posts_per_page'] ?? 6) ?: 6));
-        $paged = ($s['pagination_type'] ?? '') !== '' ? $this->current_page() : 1;
-        $query = $this->loop_query($s, $per_page, $paged);
-        if (!$query->have_posts()) {
-            $message = (string) ($s['nothing_found_message_text'] ?? '');
-            echo '<div class="obx-loop-container">' . ($message !== '' ? '<div class="e-loop-nothing-found-message">' . wp_kses_post($message) . '</div>' : '') . '</div>';
+        $skin = $this->skin();
+        $classes = 'obx-loop elementor-loop-container elementor-grid' . (($s['masonry'] ?? '') === 'yes' ? ' obx-loop--masonry' : '');
+
+        if (in_array($skin, self::TERM_SKINS, true)) {
+            $terms = Query::terms($s, $skin . '_', $skin === 'product_taxonomy' ? 'product_cat' : 'category', $per_page);
+            if (!$terms) { $this->nothing_found($s); return; }
+            echo '<div class="obx-loop-container"><div class="' . esc_attr($classes) . '">';
+            foreach ($terms as $i => $term) { echo $this->loop_term_item($template, $term, $i === 0); Query::$shown_terms[] = $term->term_id; } // Elementor output.
+            echo '</div></div>';
             return;
         }
+
+        $paged = ($s['pagination_type'] ?? '') !== '' ? $this->current_page() : 1;
+        $query = $this->loop_query($s, $per_page, $paged, $this->prefix());
+        if (!$query->have_posts()) { $this->nothing_found($s); return; }
         $offset = ($paged - 1) * $per_page;
-        $classes = 'obx-loop elementor-loop-container elementor-grid' . (($s['masonry'] ?? '') === 'yes' ? ' obx-loop--masonry' : '');
+        $rows = self::alternates($s);
         echo '<div class="obx-loop-container"><div class="' . esc_attr($classes) . '">';
         $css = [];
+        $slot = 0;
         foreach ($query->posts as $i => $post) {
-            [$id, $span] = self::template_for($s, $offset + $i + 1, $template);
-            $item = $this->loop_item($id, $post, !isset($css[$id]));
+            // Static items take their slot on every page without using up a post.
+            while (true) {
+                [$static, $span] = self::template_for($rows, $slot + 1, 0, true);
+                if (!$static) { break; }
+                $slot++;
+                echo self::with_span($this->loop_item($static, $post, !isset($css[$static])), $span); // Elementor output.
+                $css[$static] = true;
+            }
+            $slot++;
+            [$id, $span] = self::template_for($rows, $offset + $i + 1, $template, false);
+            echo self::with_span($this->loop_item($id, $post, !isset($css[$id])), $span); // Elementor output.
             $css[$id] = true;
             Query::$shown[] = $post->ID;
-            echo $span > 1 ? str_replace('class="e-loop-item ', 'style="grid-column: span ' . $span . '" class="e-loop-item ', $item) : $item; // Elementor output.
         }
         echo '</div>';
         $this->pagination($s, $query);

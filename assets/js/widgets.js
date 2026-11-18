@@ -270,7 +270,7 @@
     const loadMore = (el) => {
         if (!once(el, 'obxReady')) { return; }
         const widget = el.closest('[data-id]');
-        const grid = widget && widget.querySelector('.obx-posts');
+        const grid = widget && widget.querySelector('.obx-posts, .obx-loop');
         if (!grid) { return; }
         const button = el.querySelector('.obx-load-more__button');
         const message = el.querySelector('.obx-load-more__message');
@@ -294,9 +294,11 @@
                 .then((response) => (response.ok ? response.text() : Promise.reject(response.status)))
                 .then((html) => {
                     const doc = new DOMParser().parseFromString(html, 'text/html');
-                    const remote = doc.querySelector(`[data-id="${CSS.escape(widget.dataset.id)}"] .obx-posts`);
+                    const id = CSS.escape(widget.dataset.id);
+                    const remote = doc.querySelector(`[data-id="${id}"] .obx-posts, [data-id="${id}"] .obx-loop`);
                     const items = remote ? Array.from(remote.children) : [];
-                    items.forEach((item) => grid.appendChild(document.importNode(item, true)));
+                    items.forEach((item) => { const node = document.importNode(item, true); grid.appendChild(node); ready(node); });
+                    importStyles(doc);
                     const more = remote && remote.parentElement.querySelector('.obx-load-more');
                     page += 1;
                     next = more && page < max ? more.dataset.next : '';
@@ -312,6 +314,57 @@
             observer = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) { load(); } }, { rootMargin: '200px' });
             observer.observe(el);
         }
+    };
+
+    /* Elementor handlers (and ours) for markup added after the page loaded. */
+    const ready = (node) => {
+        init(node);
+        const fe = window.elementorFrontend;
+        if (!fe || !fe.elementsHandler || !window.jQuery) { return; }
+        const nodes = node.matches && node.matches('.elementor-element') ? [node] : [];
+        node.querySelectorAll('.elementor-element').forEach((el) => nodes.push(el));
+        nodes.forEach((el) => { try { fe.elementsHandler.runReadyTrigger(window.jQuery(el)); } catch (e) { /* keep going */ } });
+    };
+    /* Loop item CSS printed inline in the fetched page (templates not used on this one yet). */
+    const importStyles = (doc) => {
+        doc.querySelectorAll('link[id^="elementor-post-"], style[id^="elementor-post-"]').forEach((style) => {
+            if (style.id && !document.getElementById(style.id)) { document.head.appendChild(document.importNode(style, true)); }
+        });
+    };
+
+    /* Numbered pagination without reloading (Loop Grid «pagination_load_type: ajax»). */
+    const ajaxPages = (nav) => {
+        if (!once(nav, 'obxReady')) { return; }
+        const widget = nav.closest('[data-id]');
+        if (!widget) { return; }
+        nav.addEventListener('click', (event) => {
+            const link = event.target.closest('a.page-numbers');
+            if (!link || document.body.classList.contains('elementor-editor-active')) { return; }
+            event.preventDefault();
+            const box = nav.closest('.obx-loop-container, .obx-posts-container') || nav.parentElement;
+            box.classList.add('is-loading');
+            box.setAttribute('aria-busy', 'true');
+            fetch(link.href, { credentials: 'same-origin' })
+                .then((response) => (response.ok ? response.text() : Promise.reject(response.status)))
+                .then((html) => {
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const id = CSS.escape(widget.dataset.id);
+                    const remote = doc.querySelector(`[data-id="${id}"] .obx-loop-container`) || doc.querySelector(`[data-id="${id}"] .obx-posts-container`);
+                    if (!remote) { window.location.href = link.href; return; }
+                    importStyles(doc);
+                    const fresh = document.importNode(remote, true);
+                    box.replaceWith(fresh);
+                    ready(fresh);
+                    try { window.history.replaceState(window.history.state, '', link.href); } catch (e) { /* not allowed */ }
+                    if (nav.dataset.scroll) {
+                        const top = widget.getBoundingClientRect().top + window.scrollY - (Number(nav.dataset.offset) || 0);
+                        window.scrollTo({ top, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+                    }
+                    const focus = fresh.querySelector('.e-loop-item a, .e-loop-item [tabindex]');
+                    if (focus) { focus.focus({ preventScroll: true }); }
+                })
+                .catch(() => { window.location.href = link.href; });
+        });
     };
 
     /* Full screen search: open/close the overlay. */
@@ -544,7 +597,7 @@
 
     const handlers = {
         '.obx-countdown': countdown, '.obx-headline': headline, '.obx-toc': toc, '.obx-progress': progress, '.obx-code': code,
-        '.obx-load-more': loadMore, '.obx-search-toggle': searchToggle, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters,
+        '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters,
     };
     const init = (root) => {
         Object.entries(handlers).forEach(([selector, fn]) => {

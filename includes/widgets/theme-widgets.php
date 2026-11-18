@@ -107,8 +107,8 @@ final class Archive_Title extends Base {
     protected static function upgrade_settings(array $s): array { return self::upgrade_heading($s); }
     protected function render(): void {
         $this->render_heading(Context::archive_title(), 'obx-archive-title');
-        if ($this->get_settings_for_display('description') === 'yes' && !Context::template()) {
-            $description = get_the_archive_description();
+        if ($this->get_settings_for_display('description') === 'yes' && (!Context::template() || Context::loop_term())) {
+            $description = Context::archive_description();
             if ($description) { echo '<div class="obx-archive-description">' . wp_kses_post($description) . '</div>'; }
         }
     }

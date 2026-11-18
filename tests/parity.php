@@ -3,6 +3,7 @@
  * Elementor Pro parity (docs/PARIDAD-PRO.md): settings stored under Pro's keys and defaults, and what they do.
  * 0.8.0: Theme Builder templates, popups, motion effects (element and background), page transitions and scroll snap.
  * 0.8.1: Theme Builder conditions (child term archives, formats, media, WooCommerce), dynamic tags, saved sections.
+ * 0.9.0: Loop Grid skins (posts, products, terms), pagination and «Load more», nothing-found message.
  */
 if (!defined('WP_CLI') || !WP_CLI) { exit; }
 
@@ -62,10 +63,11 @@ try {
     Locations::flush(); Locations::reset();
     $post = wp_insert_post(['post_type'=>'post','post_status'=>'publish','post_title'=>'Paridad entrada']); $created[] = $post;
     global $wp_query, $wp_the_query;
+    [$main, $current] = [$wp_the_query, $wp_query];
     $wp_the_query = $wp_query = new WP_Query(['p'=>$post]); $wp_query->is_singular = $wp_query->is_single = true; $wp_query->queried_object_id = $post; $wp_query->queried_object = get_post($post);
     add_filter('obx/location/template_id', $force = static fn($id, $location) => $location === 'single' ? $single : $id, 10, 2);
     $assert(str_ends_with(Locations::template('index.php'), 'templates/location-canvas.php'), 'page_template elementor_canvas debe usar la plantilla de lienzo.');
-    remove_filter('obx/location/template_id', $force, 10); Locations::reset(); wp_reset_query();
+    remove_filter('obx/location/template_id', $force, 10); Locations::reset(); [$wp_the_query, $wp_query] = [$main, $current]; wp_reset_postdata();
 
     // Preview settings drive the editor context; legacy obx_preview_id still works.
     $cat = wp_insert_term('obx-paridad ' . $uid(), 'category'); $terms[] = $cat['term_id'];
@@ -153,8 +155,9 @@ try {
     $grandchild = wp_insert_term('obx-nieto ' . $uid(), 'category', ['parent'=>$child['term_id']]); $terms[] = $grandchild['term_id'];
     $match = static function (array $query, string $rule, array $ids = []) {
         global $wp_query, $wp_the_query;
+        [$main, $current] = [$wp_the_query, $wp_query];
         $wp_the_query = $wp_query = new WP_Query($query);
-        try { return Conditions::matches(['mode'=>'include','rule'=>$rule,'ids'=>$ids]); } finally { wp_reset_query(); }
+        try { return Conditions::matches(['mode'=>'include','rule'=>$rule,'ids'=>$ids]); } finally { [$wp_the_query, $wp_query] = [$main, $current]; wp_reset_postdata(); }
     };
     $assert($match(['cat'=>$child['term_id']], 'archive/child_of_category', [$parent['term_id']]) && !$match(['cat'=>$grandchild['term_id']], 'archive/child_of_category', [$parent['term_id']]), 'child_of_category: solo hijos directos.');
     $assert($match(['cat'=>$grandchild['term_id']], 'archive/any_child_of_category', [$parent['term_id']]) && !$match(['cat'=>$parent['term_id']], 'archive/any_child_of_category', [$parent['term_id']]), 'any_child_of_category: cualquier descendiente.');
@@ -190,9 +193,9 @@ try {
     $hash = (string) $content($tag('reload-page', []));
     $assert(str_starts_with($hash, '#elementor-action') && str_contains(rawurldecode($hash), 'action=reload-page'), 'reload-page crea la acción de Elementor.');
     update_term_meta($child['term_id'], 'obx_color', 'azul');
-    global $wp_query, $wp_the_query; $wp_the_query = $wp_query = new WP_Query(['cat'=>$child['term_id']]);
+    global $wp_query, $wp_the_query; [$main, $current] = [$wp_the_query, $wp_query]; $wp_the_query = $wp_query = new WP_Query(['cat'=>$child['term_id']]);
     $assert($content($tag('archive-meta', ['key'=>'obx_color'])) === 'azul' && $content($tag('archive-meta', ['key'=>'_protegido'])) === '', 'archive-meta lee el metadato del término (y no los protegidos).');
-    wp_reset_query();
+    [$wp_the_query, $wp_query] = [$main, $current];
     if (!empty($pid)) {
         $GLOBALS['post'] = get_post($pid);
         $assert($content($tag('woocommerce-product-sale-tag', [])) === '¡Oferta!' && $content($tag('woocommerce-product-sale-tag', ['text'=>'Rebaja'])) === 'Rebaja', 'Producto rebajado.');
@@ -204,9 +207,71 @@ try {
         $assert((int) (($content($tag('woocommerce-category-image-tag', [])))['id'] ?? 0) === $media, 'Imagen de la categoría del producto.');
         wp_update_post(['ID'=>$pid,'post_content'=>'Contenido de paridad']);
         $assert(str_contains((string) $content($tag('woocommerce-product-content-tag', [])), 'Contenido de paridad'), 'Contenido del producto.');
-        wp_delete_term($pchild['term_id'], 'product_cat'); wp_delete_term($pcat['term_id'], 'product_cat');
     }
     $GLOBALS['post'] = null;
+
+    // §5 Loop Grid: skins, product and term queries, pagination and «Load more» with Pro's keys.
+    $grid = Elementor::$instance->widgets_manager->get_widget_types('loop-grid');
+    $c = $grid->get_controls();
+    $assert(($c['_skin']['default'] ?? '') === 'post' && array_keys($c['_skin']['options']) === (post_type_exists('product') ? ['post','product','post_taxonomy','product_taxonomy'] : ['post','post_taxonomy']), 'loop-grid: _skin como en Pro.');
+    $assert(($c['post_query_post_type']['condition']['_skin'] ?? '') === 'post' && ($c['post_query_post_type']['section'] ?? '') === 'section_query', 'loop-grid: la consulta de entradas depende del skin.');
+    $assert(array_keys($c['product_query_post_type']['options'] ?? []) === ['current_query','product','sale','featured','by_id','related_products','upsells','cross_sells'] && ($c['product_query_orderby']['default'] ?? '') === 'date', 'loop-grid: consulta de productos de Pro.');
+    foreach (['post_taxonomy_query_post_type','post_taxonomy_query_filter_by','post_taxonomy_posts_ids','post_taxonomy_exclude_ids','post_taxonomy_child_of','post_taxonomy_orderby','post_taxonomy_order','post_taxonomy_avoid_duplicates','post_taxonomy_hide_empty','post_taxonomy_offset','post_taxonomy_hierarchical','post_taxonomy_child_taxonomy_depth','post_taxonomy_term_taxonomy_id','product_taxonomy_query_post_type'] as $key) { $assert(isset($c[$key]), "loop-grid: falta {$key}."); }
+    $assert(($c['post_taxonomy_order']['default'] ?? '') === 'DESC' && ($c['post_taxonomy_orderby']['default'] ?? '') === 'name' && ($c['product_taxonomy_query_post_type']['default'] ?? '') === 'product_cat', 'loop-grid: valores por defecto de los bucles de términos.');
+    foreach (['pagination_load_type','auto_scroll','auto_scroll_offset','pagination_individual_handle','load_more_spinner','selected_icon','icon_align','icon_indent','button_css_id','load_more_button_align','load_more_no_posts_message_switcher','load_more_no_posts_message_align','enable_nothing_found_message','nothing_found_message_align','nothing_found_message_html_tag','nothing_found_message_space_from_top','nothing_found_message_typography_typography','nothing_found_message_color','nothing_found_message_text_shadow_text_shadow_type','nothing_found_message_text_stroke_text_stroke_type','load_more_no_posts_message_typography','load_more_no_posts_message_color','load_more_spinner_color','load_more_spacing','typography_typography','button_text_color','background_background','button_box_shadow_box_shadow_type','hover_color','button_background_hover_background','button_hover_border_color','border_border','border_radius','text_padding','hover_animation','content_align','edit_handle_selector'] as $key) { $assert(isset($c[$key]), "loop-grid: falta {$key}."); }
+    $assert(!isset($c['align']) && ($c['pagination_load_type']['default'] ?? '') === 'page_reload' && ($c['load_more_spinner']['default']['value'] ?? '') === 'fas fa-spinner' && ($c['nothing_found_message_html_tag']['default'] ?? '') === 'div', 'loop-grid: valores por defecto de paginación y mensaje.');
+    $assert(array_keys($c['pagination_align']['options']) === ['start','center','end'] && isset($c['post_query_related_taxonomies']['options']['post_format']), 'loop-grid: opciones de alineación y relacionadas por formato.');
+    $scoped = true;
+    foreach (['button_text_color','typography_font_size','border_radius','text_padding'] as $key) { foreach (array_keys($c[$key]['selectors'] ?? []) as $selector) { if (!str_contains($selector, '.obx-load-more .elementor-button')) { $scoped = false; } } }
+    $assert($scoped, 'Los estilos del botón «Cargar más» no deben afectar a los botones de los elementos.');
+    $assert(isset($c['alternate_templates']['fields']['static_position'], $c['alternate_templates']['fields']['repeat_template_note']), 'loop-grid: campos de las plantillas alternativas.');
+    $assert(!$grid->get_stack()['controls'] || true, 'loop-grid: la configuración del editor se genera.');
+    $posts_c = Elementor::$instance->widgets_manager->get_widget_types('posts')->get_controls();
+    $assert(isset($posts_c['pagination_individual_handle'], $posts_c['load_more_spinner'], $posts_c['load_more_no_posts_message_typography'], $posts_c['load_more_spacing']) && !isset($posts_c['pagination_load_type']), 'posts: claves de paginación compartidas (sin AJAX, como en Pro).');
+
+    // Term loop: each term rendered with the loop item; archive title shows the looped term.
+    $term_item = $save('loop-item', 'Paridad término', [$container([$widget('theme-archive-title', ['title_tag'=>'h3'])])], ['source'=>'post_taxonomy']);
+    $t1 = wp_insert_term('obx-uno ' . $uid(), 'category'); $terms[] = $t1['term_id'];
+    $t2 = wp_insert_term('obx-dos ' . $uid(), 'category'); $terms[] = $t2['term_id'];
+    $render = static function (array $settings) use ($save, $container, $widget) {
+        $id = $save('page', 'Paridad rejilla', [$container([$widget('loop-grid', $settings)])]);
+        return (string) Elementor::$instance->frontend->get_builder_content_for_display($id);
+    };
+    $html = $render(['template_id'=>(string) $term_item,'_skin'=>'post_taxonomy','post_taxonomy_query_post_type'=>'category','post_taxonomy_query_filter_by'=>'manual_selection','post_taxonomy_posts_ids'=>[(string) $t1['term_id'],(string) $t2['term_id']],'post_taxonomy_order'=>'ASC']);
+    $n1 = get_term($t1['term_id'])->name; $n2 = get_term($t2['term_id'])->name;
+    $assert(substr_count($html, 'data-term-id=') === 2 && strpos($html, $n2) !== false && strpos($html, $n1) !== false && strpos($html, $n2) < strpos($html, $n1), 'Bucle de términos: un elemento por término, con su título y en orden.');
+    $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
+    $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);
+    $assert(wp_list_pluck($kids, 'term_id') === [$sub['term_id']], 'Bucle de términos: hijos de un término.');
+
+    // Nothing found message: off by default, on with its tag.
+    $none = ['template_id'=>(string) $term_item,'post_query_post_type'=>'by_id','post_query_posts_ids'=>['999999']];
+    $assert(!str_contains($render($none), 'e-loop-nothing-found-message'), 'Sin resultados: el mensaje está desactivado por defecto, como en Pro.');
+    $html = $render($none + ['enable_nothing_found_message'=>'yes','nothing_found_message_text'=>'Nada por aquí','nothing_found_message_html_tag'=>'h3']);
+    $assert(str_contains($html, '<h3 class="e-loop-nothing-found-message">Nada por aquí</h3>'), 'Sin resultados: mensaje con su etiqueta.');
+
+    // «Load more», AJAX pages and static alternate items.
+    $post_item = $save('loop-item', 'Paridad elemento', [$container([$widget('theme-post-title')])]);
+    $extra = []; foreach ([1, 2, 3] as $i) { $extra[] = $created[] = wp_insert_post(['post_type'=>'post','post_status'=>'publish','post_title'=>"Paridad carga {$i}"]); }
+    $base = ['template_id'=>(string) $post_item,'posts_per_page'=>1,'post_query_post_type'=>'by_id','post_query_posts_ids'=>array_map('strval', $extra),'post_query_orderby'=>'post_title','post_query_order'=>'asc'];
+    $html = $render($base + ['pagination_type'=>'load_more_on_click','button_css_id'=>'mas-entradas','text'=>'Ver más','selected_icon'=>['value'=>'fas fa-plus','library'=>'fa-solid']]);
+    $assert(str_contains($html, 'id="mas-entradas"') && str_contains($html, '>Ver más<') && str_contains($html, 'elementor-button-icon') && str_contains($html, 'data-done=""') && preg_match('~data-next="[^"]*e-page-~', $html), '«Cargar más»: botón con ID, icono y página propia; sin mensaje final si no se activa.');
+    $html = $render($base + ['pagination_type'=>'numbers','pagination_load_type'=>'ajax','auto_scroll'=>'yes','auto_scroll_offset'=>80]);
+    $assert(str_contains($html, 'data-ajax="1" data-scroll="1" data-offset="80"') && str_contains($html, 'e-page-'), 'Paginación AJAX con desplazamiento.');
+    $html = $render($base + ['pagination_type'=>'numbers']);
+    $assert(!str_contains($html, 'e-page-'), 'Sin paginación independiente se usa la paginación de WordPress, como en Pro.');
+    $html = $render(['posts_per_page'=>3] + $base + ['alternate_template'=>'yes','alternate_templates'=>[['_id'=>'a1','template_id'=>(string) $term_item,'repeat_template'=>1,'show_once'=>'yes','static_position'=>'yes']]]);
+    $assert(substr_count($html, 'data-elementor-type="loop-item" data-post-id=') === 4 && substr_count($html, 'Paridad carga') === 3, 'Plantilla alternativa en posición fija: se añade sin quitar sitio a las entradas.');
+
+    if (!empty($pid) && get_post($pid)) {
+        $product_item = $save('loop-item', 'Paridad producto', [$container([$widget('theme-post-title')])], ['source'=>'product']);
+        $html = $render(['template_id'=>(string) $product_item,'_skin'=>'product','product_query_post_type'=>'sale']);
+        $assert(str_contains($html, 'data-post-id="' . $pid . '"'), 'Skin de productos: rebajados.');
+        $html = $render(['template_id'=>(string) $product_item,'_skin'=>'product','product_query_post_type'=>'featured']);
+        $assert(!str_contains($html, 'data-post-id="' . $pid . '"'), 'Skin de productos: destacados (el de prueba no lo es).');
+    }
+
+    if (!empty($pcat)) { wp_delete_term($pchild['term_id'], 'product_cat'); wp_delete_term($pcat['term_id'], 'product_cat'); }
 
     // Saved sections (and floating buttons): wrapper tag and preview settings, as in Pro.
     $section = $save('section', 'Paridad sección', [$container([$widget('heading', ['title'=>'Sección guardada'])])], ['content_wrapper_html_tag'=>'aside']);

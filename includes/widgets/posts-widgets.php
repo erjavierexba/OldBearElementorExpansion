@@ -13,23 +13,49 @@ if (!defined('ABSPATH')) { exit; }
 
 /** Pagination controls and markup shared by post grids and loop grids (Elementor Pro's keys). */
 trait Paginates {
-    protected function pagination_controls(bool $nothing_found = true): void {
-        $this->start_controls_section('section_pagination', ['label'=>'Paginación']);
+    /**
+     * Pagination with Elementor Pro's keys. $condition hides the whole section (the Loop Grid's term skins);
+     * $loop adds what only the Loop Grid has: AJAX page loads with auto scroll and the full «Load more» button.
+     */
+    protected function pagination_controls(bool $nothing_found = true, array $condition = [], bool $loop = false): void {
+        $this->start_controls_section('section_pagination', ['label'=>'Paginación'] + ($condition ? ['condition'=>$condition] : []));
         $this->add_control('pagination_type', ['label'=>'Paginación','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Ninguna','numbers'=>'Números','prev_next'=>'Anterior/Siguiente','numbers_and_prev_next'=>'Números + Anterior/Siguiente','load_more_on_click'=>'Botón «Cargar más»','load_more_infinite_scroll'=>'Desplazamiento infinito']]);
         $numbers = ['pagination_type'=>['numbers','numbers_and_prev_next','prev_next']];
+        $more = ['pagination_type'=>['load_more_on_click','load_more_infinite_scroll']];
+        $click = ['pagination_type'=>'load_more_on_click'];
         $this->add_control('pagination_page_limit', ['label'=>'Límite de páginas','type'=>Controls_Manager::NUMBER,'default'=>'5','condition'=>['pagination_type!'=>'']]);
         $this->add_control('pagination_numbers_shorten', ['label'=>'Acortar','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','condition'=>['pagination_type'=>['numbers','numbers_and_prev_next']]]);
         $this->add_control('pagination_prev_label', ['label'=>'Texto «Anterior»','type'=>Controls_Manager::TEXT,'default'=>'&laquo; Anterior','condition'=>['pagination_type'=>['prev_next','numbers_and_prev_next']]]);
         $this->add_control('pagination_next_label', ['label'=>'Texto «Siguiente»','type'=>Controls_Manager::TEXT,'default'=>'Siguiente &raquo;','condition'=>['pagination_type'=>['prev_next','numbers_and_prev_next']]]);
-        $this->add_control('pagination_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::align_options(),'selectors'=>['{{WRAPPER}} .obx-pagination'=>'text-align: {{VALUE}}; justify-content: {{VALUE}};'],'condition'=>$numbers]);
-        $this->add_control('text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'Cargar más','condition'=>['pagination_type'=>'load_more_on_click']]);
-        $this->add_control('load_more_no_posts_custom_message', ['label'=>'Mensaje al terminar','type'=>Controls_Manager::TEXT,'default'=>'No hay más entradas','label_block'=>true,'condition'=>['pagination_type'=>['load_more_on_click','load_more_infinite_scroll']]]);
+        $this->add_control('pagination_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::flex_align_options(),'selectors_dictionary'=>['left'=>'flex-start','start'=>'flex-start','right'=>'flex-end','end'=>'flex-end','center'=>'center'],'selectors'=>['{{WRAPPER}} .obx-pagination'=>'justify-content: {{VALUE}};'],'condition'=>$numbers]);
+        if ($loop) {
+            $this->add_control('pagination_load_type', ['label'=>'Carga','type'=>Controls_Manager::SELECT,'default'=>'page_reload','options'=>['page_reload'=>'Recargar la página','ajax'=>'Sin recargar (AJAX)'],'condition'=>$numbers,'frontend_available'=>true]);
+            $this->add_control('auto_scroll', ['label'=>'Desplazar al inicio del widget','type'=>Controls_Manager::SWITCHER,'condition'=>['pagination_load_type'=>['ajax']] + $numbers,'frontend_available'=>true]);
+            $this->add_control('auto_scroll_offset', ['label'=>'Margen superior (px)','type'=>Controls_Manager::NUMBER,'default'=>0,'condition'=>['pagination_load_type'=>['ajax'],'auto_scroll'=>'yes'] + $numbers,'frontend_available'=>true]);
+        }
+        $this->add_control('pagination_individual_handle', ['label'=>'Paginación independiente','type'=>Controls_Manager::SWITCHER,'description'=>'Cada widget pasa de página por su cuenta (parámetro e-page-ID en la dirección).','condition'=>$numbers + ($loop ? ['pagination_load_type'=>['page_reload']] : [])]);
+        $this->add_control('load_more_spinner', ['label'=>'Icono de carga','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'default'=>['value'=>'fas fa-spinner','library'=>'fa-solid'],'exclude_inline_options'=>['svg'],'condition'=>$more,'separator'=>'before']);
+        $this->add_control('text', ['label'=>'Texto del botón','type'=>Controls_Manager::TEXT,'default'=>'Cargar más','condition'=>$click]);
+        $this->add_control('selected_icon', ['label'=>'Icono del botón','type'=>Controls_Manager::ICONS,'skin'=>'inline','label_block'=>false,'condition'=>$click]);
+        if ($loop) {
+            $this->add_control('icon_align', ['label'=>'Posición del icono','type'=>Controls_Manager::CHOOSE,'default'=>'row','options'=>['row'=>['title'=>'Antes','icon'=>'eicon-h-align-left'],'row-reverse'=>['title'=>'Después','icon'=>'eicon-h-align-right']],'selectors'=>['{{WRAPPER}} .obx-load-more .elementor-button-content-wrapper'=>'flex-direction: {{VALUE}};'],'condition'=>$click + ['text!'=>'','selected_icon[value]!'=>'']]);
+            $this->add_control('icon_indent', ['label'=>'Separación del icono','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-load-more .elementor-button-content-wrapper'=>'gap: {{SIZE}}{{UNIT}};'],'condition'=>$click + ['text!'=>'','selected_icon[value]!'=>'']]);
+            $this->add_control('button_css_id', ['label'=>'ID del botón','type'=>Controls_Manager::TEXT,'default'=>'','ai'=>['active'=>false],'description'=>'Sin espacios ni «#».','condition'=>$click]);
+            $this->add_control('load_more_button_align', ['label'=>'Alineación del botón','type'=>Controls_Manager::CHOOSE,'default'=>'center','options'=>self::flex_align_options() + ['justify'=>['title'=>'Ancho completo','icon'=>'eicon-h-align-stretch']],'prefix_class'=>'obx-load-more-align-','condition'=>$click]);
+        }
+        $this->add_control('load_more_no_posts_message_switcher', ['label'=>'Mensaje al terminar','type'=>Controls_Manager::SWITCHER,'condition'=>$more,'separator'=>'before']);
+        $this->add_control('load_more_no_posts_custom_message', ['label'=>'Mensaje','type'=>Controls_Manager::TEXT,'default'=>'No hay más entradas','label_block'=>true,'condition'=>$more + ['load_more_no_posts_message_switcher'=>'yes']]);
+        $this->add_control('load_more_no_posts_message_align', ['label'=>'Alineación del mensaje','type'=>Controls_Manager::CHOOSE,'options'=>self::align_options() + ['justify'=>['title'=>'Justificado','icon'=>'eicon-text-align-justify']],'selectors'=>['{{WRAPPER}} .obx-load-more__message'=>'text-align: {{VALUE}};'],'condition'=>$more + ['load_more_no_posts_message_switcher'=>'yes']]);
         $this->end_controls_section();
         if (!$nothing_found) { return; }
 
         $this->start_controls_section('section_nothing_found', ['label'=>'Sin resultados']);
         $this->add_control('nothing_found_message', ['label'=>'Mensaje','type'=>Controls_Manager::TEXTAREA,'default'=>static::SKIN_PREFIX ? 'Parece que no encontramos lo que buscas.' : '']);
         $this->end_controls_section();
+    }
+
+    protected static function flex_align_options(): array {
+        return ['start'=>['title'=>'Inicio','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'end'=>['title'=>'Final','icon'=>'eicon-h-align-right']];
     }
 
     protected function pagination_style(): void {
@@ -42,6 +68,34 @@ trait Paginates {
         $this->add_responsive_control('pagination_spacing_top', ['label'=>'Distancia','type'=>Controls_Manager::SLIDER,'range'=>['px'=>['max'=>100]],'selectors'=>['{{WRAPPER}} .obx-pagination, {{WRAPPER}} .obx-load-more'=>'margin-top: {{SIZE}}{{UNIT}};']]);
         $this->add_control('load_more_color', ['label'=>'Color del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click'],'separator'=>'before']);
         $this->add_control('load_more_background_color', ['label'=>'Fondo del botón «Cargar más»','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__button'=>'background-color: {{VALUE}};'],'condition'=>['pagination_type'=>'load_more_on_click']]);
+        $this->end_controls_section();
+    }
+
+    /**
+     * «Load more» button and end message (Pro's «section_style»). With $button the button gets Elementor's own
+     * button style controls (Button_Trait keys), scoped to the «Load more» box so buttons inside the items keep theirs.
+     */
+    protected function load_more_style(bool $button): void {
+        $more = ['pagination_type'=>['load_more_on_click','load_more_infinite_scroll']];
+        $this->start_controls_section('section_style', ['label'=>'Cargar más','tab'=>Controls_Manager::TAB_STYLE,'condition'=>$more]);
+        if ($button && method_exists($this, 'register_button_style_controls')) {
+            $before = array_keys($this->get_controls());
+            $this->register_button_style_controls(['section_condition'=>['pagination_type'=>'load_more_on_click']]);
+            $this->remove_control('align');
+            foreach (array_diff(array_keys($this->get_controls()), $before) as $id) {
+                $control = $this->get_controls($id);
+                if (!empty($control['selectors'])) {
+                    $selectors = [];
+                    foreach ($control['selectors'] as $selector => $css) { $selectors[str_replace('{{WRAPPER}} .elementor-button', '{{WRAPPER}} .obx-load-more .elementor-button', $selector)] = $css; }
+                    $this->update_control($id, ['selectors'=>$selectors]);
+                }
+            }
+            $this->update_control('button_hover_transition_duration', ['condition'=>$more]);
+        }
+        $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'load_more_no_posts_message','selector'=>'{{WRAPPER}} .obx-load-more__message','separator'=>'before']);
+        $this->add_control('load_more_no_posts_message_color', ['label'=>'Color del mensaje','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__message'=>'color: {{VALUE}};']]);
+        $this->add_control('load_more_spinner_color', ['label'=>'Color del icono de carga','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .obx-load-more__spinner'=>'color: {{VALUE}}; fill: {{VALUE}};'],'condition'=>['load_more_spinner[value]!'=>'']]);
+        $this->add_responsive_control('load_more_spacing', ['label'=>'Distancia a los elementos','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>200]],'selectors'=>['{{WRAPPER}} .obx-load-more'=>'margin-top: {{SIZE}}{{UNIT}};']]);
         $this->end_controls_section();
     }
 
@@ -66,8 +120,20 @@ trait Paginates {
         if (str_starts_with($type, 'load_more')) {
             if ($current >= $total) { return; }
             $infinite = $type === 'load_more_infinite_scroll';
-            echo '<div class="obx-load-more" data-next="' . esc_attr($link($current + 1)) . '" data-page="' . esc_attr((string) $current) . '" data-max="' . esc_attr((string) $total) . '" data-mode="' . ($infinite ? 'scroll' : 'click') . '" data-done="' . esc_attr((string) ($s['load_more_no_posts_custom_message'] ?? '')) . '">';
-            echo $infinite ? '<span class="obx-load-more__spinner" aria-hidden="true"></span>' : '<button type="button" class="obx-load-more__button elementor-button">' . esc_html(($s['text'] ?? '') ?: 'Cargar más') . '</button>';
+            $raw = $this->get_data('settings');
+            // Before 0.9.0 the message had no switch: an explicit message still shows.
+            $show_message = ($s['load_more_no_posts_message_switcher'] ?? '') === 'yes' || (!isset($raw['load_more_no_posts_message_switcher']) && isset($raw['load_more_no_posts_custom_message']));
+            $spinner = !empty($s['load_more_spinner']['value']) ? (string) \Elementor\Icons_Manager::try_get_icon_html($s['load_more_spinner'], ['aria-hidden'=>'true']) : '';
+            echo '<div class="obx-load-more" data-next="' . esc_attr($link($current + 1)) . '" data-page="' . esc_attr((string) $current) . '" data-max="' . esc_attr((string) $total) . '" data-mode="' . ($infinite ? 'scroll' : 'click') . '" data-done="' . esc_attr($show_message ? (string) ($s['load_more_no_posts_custom_message'] ?? '') : '') . '">';
+            if (!$infinite) {
+                $icon = !empty($s['selected_icon']['value']) ? (string) \Elementor\Icons_Manager::try_get_icon_html($s['selected_icon'], ['aria-hidden'=>'true']) : '';
+                $id = sanitize_html_class((string) ($s['button_css_id'] ?? ''));
+                $animation = sanitize_html_class((string) ($s['hover_animation'] ?? ''));
+                echo '<button type="button"' . ($id !== '' ? ' id="' . esc_attr($id) . '"' : '') . ' class="obx-load-more__button elementor-button elementor-size-sm' . ($animation !== '' ? ' elementor-animation-' . esc_attr($animation) : '') . '"><span class="elementor-button-content-wrapper">'
+                    . ($icon !== '' ? '<span class="elementor-button-icon">' . $icon . '</span>' : '')
+                    . '<span class="elementor-button-text">' . esc_html(($s['text'] ?? '') ?: 'Cargar más') . '</span></span></button>'; // Icon HTML from Elementor.
+            }
+            echo '<span class="obx-load-more__spinner" aria-hidden="true">' . $spinner . '</span>'; // Icon HTML from Elementor.
             echo '<p class="obx-load-more__message" role="status" hidden></p></div>';
             return;
         }
@@ -85,7 +151,8 @@ trait Paginates {
         if ($type !== 'numbers') {
             $parts[] = $current < $total ? '<a class="page-numbers next" href="' . esc_url($link($current + 1)) . '">' . $next . '</a>' : '<span class="page-numbers next" aria-disabled="true">' . $next . '</span>';
         }
-        echo '<nav class="obx-pagination" aria-label="Paginación">' . implode('', $parts) . '</nav>'; // Escaped above.
+        $ajax = ($s['pagination_load_type'] ?? '') === 'ajax' ? ' data-ajax="1" data-scroll="' . (($s['auto_scroll'] ?? '') === 'yes' ? '1' : '') . '" data-offset="' . esc_attr((string) (int) ($s['auto_scroll_offset'] ?? 0)) . '"' : '';
+        echo '<nav class="obx-pagination" aria-label="Paginación"' . $ajax . '>' . implode('', $parts) . '</nav>'; // Escaped above.
     }
 }
 
@@ -141,6 +208,7 @@ abstract class Posts_Base extends Base {
 
         foreach (array_keys(self::SKINS) as $skin) { $this->style_controls(static::SKIN_PREFIX . $skin, $skin); }
         $this->pagination_style();
+        $this->load_more_style(false);
     }
 
     private function layout_controls(string $id, string $skin): void {

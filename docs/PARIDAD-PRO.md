@@ -27,6 +27,8 @@ El inventario fuerza `Performance::$is_frontend = false`. Bajo WP-CLI Elementor 
 
 Los controles que añaden plugins de terceros (`premium_*`, `pa_*`, `ekit_*`, `hfe-*`) se descartan.
 
+Elementor 4.4 ya no crea en PHP las variantes por dispositivo de los controles adaptables (`columns_tablet`, `row_gap_mobile`…): las añade el editor. Los sitios de referencia usan un Elementor anterior, así que desde 0.9.0 `parity-spec.py` no cuenta como ausente la variante `_tablet`/`_mobile`/… de una clave que OBX sí tiene. Ese ajuste quitó unos 540 falsos huecos de los anexos.
+
 **Datos locales (no versionados):** `dev/pro-spec/` está en `.gitignore`. Contiene:
 
 - `spec-missing.json`: cada ajuste ausente con su tipo, valor por defecto, opciones y condiciones. Es la especificación a seguir al implementar.
@@ -159,14 +161,14 @@ Sus ajustes completos están en el anexo B.
 
 El detalle de cada ajuste está en el anexo A. Las carencias funcionales que más se notan:
 
-- **Loop Grid y Loop Carousel**:
-  - fuente de la consulta `_skin` (entradas, productos o términos);
-  - consulta de productos `product_query_*`;
-  - bucle de términos `post_taxonomy_*` y `product_taxonomy_*`;
-  - `columns` y estilos de la sección `section_style`;
-  - mensaje de "sin resultados";
-  - en el carrusel, navegación, paginación y su diseño.
-  - En la plantilla `loop-item` ya están `source`, `apply_query_source`, `preview_width`, `preview_search_term` y `custom_css` (0.8.0); falta que el widget use la fuente elegida.
+- **Loop Grid** (0.9.0, a la par salvo `e_display_conditions`):
+  - [x] `_skin`: entradas, productos (`product_query_*`: rebajados, destacados, relacionados, ventas dirigidas y cruzadas, orden por precio, popularidad o valoración) y términos (`post_taxonomy_*`, `product_taxonomy_*`). Dentro de un bucle de términos, el título, la descripción, la dirección y los metadatos del archivo muestran el término.
+  - [x] Paginación de Pro: carga AJAX con desplazamiento, paginación independiente, botón «Cargar más» con los estilos de botón de Elementor (claves de `Button_Trait`), icono de carga y mensaje final opcional. Se corrigió además que «Cargar más» y el desplazamiento infinito no funcionaban en Loop Grid.
+  - [x] Mensaje de «sin resultados» (`enable_nothing_found_message`, etiqueta, alineación y estilos) y plantillas alternativas en posición fija (`static_position`).
+  - Lo que queda en el inventario son opciones propias de cada sitio (tipos de contenido y términos) y pestañas de la interfaz sin datos (`*_query_args`, `pagination_colors`).
+- **Loop Carousel**:
+  - fuente `_skin` (entradas, productos o términos) y sus consultas;
+  - dirección, desplazamiento lateral, posición de las flechas por orientación, estilos de flechas, puntos y fracción.
 - **Search** (buscador de Pro):
   - resultados en directo (`live_results`, `template_id`, `minimum_search_characters`, `number_of_items`, `enable_loader`) y consulta `search_query_*`;
   - paginación, mensaje de "sin resultados", botón de limpiar y estilos de resultados.
@@ -204,7 +206,7 @@ Orden pensado para que lo que se importa desde Pro se vea igual cuanto antes:
 | --- | --- | --- |
 | 0.8.0 | §3.1 (excepto condiciones por elemento), §3.2, §3.3 y §3.4 (excepto WooCommerce): claves de Pro en plantillas, popups, kit y fondos | ✅ |
 | 0.8.1 | §3.5 condiciones, §3.6 etiquetas dinámicas (excepto `off-canvas`, Toolset y Pods) y vista previa de secciones guardadas | ✅ |
-| 0.9.0 | Loop Grid/Carousel completos y Search | ☐ |
+| 0.9.0 | Loop Grid/Carousel completos y Search | ⏳ Loop Grid hecho |
 | 0.9.1 | Formulario: integraciones y acción de popup | ☐ |
 | 0.10.0 | WooCommerce: widgets ausentes, ajustes de kit y estilos | ☐ |
 | 0.11.0 | Carruseles, galería, menú, mapa del sitio y resto del anexo A | ☐ |
