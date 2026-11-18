@@ -847,3 +847,17 @@ html.obx-pt-loading .obx-preloader{opacity:0;animation:obx-preloader-in .2s var(
 .obx-load-more-btn-justify .obx-load-more__button{width:100%}
 @media (max-width:1024px){.obx-load-more-tablet-btn-left .obx-load-more{align-items:flex-start}.obx-load-more-tablet-btn-center .obx-load-more{align-items:center}.obx-load-more-tablet-btn-right .obx-load-more{align-items:flex-end}.obx-load-more-tablet-btn-justify .obx-load-more{align-items:stretch}.obx-load-more-tablet-btn-justify .obx-load-more__button{width:100%}}
 @media (max-width:767px){.obx-load-more-mobile-btn-left .obx-load-more{align-items:flex-start}.obx-load-more-mobile-btn-center .obx-load-more{align-items:center}.obx-load-more-mobile-btn-right .obx-load-more{align-items:flex-end}.obx-load-more-mobile-btn-justify .obx-load-more{align-items:stretch}.obx-load-more-mobile-btn-justify .obx-load-more__button{width:100%}}
+/* Off-Canvas: closed panels stay laid out (visibility, not display) so carousels inside measure correctly. */
+.elementor-widget-off-canvas{height:fit-content;--obx-off-canvas-width:400px;--obx-off-canvas-height:100vh;--obx-off-canvas-justify:flex-start;--obx-off-canvas-align:flex-start;--obx-off-canvas-duration:1.5s;--obx-off-canvas-overflow:auto;--obx-off-canvas-overlay-opacity:1}
+body:not(.elementor-editor-active) .e-con>.elementor-widget-off-canvas,body:not(.elementor-editor-active) .e-con-inner>.elementor-widget-off-canvas{position:absolute}
+.obx-off-canvas{position:fixed;inset:0;z-index:2147483630;width:100%;height:100%;pointer-events:none}
+.obx-off-canvas[aria-hidden=true]{visibility:hidden;opacity:0}
+.obx-off-canvas[aria-hidden=true] .elementor-add-section{display:none}
+.obx-off-canvas__overlay{position:absolute;inset:0;background-color:rgba(0,0,0,.5);opacity:var(--obx-off-canvas-overlay-opacity);pointer-events:all}
+.obx-off-canvas__main{position:absolute;inset:0;display:flex;justify-content:var(--obx-off-canvas-justify);align-items:var(--obx-off-canvas-align)}
+.obx-off-canvas__main.animated{animation-duration:max(.001s,var(--obx-off-canvas-duration))}
+.obx-off-canvas__content{width:var(--obx-off-canvas-width);max-width:100%;height:var(--obx-off-canvas-height);overflow:var(--obx-off-canvas-overflow);background-color:#fff;box-shadow:2px 8px 23px 3px rgba(0,0,0,.2);pointer-events:all}
+.obx-off-canvas__placeholder{display:none}
+.elementor-editor-active .obx-off-canvas__placeholder{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px dashed #c2cbd2;border-radius:3px;color:#69727d;font-size:13px;font-family:Roboto,Arial,sans-serif}
+body.obx-off-canvas-lock{overflow:hidden}
+@media (prefers-reduced-motion:reduce){.obx-off-canvas__main.animated{animation-duration:.001s}}

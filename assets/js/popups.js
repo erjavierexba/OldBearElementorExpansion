@@ -59,9 +59,12 @@
 	const action = (href) => {
 		if (!href || !href.startsWith('#elementor-action')) { return null; }
 		try {
-			const raw = decodeURIComponent(href.slice(1)).replace(/^elementor-action:?/, ''); const p = new URLSearchParams(raw);
-			const name = p.get('action') || ''; const data = JSON.parse(decodeURIComponent(p.get('settings') || '{}'));
-			return { name, data };
+			// Elementor's hash: elementor-action:action=NAME&settings=BASE64(JSON); plain JSON is accepted too.
+			const raw = decodeURIComponent(href.slice(1)); const match = raw.match(/^elementor-action:action=([^&]+)(?:&settings=(.*))?$/);
+			if (!match) { return null; }
+			let data = {};
+			if (match[2]) { try { data = JSON.parse(atob(match[2])); } catch (e) { data = JSON.parse(match[2]); } }
+			return { name: match[1], data };
 		} catch (e) { return null; }
 	};
 	const boot = () => {

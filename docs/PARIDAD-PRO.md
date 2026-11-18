@@ -130,7 +130,7 @@ Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_ch
 
 - [x] `archive-meta`, `featured-image-data`, `request-arg` (antes la registrábamos como `request-parameter`, que se mantiene como alias).
 - [x] Acción `reload-page`.
-- [ ] Acción `off-canvas`: llega con el widget Off-canvas (fase 0.12.0).
+- [x] Acción `off-canvas` (abrir, cerrar o alternar un Off-Canvas de la página, con el ID del widget como Pro). El desplegable lista los Off-Canvas de los documentos abiertos en el editor.
 - [x] WooCommerce: `woocommerce-add-to-cart`, `woocommerce-category-image-tag`, `woocommerce-product-content-tag`, `woocommerce-product-gallery-tag`, `woocommerce-product-sale-tag`, `woocommerce-product-terms-tag`.
 - [ ] Integraciones, que solo se registran si el plugin está activo:
   - [x] ACF: `acf-text`, `acf-image`, `acf-url`, `acf-gallery`, `acf-file`, `acf-number`, `acf-color` (clave `key` = `field_key:field_name`, como Pro; entrada, término, usuario y páginas de opciones). Sin pruebas automáticas: el entorno de desarrollo no tiene ACF.
@@ -150,7 +150,8 @@ Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_ch
 
 | Prioridad | Widgets |
 | --- | --- |
-| Alta | `mega-menu` (Menú), `off-canvas`, `global` |
+| Alta | `mega-menu` (Menú), `global` |
+| ✅ | `off-canvas`: widget anidado con un contenedor, con las claves de Pro (posición, ancho, altura, animaciones de entrada y salida, duración, capa, no cerrar con la capa o Esc, bloquear el desplazamiento, etiqueta HTML, fondo, borde y sombra). En el editor se ve abierto mientras «Modo de edición» está activo; en la web se abre con la acción `off-canvas`, devuelve el foco al cerrar y mantiene el teclado dentro del panel. |
 | ~~Alta (WooCommerce)~~ | ✅ 0.10.0: `wc-add-to-cart`, `wc-products`, `wc-categories`, `wc-elements`, `woocommerce-notices`, `woocommerce-purchase-summary`, `wc-archive-products`, `wc-single-elements` |
 | Media | `hotspot`, `lottie`, `portfolio`, `reviews`, `video-playlist` |
 | Media | Botones flotantes de Pro: `contact-buttons-var-1`, `-3` a `-10`, `floating-bars-var-2` y `-3` |

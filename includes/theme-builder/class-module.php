@@ -146,6 +146,7 @@ final class Module {
         require_once DIR . '/includes/widgets/interactive-widgets.php';
         require_once DIR . '/includes/widgets/form-widget.php';
         require_once DIR . '/includes/widgets/carousel-widgets.php';
+        require_once DIR . '/includes/widgets/nested-widgets.php';
         require_once DIR . '/includes/widgets/media-widgets.php';
         require_once DIR . '/includes/widgets/loop-widgets.php';
         require_once DIR . '/includes/widgets/woocommerce-widgets.php';
@@ -195,6 +196,7 @@ final class Module {
     public static function assets(): void {
         wp_register_style('obx-frontend', Plugin::url('assets/css/frontend.css'), [], VERSION);
         wp_register_script('obx-nav-menu', Plugin::url('assets/js/nav-menu.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
+        wp_register_script('obx-off-canvas', Plugin::url('assets/js/off-canvas.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-widgets', Plugin::url('assets/js/widgets.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
     }
 }

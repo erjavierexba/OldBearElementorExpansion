@@ -110,8 +110,8 @@ final class Popups {
         }
     }
 
-    /** Elementor ships one stylesheet per entrance animation; enqueue the ones popups use. */
-    private static function animation_style(string $animation): void {
+    /** Elementor ships one stylesheet per entrance animation; enqueue the ones popups and off-canvas widgets use. */
+    public static function animation_style(string $animation): void {
         $handle = 'e-animation-' . $animation;
         if (wp_style_is($handle, 'registered')) { wp_enqueue_style($handle); return; }
         if (defined('ELEMENTOR_ASSETS_PATH') && is_file(ELEMENTOR_ASSETS_PATH . 'lib/animations/styles/' . $animation . '.min.css')) {

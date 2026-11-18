@@ -849,6 +849,27 @@ try {
     wp_set_current_user($was_user);
     $assert(apply_filters('elementor/element/is_dynamic_content', false, ['settings'=>['e_display_conditions'=>$json([[$in]])]], null) === true, 'Condiciones: los elementos con condiciones no salen de la caché de elementos.');
 
+    // Off-Canvas: nested widget with one container, opened by the «Off-Canvas» action tag.
+    $oc_type = Elementor::$instance->widgets_manager->get_widget_types('off-canvas');
+    $assert((bool) $oc_type, 'Off-Canvas: widget registrado con el nombre de Pro.');
+    if ($oc_type) {
+        $oc = $oc_type->get_controls();
+        foreach (['editing_mode','off_canvas_name','horizontal_position','vertical_position','width','height','custom_height','entrance_animation','exit_animation','offcanvas_animation_duration','is_not_close_on_overlay','is_not_close_on_esc_overlay','prevent_scroll','wrapper_html_tag','background_background','border_border','border_radius','box_shadow_box_shadow_type','has_overlay','overlay_background_background','overlay_background_color'] as $key) { $assert(isset($oc[$key]), "off-canvas: falta {$key}."); }
+        $assert(($oc['editing_mode']['default'] ?? '') === 'yes' && ($oc['off_canvas_name']['default'] ?? '') === 'Off-Canvas' && ($oc['height']['default'] ?? '') === 'custom' && ($oc['custom_height']['default']['unit'] ?? '') === 'vh' && ($oc['offcanvas_animation_duration']['default']['size'] ?? 0) == 1.5 && ($oc['wrapper_html_tag']['default'] ?? '') === 'div' && ($oc['has_overlay']['default'] ?? '') === 'yes' && ($oc['overlay_background_background']['default'] ?? '') === 'classic' && ($oc['overlay_background_color']['default'] ?? '') === 'rgba(0,0,0,.8)', 'off-canvas: valores por defecto de Pro.');
+        $assert(array_keys($oc['wrapper_html_tag']['options']) === ['div','main','article','header','footer','section','aside','nav'] && array_keys($oc['height']['options']) === ['fit-content','custom'] && !empty($oc['entrance_animation']['frontend_available']) && !empty($oc['prevent_scroll']['frontend_available']), 'off-canvas: opciones y ajustes del navegador de Pro.');
+        $panel = $widget('off-canvas', ['off_canvas_name'=>'Menú lateral','wrapper_html_tag'=>'aside','entrance_animation'=>'fadeInLeft']);
+        $panel['elements'] = [$container([$widget('heading', ['title'=>'Dentro del panel'])], ['content_width'=>'full'])];
+        $oc_page = $save('page', 'Paridad off-canvas', [$container([$widget('button', ['text'=>'Abrir', '__dynamic__'=>['link'=>'[elementor-tag id="a1b2c3d" name="off-canvas" settings="' . rawurlencode(wp_json_encode(['action'=>'toggle','off_canvas'=>$panel['id']])) . '"]']]), $panel])]);
+        $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($oc_page);
+        $assert(str_contains($html, '<aside id="off-canvas-' . $panel['id'] . '" class="obx-off-canvas" role="dialog" aria-hidden="true" aria-modal="true" aria-label="Menú lateral" data-obx-off-canvas="' . $panel['id'] . '" inert>') && str_contains($html, 'Dentro del panel') && str_contains($html, 'obx-off-canvas__overlay'), 'Off-Canvas: panel cerrado con su contenedor, etiqueta y nombre accesible.');
+        $hash = '';
+        if (preg_match('/href="(#elementor-action[^"]+)"/', $html, $m)) { $hash = rawurldecode(html_entity_decode($m[1])); }
+        parse_str((string) substr($hash, strlen('#elementor-action:')), $query);
+        $assert(($query['action'] ?? '') === 'off_canvas:toggle' && json_decode((string) base64_decode((string) ($query['settings'] ?? '')), true) === ['id'=>$panel['id'],'displayMode'=>'toggle'], 'Off-Canvas: la etiqueta crea la acción de Pro con el ID del widget.');
+        $assert(\OldBearExpansion\Dynamic\Off_Canvas::found($oc_page) === [$panel['id']=>'Menú lateral'], 'Off-Canvas: la etiqueta lista los Off-Canvas del documento.');
+        $assert(wp_script_is('obx-off-canvas', 'enqueued') || wp_script_is('obx-off-canvas', 'registered'), 'Off-Canvas: script del navegador registrado.');
+    }
+
     $assert(!$errors, 'Avisos PHP: ' . implode(' | ', array_slice($errors, 0, 4)));
 } finally {
     $frontend->setValue(null, $was_frontend);

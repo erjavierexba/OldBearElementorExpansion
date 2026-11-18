@@ -36,7 +36,7 @@ final class Tags {
             Site_Title::class, Site_Tagline::class, Site_Url::class, Site_Logo::class, Current_Date_Time::class, Shortcode::class, Request_Arg::class, Request_Parameter::class, User_Info::class, User_Profile_Picture::class, Internal_Url::class,
             Author_Name::class, Author_Info::class, Author_Meta::class, Author_Url::class, Author_Profile_Picture::class,
             Comments_Number::class, Comments_Url::class,
-            Lightbox::class, Popup::class, Contact_Url::class, Reload_Page::class,
+            Lightbox::class, Popup::class, Off_Canvas::class, Contact_Url::class, Reload_Page::class,
             Product_Title::class, Product_Price::class, Product_Sku::class, Product_Short_Description::class, Product_Stock::class, Product_Rating::class, Product_Image::class,
             Product_Content::class, Product_Sale::class, Product_Terms::class, Product_Gallery::class, Category_Image::class, Add_To_Cart::class,
             Acf_Text::class, Acf_Image::class, Acf_Url::class, Acf_Gallery::class, Acf_File::class, Acf_Number::class, Acf_Color::class,
@@ -564,6 +564,45 @@ final class Popup extends Value_Tag {
         if ($id === '') { return ''; }
         \OldBearExpansion\Popups\Popups::enqueue((int) $id);
         return \Elementor\Plugin::$instance->frontend->create_action_hash('popup:open', ['id'=>$id,'toggle'=>$action === 'toggle']);
+    }
+}
+
+/** Opens, closes or toggles an Off-Canvas widget: action off_canvas:{action} with the widget's element ID, as Pro. */
+final class Off_Canvas extends Value_Tag {
+    public const GROUP = 'action';
+    public function get_name() { return 'off-canvas'; }
+    public function get_title() { return 'Off-Canvas'; }
+    protected function register_controls() {
+        $this->add_control('action', ['label'=>'Acción','type'=>Controls_Manager::SELECT,'default'=>'open','options'=>['open'=>'Abrir el Off-Canvas','close'=>'Cerrar el Off-Canvas','toggle'=>'Alternar el Off-Canvas']]);
+        $this->add_control('off_canvas', ['label'=>'Off-Canvas','type'=>Controls_Manager::SELECT,'label_block'=>true,'default'=>'','options'=>[''=>'Elige un Off-Canvas'] + (is_admin() ? self::found(self::edited_post()) : []),'collection_id'=>'off-canvas']);
+    }
+
+    /** In the editor the list is refreshed from the open documents; this is the saved state of the edited one. */
+    private static function edited_post(): int {
+        return absint($_GET['post'] ?? ($_POST['editor_post_id'] ?? 0)); // phpcs:ignore WordPress.Security.NonceVerification -- read only.
+    }
+
+    /** @return array<string,string> Off-Canvas widgets of a document: element ID → name. */
+    public static function found(int $post_id): array {
+        $data = $post_id ? json_decode((string) get_post_meta($post_id, '_elementor_data', true), true) : null;
+        $found = [];
+        $walk = static function ($elements) use (&$walk, &$found): void {
+            foreach (is_array($elements) ? $elements : [] as $element) {
+                if (!is_array($element)) { continue; }
+                if (($element['widgetType'] ?? '') === 'off-canvas' && !empty($element['id'])) { $found[(string) $element['id']] = (string) ($element['settings']['off_canvas_name'] ?? '') ?: 'Off-Canvas'; }
+                $walk($element['elements'] ?? []);
+            }
+        };
+        $walk($data);
+        return $found;
+    }
+
+    public function get_value(array $options = []) {
+        $s = $this->get_settings();
+        $id = (string) ($s['off_canvas'] ?? '');
+        if ($id === '') { return ''; }
+        $action = in_array($s['action'] ?? 'open', ['open','close','toggle'], true) ? $s['action'] : 'open';
+        return \Elementor\Plugin::$instance->frontend->create_action_hash('off_canvas:' . $action, ['id'=>$id,'displayMode'=>$action]);
     }
 }
 
