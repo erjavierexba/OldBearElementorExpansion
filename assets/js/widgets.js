@@ -550,6 +550,13 @@
                         if (steps.length) { show(0); }
                         say(data.message || messages.success_message, true);
                         el.dispatchEvent(new CustomEvent('obx:form:success', { bubbles: true, detail: data }));
+                        // Popup action: open another popup or close the one holding the form.
+                        const popups = window.elementorProFrontend && window.elementorProFrontend.modules && window.elementorProFrontend.modules.popup;
+                        if (data.popup && popups) {
+                            const owner = el.closest('[data-obx-popup]');
+                            if (data.popup.action === 'open') { popups.showPopup({ id: data.popup.id }); }
+                            if (data.popup.action === 'close' && owner) { window.setTimeout(() => popups.closePopup({ id: owner.dataset.obxPopup, doNotShowAgain: !!data.popup.do_not_show_again }), 1000); }
+                        }
                         if (data.redirect_url) { window.location.href = data.redirect_url; }
                         return;
                     }
@@ -561,7 +568,7 @@
                         if (step && firstStep < 0) { firstStep = steps.indexOf(step); }
                     });
                     if (firstStep >= 0) { show(firstStep); }
-                    say(data.message || messages.error_message, false);
+                    say((data.message || messages.error_message) + (data.admin_error ? ' (' + data.admin_error + ')' : ''), false);
                 })
                 .catch(() => say(messages.server_message || messages.error_message, false))
                 .finally(() => { el.classList.remove('is-sending'); if (button) { button.disabled = false; } });

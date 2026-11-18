@@ -43,6 +43,8 @@ final class Plugin {
         Popups\Popups::boot();
         require_once DIR . '/includes/forms/class-handler.php';
         Forms\Handler::boot();
+        require_once DIR . '/includes/forms/class-integrations.php';
+        Forms\Integrations::boot();
         require_once DIR . '/includes/admin/class-dashboard.php';
         Admin\Dashboard::boot();
         require_once DIR . '/includes/compat.php';

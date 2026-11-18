@@ -25,6 +25,7 @@
 | 12 | Formato de Pro en plantillas (vista previa, envoltorio, lienzo, estilo), popups, efectos de movimiento del fondo, transiciones de página, precargador y scroll snap | ✅ v0.8.0 |
 | 13 | Condiciones de Pro completas (hijos de término, formatos, medios y grupo WooCommerce), etiquetas dinámicas de Pro y ACF, vista previa de secciones guardadas | ✅ v0.8.1 |
 | 14 | Loop Grid y Loop Carousel con los skins y la paginación de Pro; Buscador con resultados en directo | ✅ v0.9.0 |
+| 15 | Formulario: Mailchimp, Drip, ActiveCampaign, GetResponse, Kit, MailerLite, Slack, Discord y acción de popup | ✅ v0.9.1 |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 
@@ -125,7 +126,7 @@ Desde la v0.4.0 los datos se guardan **en el mismo formato que Elementor Pro**, 
 - **Widgets**: mismos nombres internos, mismas claves de ajustes (incluidas las de apariencia, como `classic_columns` o `archive_cards_title_color`, y la consulta `posts_*`) y mismos valores por defecto en interruptores, listas y números. Como Elementor solo guarda lo que difiere del valor por defecto, un diseño hecho con Pro se ve igual aquí. Los textos por defecto son propios, en español.
 - **Acción `elementor/query/{id}`**: las consultas personalizadas de los widgets de entradas funcionan igual.
 - **Kits**: Elementor Free no importa las plantillas de Theme Builder de un kit sin Pro. Este plugin sí, con sus condiciones (formato de Elementor y metadatos de los kits de Envato).
-- **Formulario**: mismas claves (`form_fields`, `submit_actions`, `email_to`…). Los envíos van a un punto REST propio que vuelve a leer la configuración del documento guardado, nunca del navegador. Tiene campo trampa, límite de envíos por visitante, validación en el servidor y protección contra inyección de cabeceras. Los envíos guardados aparecen en **Elementor → Envíos**.
+- **Formulario**: mismas claves (`form_fields`, `submit_actions`, `email_to`…). Los envíos van a un punto REST propio que vuelve a leer la configuración del documento guardado, nunca del navegador. Tiene campo trampa, límite de envíos por visitante, validación en el servidor y protección contra inyección de cabeceras. Los envíos guardados aparecen en **Elementor → Envíos**. Las integraciones (listas de correo, Slack, Discord) solo envían datos a los servicios que se configuren; sus claves globales van en **Elementor → Ajustes → Integraciones**, en las mismas opciones que usa Pro.
 - **Datos antiguos**: las plantillas hechas con versiones anteriores (nombres `obx-*` o claves propias) se traducen al vuelo al mostrarse. Para dejarlas guardadas en formato Pro: **Plantillas → Theme Builder → Convertir al formato de Elementor Pro**, o `wp obx convert` (`--dry-run` para contar sin cambiar nada).
 - **Loop, popups y producto**: reconoce `loop-item`, `popup`, `product` y `product-archive`; los widgets de Loop, acciones de popup, etiquetas dinámicas y controles WooCommerce usan sus nombres de Pro.
 - **Al activar Elementor Pro**: convierte antes los datos antiguos y, una vez activo, guarda una vez las condiciones de cada plantilla para que Pro regenere su caché.

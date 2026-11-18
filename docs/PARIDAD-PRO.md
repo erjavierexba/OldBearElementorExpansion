@@ -178,9 +178,14 @@ El detalle de cada ajuste está en el anexo A. Las carencias funcionales que má
   - [x] Estilos del campo en normal y al escribir (fondo, texto, icono, borde, sombra, transición), icono de borrar, botón (posición del icono, normal/hover, animación), caja de resultados (ancho del campo o del widget, ancho personalizado, alineación, altura máxima, separaciones, indicador de carga), paginación y mensaje.
   - [x] Teclado: flechas para recorrer los resultados, Escape para cerrar; `autocomplete` del navegador desactivado por defecto, como en Pro.
   - Queda en el inventario solo ruido: tipos de contenido propios de cada sitio y la pestaña `search_query_query_args`.
-- **Formulario**:
-  - integraciones Mailchimp, Drip, ActiveCampaign, GetResponse, ConvertKit, MailerLite, Slack y Discord;
-  - acción de popup (`popup_action`…), `submissions_metadata` y `steps_state`.
+- **Formulario** (0.9.1, a la par salvo `e_display_conditions`):
+  - [x] Las 14 acciones de Pro, en su orden. Las listas de correo (Mailchimp, Drip, ActiveCampaign, GetResponse, Kit/ConvertKit y MailerLite, clásico o nuevo) suscriben con la correspondencia de campos (`*_fields_map`, filas `remote_id`/`local_id`), grupos, etiquetas, doble confirmación, día del ciclo o resuscripción.
+  - [x] Claves globales en Elementor → Ajustes → Integraciones, guardadas en las mismas opciones que Pro (`elementor_pro_mailchimp_api_key`, `elementor_pro_activecampaign_api_url`…); cada formulario puede usar otra clave (`*_api_key_source: custom`).
+  - [x] En el editor, el botón «Cargar desde…» trae listas, grupos, etiquetas y campos del servicio (ruta REST `obx/v1/integrations/{servicio}`, solo para quien puede editar) y los recuerda para mostrar los nombres guardados.
+  - [x] Slack y Discord con título, texto, campos, hora y color; acción de popup (abrir otro o cerrar el actual, también «no volver a mostrarlo»); `submissions_metadata`.
+  - [x] Si una integración falla, el envío responde con el mensaje de error del servidor, como Pro, y quien puede editar la página ve el motivo.
+  - [x] Estilos: alineación del contenido del botón, duración de la transición, colores secundarios de los pasos por estado (`steps_state`), separador entre pasos y radio y color del porcentaje de la barra.
+  - Diferencia con Pro: `*_fields_map` es un repetidor normal de Elementor con los ID escritos a mano; los datos guardados tienen la misma forma.
 - **WooCommerce**:
   - carrito, finalizar compra y Mi cuenta: diseño en una o dos columnas, columna fija, textos y secciones personalizables, todos sus estilos;
   - mini carrito: tipo lateral o desplegable, apertura y actualización automáticas, botones y estilos;
@@ -213,7 +218,7 @@ Orden pensado para que lo que se importa desde Pro se vea igual cuanto antes:
 | 0.8.0 | §3.1 (excepto condiciones por elemento), §3.2, §3.3 y §3.4 (excepto WooCommerce): claves de Pro en plantillas, popups, kit y fondos | ✅ |
 | 0.8.1 | §3.5 condiciones, §3.6 etiquetas dinámicas (excepto `off-canvas`, Toolset y Pods) y vista previa de secciones guardadas | ✅ |
 | 0.9.0 | Loop Grid/Carousel completos y Search | ✅ |
-| 0.9.1 | Formulario: integraciones y acción de popup | ☐ |
+| 0.9.1 | Formulario: integraciones y acción de popup | ✅ |
 | 0.10.0 | WooCommerce: widgets ausentes, ajustes de kit y estilos | ☐ |
 | 0.11.0 | Carruseles, galería, menú, mapa del sitio y resto del anexo A | ☐ |
 | 0.12.0 | Mega menú, Off-canvas, widget global y shortcode | ☐ |
@@ -254,6 +259,14 @@ Nuevo inventario de OBX comparado con Pro 4.2.3 (ajustes ausentes por tipo de do
 | `search` | 296 | 3 (opciones propias de cada sitio, una pestaña y `e_display_conditions`) |
 
 - `tests/parity.php`: 405 pruebas.
+
+### Estado tras 0.9.1
+
+| Widget | Antes | Después |
+| --- | --- | --- |
+| `form` | 67 | 1 (`e_display_conditions`, fase 1.0.0) |
+
+- `tests/parity.php`: 488 pruebas (las peticiones a los servicios se simulan con `pre_http_request`).
 
 Cada fase:
 

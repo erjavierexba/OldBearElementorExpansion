@@ -14,7 +14,9 @@
 		return a[key] || '';
 	};
 	const focusable = (el) => Array.from(el.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter((n) => n.offsetParent !== null);
+	const offKey = (id) => 'obx-popup-' + id + '-off';
 	const canShow = (el) => {
+		if (store.get(offKey(el.dataset.obxPopup))) { return false; }
 		const s = settings(el), max = parseInt(s.timing && s.timing.times_count, 10) || 0;
 		return !max || (parseInt(store.get(countKey(el.dataset.obxPopup)), 10) || 0) < max;
 	};
@@ -80,7 +82,7 @@
 		});
 		document.addEventListener('click', (e) => { const link = e.target.closest('a[href^="#elementor-action"]'); if (!link) { return; } const a = action(link.getAttribute('href')); if (!a || !a.name.startsWith('popup:')) { return; } e.preventDefault(); const id = a.data.id || a.data.popup; if (a.name === 'popup:close') { const owner = link.closest('[data-obx-popup]'); if (owner) { close(owner.dataset.obxPopup); } } else if (a.data.toggle && popups.get(String(id))?.classList.contains('is-open')) { close(id); } else { open(id); } });
 		document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') { return; } const id = openStack[openStack.length - 1]; const el = id && popups.get(id); if (el && !settings(el).preventCloseEsc) { close(id); } });
-		window.elementorProFrontend = window.elementorProFrontend || {}; window.elementorProFrontend.modules = window.elementorProFrontend.modules || {}; window.elementorProFrontend.modules.popup = { showPopup: (o) => open(o.id), closePopup: (o) => close(o && o.id) };
+		window.elementorProFrontend = window.elementorProFrontend || {}; window.elementorProFrontend.modules = window.elementorProFrontend.modules || {}; window.elementorProFrontend.modules.popup = { showPopup: (o) => open(o.id), closePopup: (o) => { if (o && o.id && o.doNotShowAgain) { store.set(offKey(o.id), '1'); } close(o && o.id); } };
 	};
 	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
 })();

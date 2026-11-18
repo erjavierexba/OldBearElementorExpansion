@@ -5,6 +5,7 @@
  * 0.8.1: Theme Builder conditions (child term archives, formats, media, WooCommerce), dynamic tags, saved sections.
  * 0.9.0: Loop Grid and Loop Carousel skins (posts, products, terms), pagination and «Load more», nothing-found message;
  *        Search widget with live results (REST obx/v1/search), query, pagination and styles.
+ * 0.9.1: form integrations (newsletter lists, Slack, Discord), popup action, submissions metadata, step styles.
  */
 if (!defined('WP_CLI') || !WP_CLI) { exit; }
 
@@ -314,6 +315,96 @@ try {
     $user = get_current_user_id(); wp_set_current_user(0);
     $assert(\OldBearExpansion\Widgets\Search::saved($draft, $sw['id']) === null, 'search: los borradores no son públicos.');
     wp_set_current_user($user);
+
+    // 0.9.1 Form: integrations, popup action, stored metadata and the remaining style keys.
+    $fc = Elementor::$instance->widgets_manager->get_widget_types('form')->get_controls();
+    foreach (['submissions_metadata','mailchimp_api_key_source','mailchimp_api_key','mailchimp_list','mailchimp_groups','mailchimp_tags','mailchimp_double_opt_in','mailchimp_fields_map','drip_api_token_source','drip_custom_api_token','drip_account','drip_fields_map','drip_custom_fields','tags','activecampaign_api_credentials_source','activecampaign_api_key','activecampaign_api_url','activecampaign_list','activecampaign_fields_map','activecampaign_tags','getresponse_api_key_source','getresponse_custom_api_key','getresponse_list','getresponse_dayofcycle','getresponse_fields_map','convertkit_api_key_source','convertkit_custom_api_key','convertkit_form','convertkit_fields_map','convertkit_tags','mailerlite_api_key_source','mailerlite_custom_api_key','mailerlite_group','mailerlite_fields_map','allow_resubscribe','slack_webhook','slack_channel','slack_username','slack_pretext','slack_title','slack_text','slack_add_fields','slack_add_ts','slack_webhook_color','discord_webhook','discord_username','discord_avatar_url','discord_title','discord_content','discord_form_data','discord_ts','discord_webhook_color','popup_action','popup_action_popup_id','popup_action_do_not_show_again','button_content_align','hover_transition_duration','step_inactive_secondary_color','step_active_secondary_color','step_completed_secondary_color','step_divider_width','step_divider_gap','step_progress_bar_border_radius','step_progress_bar_percentage_color'] as $key) { $assert(isset($fc[$key]), "form: falta {$key}."); }
+    $pro_actions = ['save-to-database','email','email2','redirect','webhook','mailchimp','drip','activecampaign','getresponse','convertkit','mailerlite','slack','discord','popup'];
+    $assert(array_keys($fc['submit_actions']['options']) === $pro_actions && ($fc['submissions_metadata']['default'] ?? []) === ['remote_ip','user_agent'] && ($fc['mailchimp_api_key_source']['default'] ?? '') === 'default' && ($fc['drip_custom_fields']['default'] ?? '') === 'no' && ($fc['slack_add_fields']['default'] ?? '') === 'yes' && ($fc['slack_webhook_color']['default'] ?? '') === '#D30C5C' && ($fc['discord_ts']['default'] ?? '') === 'yes' && ($fc['step_active_secondary_color']['default'] ?? '') === '#ffffff', 'form: acciones y valores por defecto de Pro.');
+    $sections = [];
+    \OldBearExpansion\Forms\Integrations::settings(new class($sections) { private $s; public function __construct(array &$s) { $this->s = &$s; } public function add_section($tab, $id, $args) { $this->s[$tab . '/' . $id] = array_keys($args['fields']); } });
+    $assert(($sections['integrations/obx_mailchimp'] ?? []) === ['pro_mailchimp_api_key'] && ($sections['integrations/obx_activecampaign'] ?? []) === ['pro_activecampaign_api_key','pro_activecampaign_api_url'] && ($sections['integrations/obx_drip'] ?? []) === ['pro_drip_api_token'], 'Integraciones: claves globales con los nombres de opción de Pro.');
+
+    $calls = []; $fail = false;
+    $mock = static function ($pre, $args, $url) use (&$calls, &$fail) {
+        $calls[] = ['url'=>$url,'method'=>$args['method'] ?? 'GET','headers'=>$args['headers'] ?? [],'body'=>$args['body'] ?? null];
+        $code = $fail && str_contains($url, 'mailchimp') ? 400 : 200;
+        $body = $code === 400 ? '{"detail":"Lista inexistente"}' : (str_contains($url, 'admin/api.php') ? '{"result_code":1}' : (str_contains($url, '/lists?count') ? '{"lists":[{"id":"L1","name":"Boletín"}]}' : '{}'));
+        return ['headers'=>[],'body'=>$body,'response'=>['code'=>$code,'message'=>''],'cookies'=>[],'filename'=>null];
+    };
+    add_filter('pre_http_request', $mock, 10, 3);
+    $globals = ['pro_mailchimp_api_key'=>'clave-us21','pro_drip_api_token'=>'tokendrip','pro_activecampaign_api_key'=>'acclave','pro_activecampaign_api_url'=>'https://cuenta.api-us1.com','pro_getresponse_api_key'=>'grclave','pro_convertkit_api_key'=>'ckclave','pro_mailerlite_api_key'=>'mlclave'];
+    foreach ($globals as $field => $value) { update_option('elementor_' . $field, $value); }
+    try {
+        $form_popup = $save('popup', 'Paridad popup formulario', [$container([$widget('heading', ['title'=>'Gracias'])])]);
+        $fw = $widget('form', ['form_name'=>'Integraciones','submit_actions'=>['save-to-database','mailchimp','drip','activecampaign','getresponse','convertkit','mailerlite','slack','discord','popup'],
+            'submissions_metadata'=>['remote_ip'],
+            'mailchimp_list'=>'L1','mailchimp_groups'=>['g1'],'mailchimp_tags'=>'web, [field id="topic"]','mailchimp_double_opt_in'=>'yes','mailchimp_fields_map'=>[['_id'=>'m1','remote_id'=>'email','local_id'=>'email'],['_id'=>'m2','remote_id'=>'FNAME','local_id'=>'name']],
+            'drip_account'=>'99','drip_custom_fields'=>'yes','tags'=>'cliente',
+            'activecampaign_list'=>'3','activecampaign_tags'=>'a,b',
+            'getresponse_list'=>'gr1','getresponse_dayofcycle'=>2,
+            'convertkit_form'=>'55','convertkit_tags'=>['7'],
+            'mailerlite_group'=>'g9','allow_resubscribe'=>'yes',
+            'slack_webhook'=>'https://hooks.slack.com/services/T/B/X','slack_title'=>'Hola [field id="name"]',
+            'discord_webhook'=>'https://discord.com/api/webhooks/1/abc','discord_username'=>'Web',
+            'popup_action'=>'open','popup_action_popup_id'=>(string) $form_popup,
+            'form_fields'=>[['_id'=>'f1','custom_id'=>'name','field_type'=>'text','field_label'=>'Nombre'],['_id'=>'f2','custom_id'=>'email','field_type'=>'email','field_label'=>'Correo'],['_id'=>'f3','custom_id'=>'topic','field_type'=>'text','field_label'=>'Tema']]]);
+        $fpage = $save('page', 'Paridad integraciones', [$container([$fw])]);
+        Elementor::$instance->frontend->get_builder_content_for_display($fpage);
+        $queued = (new ReflectionProperty(\OldBearExpansion\Popups\Popups::class, 'queued'));
+        $queued->setAccessible(true);
+        $assert(isset($queued->getValue()[$form_popup]), 'form: el popup que abre el formulario se imprime en la página.');
+        $fsend = static function () use ($fpage, $fw) {
+            $request = new WP_REST_Request('POST', '/obx/v1/form');
+            $request->set_body_params(['post_id'=>$fpage,'form_id'=>$fw['id'],'form_fields'=>['name'=>'Ana','email'=>'Ana@Example.com','topic'=>'support']]);
+            return rest_do_request($request);
+        };
+        $response = $fsend();
+        $data = $response->get_data();
+        $assert($response->get_status() === 200 && ($data['data']['popup'] ?? []) === ['action'=>'open','id'=>$form_popup], 'form: envío con integraciones y acción de abrir popup.');
+        $find = static function (string $needle, string $method = 'POST') use (&$calls) { foreach ($calls as $call) { if (str_contains($call['url'], $needle) && $call['method'] === $method) { return $call + ['json'=>is_string($call['body']) ? json_decode($call['body'], true) : $call['body']]; } } return null; };
+        $mc = $find('https://us21.api.mailchimp.com/3.0/lists/L1/members/' . md5('ana@example.com'), 'PUT');
+        $assert($mc && $mc['json']['status_if_new'] === 'pending' && $mc['json']['merge_fields'] === ['FNAME'=>'Ana'] && $mc['json']['interests'] === ['g1'=>true] && $mc['headers']['Authorization'] === 'Basic ' . base64_encode('obx:clave-us21'), 'Mailchimp: suscriptor con doble confirmación, campos y grupos.');
+        $tags = $find('/members/' . md5('ana@example.com') . '/tags');
+        $assert($tags && array_column($tags['json']['tags'], 'name') === ['web','support'], 'Mailchimp: etiquetas con campos del formulario.');
+        $drip = $find('https://api.getdrip.com/v2/99/subscribers');
+        $assert($drip && $drip['json']['subscribers'][0]['email'] === 'Ana@Example.com' && ($drip['json']['subscribers'][0]['custom_fields']['topic'] ?? '') === 'support' && $drip['json']['subscribers'][0]['tags'] === ['cliente'] && $drip['headers']['Authorization'] === 'Basic ' . base64_encode('tokendrip:'), 'Drip: suscriptor con campos personalizados y etiquetas.');
+        $ac = $find('https://cuenta.api-us1.com/admin/api.php?api_action=contact_sync');
+        $assert($ac && ($ac['body']['p[3]'] ?? '') === '3' && ($ac['body']['tags'] ?? '') === 'a,b' && str_contains($ac['url'], 'api_key=acclave'), 'ActiveCampaign: contacto en la lista con etiquetas.');
+        $gr = $find('https://api.getresponse.com/v3/contacts');
+        $assert($gr && $gr['json']['campaign']['campaignId'] === 'gr1' && $gr['json']['dayOfCycle'] === 2 && $gr['headers']['X-Auth-Token'] === 'api-key grclave', 'GetResponse: contacto en la lista con día del ciclo.');
+        $ck = $find('https://api.convertkit.com/v3/forms/55/subscribe');
+        $assert($ck && $ck['json']['tags'] === [7] && $ck['json']['api_key'] === 'ckclave', 'Kit: suscripción al formulario con etiquetas.');
+        $ml = $find('https://api.mailerlite.com/api/v2/groups/g9/subscribers');
+        $assert($ml && $ml['json']['resubscribe'] === true && $ml['headers']['X-MailerLite-ApiKey'] === 'mlclave', 'MailerLite: suscriptor del grupo, con resuscripción.');
+        $slack = $find('https://hooks.slack.com/services/T/B/X');
+        $assert($slack && $slack['json']['attachments'][0]['title'] === 'Hola Ana' && count($slack['json']['attachments'][0]['fields']) === 3 && $slack['json']['attachments'][0]['color'] === '#D30C5C' && isset($slack['json']['attachments'][0]['ts']), 'Slack: mensaje con título, campos y hora.');
+        $discord = $find('https://discord.com/api/webhooks/1/abc');
+        $assert($discord && $discord['json']['username'] === 'Web' && count($discord['json']['embeds'][0]['fields']) === 3 && $discord['json']['embeds'][0]['color'] === hexdec('D30C5C') && isset($discord['json']['embeds'][0]['timestamp']), 'Discord: mensaje con campos y hora.');
+        $saved = get_posts(['post_type'=>'obx_submission','post_status'=>'private','numberposts'=>1,'meta_key'=>'_obx_form_id','meta_value'=>$fw['id']]);
+        foreach ($saved as $item) { $created[] = $item->ID; }
+        $meta = $saved ? (array) get_post_meta($saved[0]->ID, '_obx_meta', true) : [];
+        $assert(array_key_exists('remote_ip', $meta) && !array_key_exists('user_agent', $meta), 'form: submissions_metadata elige qué metadatos se guardan.');
+
+        $fail = true;
+        $response = $fsend();
+        $assert($response->get_status() === 500 && str_contains((string) ($response->get_data()['data']['admin_error'] ?? ''), 'Mailchimp: Error 400. Lista inexistente'), 'form: un fallo de la integración se muestra a quien edita.');
+        $user = get_current_user_id(); wp_set_current_user(0);
+        $response = $fsend();
+        $assert($response->get_status() === 500 && !isset($response->get_data()['data']['admin_error']), 'form: los visitantes no ven el detalle del fallo.');
+        $fetch = new WP_REST_Request('POST', '/obx/v1/integrations/mailchimp');
+        $assert(rest_do_request($fetch)->get_status() >= 401, 'Integraciones: la consulta de listas exige poder editar.');
+        wp_set_current_user($user);
+        $fail = false;
+        $response = rest_do_request($fetch);
+        $assert($response->get_status() === 200 && ($response->get_data()['lists'] ?? []) === ['L1'=>'Boletín'] && (get_option(\OldBearExpansion\Forms\Integrations::CACHE)['mailchimp']['lists']['L1'] ?? '') === 'Boletín', 'Integraciones: el editor carga las listas con la clave global y las recuerda.');
+        $close = \OldBearExpansion\Forms\Integrations::popup(['popup_action'=>'close','popup_action_do_not_show_again'=>'yes']);
+        $assert($close === ['action'=>'close','do_not_show_again'=>true], 'form: acción de cerrar el popup sin volver a mostrarlo.');
+    } finally {
+        remove_filter('pre_http_request', $mock, 10);
+        foreach (array_keys($globals) as $field) { delete_option('elementor_' . $field); }
+        delete_option(\OldBearExpansion\Forms\Integrations::CACHE);
+    }
 
     // Saved sections (and floating buttons): wrapper tag and preview settings, as in Pro.
     $section = $save('section', 'Paridad sección', [$container([$widget('heading', ['title'=>'Sección guardada'])])], ['content_wrapper_html_tag'=>'aside']);

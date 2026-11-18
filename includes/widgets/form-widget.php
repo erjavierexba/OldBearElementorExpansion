@@ -6,6 +6,7 @@ use Elementor\Group_Control_Border;
 use Elementor\Icons_Manager;
 use Elementor\Repeater;
 use OldBearExpansion\Forms\Handler;
+use OldBearExpansion\Forms\Integrations;
 
 if (!defined('ABSPATH')) { exit; }
 
@@ -18,7 +19,7 @@ final class Form extends Element {
     public const PRO = 'form';
     public const TYPES = ['text','email','textarea','url','tel','radio','select','checkbox','acceptance','number','date','time','upload','password','html','hidden','step'];
     public const WIDTHS = ['' => 'Por defecto','100'=>'100%','80'=>'80%','75'=>'75%','70'=>'70%','66'=>'66%','60'=>'60%','50'=>'50%','40'=>'40%','33'=>'33%','30'=>'30%','25'=>'25%','20'=>'20%'];
-    public const ACTIONS = ['email'=>'Correo','email2'=>'Segundo correo','redirect'=>'Redirigir','webhook'=>'Webhook','save-to-database'=>'Guardar envíos'];
+    public const ACTIONS = ['save-to-database'=>'Guardar envíos','email'=>'Correo','email2'=>'Segundo correo','redirect'=>'Redirigir','webhook'=>'Webhook','mailchimp'=>'Mailchimp','drip'=>'Drip','activecampaign'=>'ActiveCampaign','getresponse'=>'GetResponse','convertkit'=>'Kit (ConvertKit)','mailerlite'=>'MailerLite','slack'=>'Slack','discord'=>'Discord','popup'=>'Popup'];
     public function get_title(): string { return 'Formulario'; }
     public function get_icon(): string { return 'eicon-form-horizontal'; }
     public function get_keywords(): array { return ['form','formulario','contacto','contact','email','correo','campos']; }
@@ -124,6 +125,12 @@ final class Form extends Element {
         $this->add_control('webhooks_advanced_data', ['label'=>'Datos avanzados','type'=>Controls_Manager::SWITCHER,'default'=>'no','render_type'=>'none']);
         $this->end_controls_section();
 
+        $this->start_controls_section('section_submissions', ['label'=>'Envíos guardados','condition'=>['submit_actions'=>'save-to-database']]);
+        $this->add_control('submissions_metadata', ['label'=>'Guardar también','type'=>Controls_Manager::SELECT2,'multiple'=>true,'label_block'=>true,'default'=>['remote_ip','user_agent'],'options'=>['remote_ip'=>'IP','user_agent'=>'Navegador'],'render_type'=>'none']);
+        $this->end_controls_section();
+
+        Integrations::controls($this);
+
         $this->start_controls_section('section_form_options', ['label'=>'Opciones adicionales']);
         $this->add_control('form_id', ['label'=>'ID del formulario','type'=>Controls_Manager::TEXT,'default'=>'','description'=>'Identificador del formulario en la página (sin espacios).','ai'=>['active'=>false]]);
         $this->add_control('form_validation', ['label'=>'Validación del formulario','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Navegador','custom'=>'Mensajes propios']]);
@@ -178,6 +185,9 @@ final class Form extends Element {
 
         $this->start_controls_section('section_button_style', ['label'=>'Botones','tab'=>Controls_Manager::TAB_STYLE]);
         $this->typography('button_typography', '.obx-form .elementor-button');
+        $this->add_responsive_control('button_content_align', ['label'=>'Alineación del contenido','type'=>Controls_Manager::CHOOSE,'condition'=>['button_align'=>'stretch'],
+            'options'=>self::logical_align() + ['space-between'=>['title'=>'Separado','icon'=>'eicon-justify-space-between-h']],'selectors_dictionary'=>['start'=>'flex-start','end'=>'flex-end'],
+            'selectors'=>['{{WRAPPER}} .obx-form .elementor-button .elementor-button-content-wrapper'=>'display: flex; width: 100%; justify-content: {{VALUE}};']]);
         $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'button_border','selector'=>'{{WRAPPER}} .obx-form .elementor-button','exclude'=>['color']]);
         $this->start_controls_tabs('tabs_button_style');
         $this->start_controls_tab('tab_button_normal', ['label'=>'Normal']);
@@ -199,6 +209,8 @@ final class Form extends Element {
         $this->color('previous_button_background_color_hover', 'Fondo', '.obx-form__previous:hover', 'background-color');
         $this->color('previous_button_text_color_hover', 'Color del texto', '.obx-form__previous:hover', 'color', ['default'=>'#ffffff']);
         $this->color('previous_button_border_color_hover', 'Color del borde', '.obx-form__previous:hover', 'border-color', ['condition'=>['button_border_border!'=>'']]);
+        $this->add_control('hover_transition_duration', ['label'=>'Duración de la transición','type'=>Controls_Manager::SLIDER,'size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['min'=>0,'max'=>3000,'step'=>50],'s'=>['min'=>0,'max'=>3,'step'=>0.1]],
+            'selectors'=>['{{WRAPPER}} .obx-form .elementor-button'=>'transition-duration: {{SIZE}}{{UNIT}};']]);
         $this->add_control('button_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::HOVER_ANIMATION]);
         $this->end_controls_tab();
         $this->end_controls_tabs();
@@ -215,15 +227,24 @@ final class Form extends Element {
 
         $this->start_controls_section('section_steps_style', ['label'=>'Pasos','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['step_type!'=>'none']]);
         $this->typography('steps_typography', '.obx-form__indicator');
-        $this->slider('steps_gap', 'Separación', '.obx-form__indicators', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]]);
-        $this->slider('steps_icon_size', 'Tamaño del indicador', '.obx-form__indicator-mark', '--obx-step-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]]);
-        $this->slider('steps_padding', 'Relleno', '.obx-form__indicator-mark', 'padding: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>50]]]);
-        $this->color('step_inactive_primary_color', 'Color inactivo', '.obx-form__indicator', '--obx-step-inactive');
-        $this->color('step_active_primary_color', 'Color activo', '.obx-form__indicator', '--obx-step-active');
-        $this->color('step_completed_primary_color', 'Color completado', '.obx-form__indicator', '--obx-step-completed');
+        $this->slider('steps_gap', 'Separación', '.obx-form__indicators', 'gap: {{SIZE}}{{UNIT}}; --obx-steps-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]]);
+        $this->slider('steps_icon_size', 'Tamaño del indicador', '.obx-form__indicators', '--obx-step-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]]);
+        $this->slider('steps_padding', 'Relleno', '.obx-form__indicators', '--obx-step-padding: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>50]]]);
+        $this->start_controls_tabs('steps_state', ['condition'=>['step_type!'=>'progress_bar']]);
+        foreach (['inactive'=>'Inactivo','active'=>'Activo','completed'=>'Completado'] as $state => $label) {
+            $this->start_controls_tab('tab_steps_' . $state, ['label'=>$label]);
+            $this->color('step_' . $state . '_primary_color', 'Color principal', '.obx-form__indicators', '--obx-step-' . $state, ['condition'=>['step_type!'=>'progress_bar']]);
+            $this->color('step_' . $state . '_secondary_color', 'Color secundario', '.obx-form__indicators', '--obx-step-' . $state . '-2', ['default'=>'#ffffff','condition'=>['step_type!'=>'progress_bar'] + ($state === 'completed' ? ['step_icon_shape!'=>'none'] : [])]);
+            $this->end_controls_tab();
+        }
+        $this->end_controls_tabs();
+        $this->slider('step_divider_width', 'Grosor del separador', '.obx-form__indicators', '--obx-step-divider-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px'],'range'=>['px'=>['max'=>10]],'separator'=>'before','condition'=>['step_type!'=>'progress_bar']]);
+        $this->slider('step_divider_gap', 'Hueco del separador', '.obx-form__indicators', '--obx-step-divider-gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px'],'range'=>['px'=>['max'=>50]],'condition'=>['step_type!'=>'progress_bar']]);
         $this->color('step_progress_bar_color', 'Color de la barra', '.obx-form__progress-fill', 'background-color', ['condition'=>['step_type'=>'progress_bar']]);
         $this->color('step_progress_bar_background_color', 'Fondo de la barra', '.obx-form__progress', 'background-color', ['condition'=>['step_type'=>'progress_bar']]);
         $this->slider('step_progress_bar_height', 'Alto de la barra', '.obx-form__progress', 'height: {{SIZE}}{{UNIT}};', ['size_units'=>['px'],'condition'=>['step_type'=>'progress_bar']]);
+        $this->slider('step_progress_bar_border_radius', 'Radio de la barra', '.obx-form__progress', 'border-radius: {{SIZE}}{{UNIT}};', ['size_units'=>['px','%'],'condition'=>['step_type'=>'progress_bar']]);
+        $this->color('step_progress_bar_percentage_color', 'Color del porcentaje', '.obx-form__progress-fill', 'color', ['condition'=>['step_type'=>'progress_bar']]);
         $this->typography('step_progress_bar_percentage__typography', '.obx-form__progress-fill', ['condition'=>['step_type'=>'progress_bar']]);
         $this->end_controls_section();
     }
@@ -312,6 +333,8 @@ final class Form extends Element {
         $s = $this->get_settings_for_display();
         $fields = array_values(array_filter((array) ($s['form_fields'] ?? []), 'is_array'));
         if (!$fields) { $this->placeholder('Añade al menos un campo al formulario.'); return; }
+        // The popup opened after sending must be on the page.
+        if (in_array('popup', (array) ($s['submit_actions'] ?? []), true) && ($s['popup_action'] ?? '') === 'open') { \OldBearExpansion\Popups\Popups::enqueue((int) ($s['popup_action_popup_id'] ?? 0)); }
         $document = \Elementor\Plugin::$instance->documents->get_current();
         $post_id = $document ? (int) $document->get_main_id() : (int) get_the_ID();
         $form_dom = (string) ($s['form_id'] ?? '') !== '' ? sanitize_html_class($s['form_id']) : '';

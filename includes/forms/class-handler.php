@@ -169,6 +169,7 @@ final class Handler {
         $actions = array_map('strval', (array) ($settings['submit_actions'] ?? ['email']));
         $failed = false;
         $extra = [];
+        $problems = [];
         foreach ($actions as $action) {
             switch ($action) {
                 case 'email':
@@ -184,13 +185,34 @@ final class Handler {
                     break;
                 case 'save-to-database':
                 case 'collect_submissions':
-                    self::save($record, $context);
+                    $meta = array_map('strval', (array) ($settings['submissions_metadata'] ?? ['remote_ip','user_agent']));
+                    self::save($record, ['meta'=>array_diff_key($context['meta'], array_flip(array_diff(['remote_ip','user_agent'], $meta)))] + $context);
+                    break;
+                case 'mailchimp':
+                case 'drip':
+                case 'activecampaign':
+                case 'getresponse':
+                case 'convertkit':
+                case 'mailerlite':
+                case 'slack':
+                case 'discord':
+                    try {
+                        in_array($action, Integrations::LISTS, true) ? Integrations::subscribe($action, $settings, $record) : Integrations::notify($action, $settings, $record, $context);
+                    } catch (\Throwable $e) {
+                        $failed = true;
+                        $problems[] = Integrations::LABELS[$action] . ': ' . $e->getMessage();
+                    }
+                    break;
+                case 'popup':
+                    if ($popup = Integrations::popup($settings)) { $extra['popup'] = $popup; }
                     break;
             }
         }
         /** Lets other code act on a valid submission. */
         do_action('obx/forms/new_record', $record, $settings, $context);
-        if ($failed) { return self::reply(false, $messages['server_message'], 500); }
+        if ($problems && defined('WP_DEBUG') && WP_DEBUG) { error_log('OldBear Expansion form ' . $form_id . ': ' . implode(' | ', $problems)); } // phpcs:ignore WordPress.PHP.DevelopmentFunctions
+        // Editors see why an integration failed, as in Elementor Pro.
+        if ($failed) { return self::reply(false, $messages['server_message'], 500, $problems && current_user_can('edit_post', $post_id) ? ['admin_error'=>implode("\n", $problems)] : []); }
         return self::reply(true, $messages['success_message'], 200, $extra);
     }
 
