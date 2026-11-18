@@ -369,20 +369,20 @@ final class Woo_Product_Data_Tabs extends Woo_Single_Element {
         $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'panel_box_shadow','selector'=>$panel]);
         $this->end_controls_section();
     }
-    protected function render(): void {
-        $this->with_product(function (\WC_Product $product): void {
-            // The description tab prints the_content() of the global post, so it must be the product.
-            static $printing = [];
-            if (isset($printing[$product->get_id()])) { return; }
-            $printing[$product->get_id()] = true;
-            $old = $GLOBALS['post'] ?? null;
-            $GLOBALS['post'] = get_post($product->get_id());
-            setup_postdata($GLOBALS['post']);
-            woocommerce_output_product_data_tabs();
-            $GLOBALS['post'] = $old;
-            if ($old instanceof \WP_Post) { setup_postdata($old); }
-            unset($printing[$product->get_id()]);
-        });
+    protected function render(): void { $this->with_product([self::class, 'print_tabs']); }
+
+    /** WooCommerce's tabs; the description tab prints the_content() of the global post, so it must be the product. */
+    public static function print_tabs(\WC_Product $product): void {
+        static $printing = [];
+        if (isset($printing[$product->get_id()])) { return; }
+        $printing[$product->get_id()] = true;
+        $old = $GLOBALS['post'] ?? null;
+        $GLOBALS['post'] = get_post($product->get_id());
+        setup_postdata($GLOBALS['post']);
+        woocommerce_output_product_data_tabs();
+        $GLOBALS['post'] = $old;
+        if ($old instanceof \WP_Post) { setup_postdata($old); }
+        unset($printing[$product->get_id()]);
     }
 }
 

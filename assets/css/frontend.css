@@ -693,3 +693,12 @@ html.obx-pt-loading .obx-preloader{opacity:0;animation:obx-preloader-in .2s var(
 .obx-woo-summary ul.woocommerce-order-overview li strong,.obx-woo-summary .woocommerce-bacs-bank-details ul li strong{margin-top:var(--obx-summary-label-gap,0)}
 .obx-woo-summary--no-message .woocommerce-thankyou-order-received{display:none}
 @media (max-width:767px){.obx-woo-cart--two-column .woocommerce,.obx-woo-checkout--two-column form.checkout{display:block}.e-my-account-tabs-vertical .obx-woo-account .woocommerce:has(>.woocommerce-MyAccount-navigation){flex-direction:column}.e-my-account-tabs-vertical .obx-woo-account .woocommerce-MyAccount-navigation{width:100%;flex-basis:auto}}
+/* Custom Add To Cart with quantity */
+.obx-add-to-cart--form{display:flex;flex-wrap:nowrap;align-items:center;gap:10px;margin:0}
+.obx-add-to-cart--form form.cart{display:flex;flex-wrap:inherit;align-items:inherit;gap:inherit;margin:0}
+.obx-add-to-cart--form .quantity{margin:0}
+.obx-add-to-cart--layout-auto,.obx-add-to-cart--layout-auto form.cart{flex-wrap:wrap}
+.obx-add-to-cart--layout-stacked,.obx-add-to-cart--layout-stacked form.cart{flex-direction:column;align-items:stretch}
+.elementor-align-justify .obx-add-to-cart--form .single_add_to_cart_button{flex:1 1 auto}
+.elementor-align-center .obx-add-to-cart--form{justify-content:center}
+.elementor-align-right .obx-add-to-cart--form{justify-content:flex-end}

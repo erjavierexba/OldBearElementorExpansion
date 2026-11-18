@@ -142,10 +142,18 @@ final class Query {
     /** Product sources of the Loop Grid's «product» skin (Pro's product_query_post_type). */
     public const PRODUCT_SOURCES = ['current_query'=>'Consulta actual','product'=>'Últimos productos','sale'=>'Rebajados','featured'=>'Destacados','by_id'=>'Selección manual','related_products'=>'Relacionados','upsells'=>'Ventas dirigidas','cross_sells'=>'Ventas cruzadas'];
 
+    /** @return array<string,string> published products (ID => title) for product pickers. */
+    public static function product_options(): array {
+        $products = [];
+        if (!post_type_exists('product')) { return $products; }
+        foreach (get_posts(['post_type'=>'product','numberposts'=>200,'post_status'=>'publish']) as $post) { $products[(string) $post->ID] = get_the_title($post) ?: '#' . $post->ID; }
+        return $products;
+    }
+
     public static function product_controls(Controls_Stack $w, string $p, array $condition): void {
-        $products = $terms = [];
+        $products = self::product_options();
+        $terms = [];
         if (post_type_exists('product')) {
-            foreach (get_posts(['post_type'=>'product','numberposts'=>200,'post_status'=>'publish']) as $post) { $products[(string) $post->ID] = get_the_title($post) ?: '#' . $post->ID; }
             foreach (get_object_taxonomies('product', 'objects') as $taxonomy) {
                 if (!$taxonomy->public || !$taxonomy->show_ui) { continue; }
                 foreach (get_terms(['taxonomy'=>$taxonomy->name,'hide_empty'=>false,'number'=>200]) ?: [] as $term) { if ($term instanceof \WP_Term) { $terms[(string) $term->term_id] = $taxonomy->labels->singular_name . ': ' . $term->name; } }

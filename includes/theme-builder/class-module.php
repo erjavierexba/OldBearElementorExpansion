@@ -153,6 +153,7 @@ final class Module {
         require_once DIR . '/includes/widgets/woocommerce-single.php';
         require_once DIR . '/includes/widgets/woocommerce-cart.php';
         require_once DIR . '/includes/widgets/woocommerce-pages.php';
+        require_once DIR . '/includes/widgets/woocommerce-classic.php';
     }
 
     public static function documents($manager): void {

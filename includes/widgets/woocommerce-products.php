@@ -29,16 +29,16 @@ abstract class Woo_Products_Base extends Woo_Element {
             'selectors'=>['{{WRAPPER}} .obx-products'=>'--obx-products-columns: {{VALUE}};']]);
     }
 
-    private function dims(string $key, string $label, string $selector, string $property, array $extra = []): void {
+    protected function dims(string $key, string $label, string $selector, string $property, array $extra = []): void {
         $this->add_responsive_control($key, ['label'=>$label,'type'=>Controls_Manager::DIMENSIONS,'size_units'=>['px','%','em','rem'],
             'selectors'=>[$selector=>$property . ': {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};']] + $extra);
     }
 
-    private function size(string $key, string $label, string $selector, string $declaration, array $extra = []): void {
+    protected function size(string $key, string $label, string $selector, string $declaration, array $extra = []): void {
         $this->add_responsive_control($key, ['label'=>$label,'type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem'],'range'=>['px'=>['min'=>0,'max'=>100]],'selectors'=>[$selector=>$declaration]] + $extra);
     }
 
-    private function paint(string $key, string $label, string $selector, string $property = 'color', array $extra = []): void {
+    protected function paint(string $key, string $label, string $selector, string $property = 'color', array $extra = []): void {
         $this->add_control($key, ['label'=>$label,'type'=>Controls_Manager::COLOR,'selectors'=>[$selector=>$property . ': {{VALUE}};']] + $extra);
     }
 
@@ -171,6 +171,20 @@ abstract class Woo_Products_Base extends Woo_Element {
         $this->end_controls_section();
     }
 
+    /** Prints the posts with WooCommerce's content-product.php inside its loop markup, restoring the global post. */
+    protected function print_loop(array $posts): void {
+        $previous = $GLOBALS['post'] ?? null;
+        woocommerce_product_loop_start();
+        foreach ($posts as $post) {
+            $GLOBALS['post'] = $post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride -- restored below.
+            setup_postdata($post);
+            wc_get_template_part('content', 'product');
+        }
+        woocommerce_product_loop_end();
+        $GLOBALS['post'] = $previous; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+        if ($previous instanceof \WP_Post) { setup_postdata($previous); } else { wp_reset_postdata(); }
+    }
+
     /** Wrapper classes for switches that hide WooCommerce markup. */
     protected function wrapper_class(array $s, string $extra = ''): string {
         $classes = ['obx-products', 'woocommerce'];
@@ -228,9 +242,16 @@ abstract class Woo_Products_Grid extends Woo_Products_Base {
 
     /** Settings of versions before 0.10.0 (posts_per_page/orderby/order, «current_query» meant latest products). */
     public static function wants_upgrade(string $name, array $settings): bool {
+        if ($name === 'wc-archive-products') { return !isset($settings['columns']) || !isset($settings['rows']); }
         return $name === static::PRO && static::PRO === 'woocommerce-products' && isset($settings['posts_per_page']) && !isset($settings['rows']);
     }
     protected static function upgrade_settings(array $settings): array {
+        if (!isset($settings['posts_per_page']) && static::PRO === 'woocommerce-archive-products') {
+            // The deprecated widget printed WooCommerce's shop grid: products per row and rows per page from the Customizer.
+            $settings += ['columns'=>function_exists('wc_get_default_products_per_row') ? wc_get_default_products_per_row() : 4,
+                'rows'=>function_exists('wc_get_default_product_rows_per_page') ? wc_get_default_product_rows_per_page() : 4];
+            return $settings;
+        }
         $columns = max(1, (int) ($settings['columns'] ?? 4));
         $settings['rows'] = (int) max(1, ceil(max(1, (int) $settings['posts_per_page']) / $columns));
         foreach (['orderby'=>'query_orderby','order'=>'query_order'] as $old => $new) { if (isset($settings[$old])) { $settings[$new] = $settings[$old]; unset($settings[$old]); } }
@@ -274,18 +295,9 @@ abstract class Woo_Products_Grid extends Woo_Products_Base {
             if (($s['show_result_count'] ?? '') === 'yes') { woocommerce_result_count(); }
             if (($s['allow_order'] ?? '') === 'yes') { woocommerce_catalog_ordering(); }
         }
-        $previous = $GLOBALS['post'] ?? null;
-        woocommerce_product_loop_start();
-        foreach ($query->posts as $post) {
-            $GLOBALS['post'] = $post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride -- restored below.
-            setup_postdata($post);
-            wc_get_template_part('content', 'product');
-        }
-        woocommerce_product_loop_end();
+        $this->print_loop($query->posts);
         if ($paginate) { woocommerce_pagination(); }
         echo '</div>';
-        $GLOBALS['post'] = $previous; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
-        if ($previous instanceof \WP_Post) { setup_postdata($previous); } else { wp_reset_postdata(); }
         wc_reset_loop();
     }
 
@@ -303,6 +315,8 @@ final class Woo_Products extends Woo_Products_Grid {
 
 final class Woo_Archive_Products extends Woo_Products_Grid {
     public const PRO = 'woocommerce-archive-products';
+    /** Pro's deprecated «Archive Products»: same keys without columns and rows (WooCommerce's shop settings). */
+    public const ALIASES = ['wc-archive-products'];
     public const PRO_CATEGORY = 'woocommerce-elements-archive';
     protected const SOURCE_DEFAULT = 'current_query';
     protected const PAGINATE_DEFAULT = 'yes';
@@ -349,7 +363,9 @@ final class Woo_Archive_Products extends Woo_Products_Grid {
     private static function first_widget(array $elements): ?array {
         foreach ($elements as $element) {
             if (!is_array($element)) { continue; }
-            if (($element['elType'] ?? '') === 'widget' && ($element['widgetType'] ?? '') === self::PRO) { return $element; }
+            if (($element['elType'] ?? '') === 'widget' && in_array($element['widgetType'] ?? '', [self::PRO, 'wc-archive-products'], true)) {
+                return ($element['widgetType'] ?? '') === self::PRO ? $element : ['settings'=>self::upgrade_settings((array) ($element['settings'] ?? []))] + $element;
+            }
             if (!empty($element['elements']) && ($found = self::first_widget($element['elements']))) { return $found; }
         }
         return null;

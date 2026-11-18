@@ -26,6 +26,7 @@
 | 13 | Condiciones de Pro completas (hijos de término, formatos, medios y grupo WooCommerce), etiquetas dinámicas de Pro y ACF, vista previa de secciones guardadas | ✅ v0.8.1 |
 | 14 | Loop Grid y Loop Carousel con los skins y la paginación de Pro; Buscador con resultados en directo | ✅ v0.9.0 |
 | 15 | Formulario: Mailchimp, Drip, ActiveCampaign, GetResponse, Kit, MailerLite, Slack, Discord y acción de popup | ✅ v0.9.1 |
+| 16 | WooCommerce con las claves de Pro: rejillas, producto individual, mini carrito, carrito, finalizar compra, Mi cuenta, resumen de la compra, avisos, widgets clásicos y pestaña WooCommerce del kit | ✅ v0.10.0 |
 
 **Objetivo:** ser al Elementor Pro lo que LibreOffice es a Microsoft Office: una alternativa libre que entiende los mismos documentos. La compatibilidad se construye a partir del formato de los datos que guarda Elementor, nunca copiando código de Pro.
 

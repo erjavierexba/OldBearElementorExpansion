@@ -19,7 +19,9 @@ foreach (Base::registry() as $class) {
     if ($class::PRO !== '') {
         $widget = $types[$class::PRO] ?? null;
         $assert($widget instanceof $class, "Falta el widget " . $class::PRO . ".");
-        $assert($widget->show_in_panel(), $class::PRO . " debe aparecer en el panel.");
+        // Pro's deprecated widgets keep rendering saved pages but are not offered in the panel.
+        $deprecated = in_array($class::PRO, ['wc-products','wc-single-elements'], true);
+        $assert($widget->show_in_panel() !== $deprecated, $class::PRO . ($deprecated ? " no debe aparecer en el panel (obsoleto en Pro)." : " debe aparecer en el panel."));
         $assert(isset($categories[$widget->get_categories()[0]]), $class::PRO . " usa una categoría inexistente.");
     }
     if ($class::NAME !== '') {

@@ -106,9 +106,11 @@ Ajustes de Pro que faltan o que guardamos con otra clave:
   - Elementor 4.4 ya muestra la pestaña, pero sin estos controles ni el código que los ejecuta.
   - El sitio de referencia B la usa.
 - [x] **Scroll snap** (`scroll_snap`, `scroll_snap_position`, `scroll_snap_padding`, `force_stop`), en el kit y en las páginas.
-- [ ] Pestaña **WooCommerce** (fase 0.10.0) (`settings-woocommerce`):
+- [x] Pestaña **WooCommerce** (0.10.0) (`settings-woocommerce`):
   - `woocommerce_{cart,checkout,myaccount,terms,purchase_summary,shop}_page_id` y `woocommerce_notices_elements`;
   - estilos de avisos: `error_message_*`, `notice_message_*`, `message_buttons_styles` e `info_buttons_styles`.
+  - Al guardar el kit se actualizan las páginas de WooCommerce; tras el pago, el cliente llega a la página del resumen de la compra.
+  - Diferencia con Pro: los selectores de página son `select2` en lugar del control `query` de Pro; los datos guardados son los mismos.
 
 ### 3.5 Condiciones del Theme Builder
 
@@ -143,12 +145,12 @@ Ya tenemos: general, singular (todo, portada, por tipo, `in_{tax}`, `in_{tax}_ch
 - [ ] Editor v4 de Pro: interacciones, variables de Pro, Collection Loop y formulario atómico (`e-form-*`). Dependen de los experimentos del editor nuevo; se abordan cuando ese editor sea el predeterminado.
 - Fuera de alcance: licencia, biblioteca en la nube, capturas de plantillas (servicio remoto) y avisos o planes de Pro.
 
-## 4. Widgets ausentes (49)
+## 4. Widgets ausentes (49; quedan 41 tras 0.10.0)
 
 | Prioridad | Widgets |
 | --- | --- |
 | Alta | `mega-menu` (Menú), `off-canvas`, `global` |
-| Alta (WooCommerce) | `wc-add-to-cart`, `wc-products`, `wc-categories`, `wc-elements`, `woocommerce-notices`, `woocommerce-purchase-summary`, `wc-archive-products`, `wc-single-elements` |
+| ~~Alta (WooCommerce)~~ | ✅ 0.10.0: `wc-add-to-cart`, `wc-products`, `wc-categories`, `wc-elements`, `woocommerce-notices`, `woocommerce-purchase-summary`, `wc-archive-products`, `wc-single-elements` |
 | Media | `hotspot`, `lottie`, `portfolio`, `reviews`, `video-playlist` |
 | Media | Botones flotantes de Pro: `contact-buttons-var-1`, `-3` a `-10`, `floating-bars-var-2` y `-3` |
 | Media | Link in bio de Pro: `link-in-bio-var-2` a `-7` |
@@ -187,10 +189,12 @@ El detalle de cada ajuste está en el anexo A. Las carencias funcionales que má
   - [x] Estilos: alineación del contenido del botón, duración de la transición, colores secundarios de los pasos por estado (`steps_state`), separador entre pasos y radio y color del porcentaje de la barra.
   - Diferencia con Pro: `*_fields_map` es un repetidor normal de Elementor con los ID escritos a mano; los datos guardados tienen la misma forma.
 - **WooCommerce**:
-  - carrito, finalizar compra y Mi cuenta: diseño en una o dos columnas, columna fija, textos y secciones personalizables, todos sus estilos;
-  - mini carrito: tipo lateral o desplegable, apertura y actualización automáticas, botones y estilos;
+  - [x] carrito, finalizar compra y Mi cuenta (0.10.0): diseño en una o dos columnas, columna fija, textos y secciones personalizables, todos sus estilos. Los textos y campos también se aplican en las recargas AJAX de WooCommerce (totales del carrito y revisión del pedido); el escritorio de Mi cuenta puede ser una plantilla;
+  - [x] mini carrito (0.10.0): tipo lateral o desplegable, apertura y actualización automáticas con los fragmentos del carrito de WooCommerce, botones y estilos;
+  - [x] resumen de la compra y avisos de WooCommerce (0.10.0): el pedido se busca con su clave, como WooCommerce; los avisos se imprimen en el widget en lugar de en su sitio habitual;
   - [x] Productos, Productos del archivo, Relacionados y Ventas dirigidas (0.10.0): claves de Pro (`rows`, `paginate`, `allow_order`, `show_result_count`, `query_*`, títulos por origen, caja, imagen, título, valoración, precio, botón, «Ver carrito», paginación e insignia de oferta). Se pintan con las plantillas de WooCommerce (`content-product.php`) en una rejilla propia; la tienda pagina con «columnas × filas» del widget de la plantilla de archivo que la muestra. Los ajustes de versiones anteriores (`posts_per_page`, `orderby`…) se convierten al abrir;
-  - widgets de producto (título, precio, meta, pestañas, añadir al carrito, imágenes…): sus secciones de estilo.
+  - [x] widgets de producto (título, precio, meta, pestañas, añadir al carrito, imágenes…) (0.10.0): sus secciones de estilo con las claves de Pro; los ajustes `woo_*` de versiones anteriores se convierten;
+  - [x] widgets generales y obsoletos de Pro (0.10.0): `wc-add-to-cart` (botón de Elementor con o sin cantidad), `wc-categories` (shortcode `[product_categories]` en la rejilla), `wc-elements` (shortcodes de las páginas de WooCommerce), y los obsoletos `wc-products`, `wc-archive-products` y `wc-single-elements`, ocultos en el panel como en Pro, que siguen pintando las páginas importadas.
 - **Entradas y archivo de entradas**: columnas y alineación por diseño, masonry, sombra de tarjetas, estilos del bloque y opciones de "cargar más".
 - **Diapositivas**:
   - `slides_name`, altura, etiquetas del título y la descripción, navegación, velocidad, animación del contenido y posiciones;
@@ -219,7 +223,7 @@ Orden pensado para que lo que se importa desde Pro se vea igual cuanto antes:
 | 0.8.1 | §3.5 condiciones, §3.6 etiquetas dinámicas (excepto `off-canvas`, Toolset y Pods) y vista previa de secciones guardadas | ✅ |
 | 0.9.0 | Loop Grid/Carousel completos y Search | ✅ |
 | 0.9.1 | Formulario: integraciones y acción de popup | ✅ |
-| 0.10.0 | WooCommerce: widgets ausentes, ajustes de kit y estilos | ⏳ rejillas de productos hechas |
+| 0.10.0 | WooCommerce: widgets ausentes, ajustes de kit y estilos | ✅ |
 | 0.11.0 | Carruseles, galería, menú, mapa del sitio y resto del anexo A | ☐ |
 | 0.12.0 | Mega menú, Off-canvas, widget global y shortcode | ☐ |
 | 0.13.0 | Hotspot, Lottie, Portafolio, Reseñas y Lista de vídeos | ☐ |
@@ -240,7 +244,7 @@ Nuevo inventario de OBX comparado con Pro 4.2.3 (ajustes ausentes por tipo de do
 | Contenedor, sección y columna | 41 | 1 (`e_display_conditions`, fase 1.0.0) |
 | Página | 4 | 0 |
 | Sección y botones flotantes guardados | 5 | 0 (0.8.1) |
-| Kit | — | solo la pestaña WooCommerce (fase 0.10.0) |
+| Kit | — | 0 (pestaña WooCommerce en 0.10.0) |
 
 `tests/parity.php` comprueba las claves, los valores por defecto y el renderizado de todo lo anterior.
 
@@ -267,6 +271,28 @@ Nuevo inventario de OBX comparado con Pro 4.2.3 (ajustes ausentes por tipo de do
 | `form` | 67 | 1 (`e_display_conditions`, fase 1.0.0) |
 
 - `tests/parity.php`: 488 pruebas (las peticiones a los servicios se simulan con `pre_http_request`).
+
+### Estado tras 0.10.0
+
+| Widget o documento | Antes | Después |
+| --- | --- | --- |
+| `woocommerce-checkout-page` | 700 | 1 |
+| `woocommerce-my-account` | 548 | 1 |
+| `woocommerce-cart` | 470 | 1 |
+| `woocommerce-menu-cart` | 214 | 1 |
+| `woocommerce-archive-products` | 183 | 2 (`query_query_args`, una pestaña sin datos) |
+| `woocommerce-products` | 169 | 2 |
+| `woocommerce-product-related` y `-upsell` | 153 | 1 |
+| `woocommerce-product-add-to-cart` | 90 | 1 |
+| Resto de widgets de producto (título, precio, meta, pestañas, imágenes, valoración, existencias…) | 11–46 | 1 |
+| `woocommerce-notices`, `woocommerce-purchase-summary` | ausentes | 1 |
+| `wc-add-to-cart`, `wc-elements`, `wc-single-elements` | ausentes | 1 |
+| `wc-categories`, `wc-products`, `wc-archive-products` | ausentes | 1–3 (opciones con los ID de términos del sitio de referencia) |
+| Kit (pestaña WooCommerce) | ausente | 0 |
+
+El hueco que queda en todos es `e_display_conditions` (condiciones por elemento, fase 1.0.0).
+
+- `tests/parity.php`: 1149 pruebas.
 
 Cada fase:
 

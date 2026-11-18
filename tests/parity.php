@@ -329,6 +329,48 @@ try {
         try { $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($single_product); } finally { $GLOBALS['post'] = $previous_post; }
         $assert(substr_count($html, 'type-product') === 3 && str_contains($html, 'obx-products--no-heading') && strpos($html, 'Paridad tienda 3') < strpos($html, 'Paridad tienda 1') && str_contains($html, 'upsells'), 'woocommerce-product-upsell: ventas dirigidas del producto, ordenadas, sin encabezado.');
 
+        // 0.10.0 Pro's general and deprecated WooCommerce widgets (wc-*).
+        $ac = Elementor::$instance->widgets_manager->get_widget_types('wc-add-to-cart')->get_controls();
+        foreach (['product_id','show_quantity','quantity','button_type','text','link','size','selected_icon','icon_align','icon_indent','button_css_id','align','content_align','typography_typography','text_shadow_text_shadow_type','button_text_color','background_background','button_box_shadow_box_shadow_type','hover_color','button_background_hover_background','button_hover_border_color','button_hover_box_shadow_box_shadow_type','button_hover_transition_duration','hover_animation','border_border','text_padding','layout'] as $key) { $assert(isset($ac[$key]), "wc-add-to-cart: falta {$key}."); }
+        $assert(($ac['quantity']['default'] ?? 0) === 1 && ($ac['link']['type'] ?? '') === 'hidden' && ($ac['size']['condition'] ?? []) === ['show_quantity'=>''] && ($ac['quantity']['condition'] ?? []) === ['show_quantity'=>''] && array_keys($ac['layout']['options'] ?? []) === ['','stacked','auto'], 'wc-add-to-cart: valores por defecto de Pro.');
+        $html = $render(['__widget'=>'wc-add-to-cart','product_id'=>(string) $pid,'quantity'=>3,'text'=>'Comprar ya','hover_animation'=>'grow','button_css_id'=>'obx-atc']);
+        $assert(str_contains($html, 'add-to-cart=' . $pid) && str_contains($html, 'quantity=3') && str_contains($html, 'data-quantity="3"') && str_contains($html, 'ajax_add_to_cart') && str_contains($html, 'Comprar ya') && str_contains($html, 'elementor-animation-grow') && str_contains($html, 'id="obx-atc"') && str_contains($html, 'elementor-button-text'), 'wc-add-to-cart: botón AJAX de WooCommerce con cantidad, texto, id y animación.');
+        $html = $render(['__widget'=>'wc-add-to-cart','product_id'=>(string) $pid,'show_quantity'=>'yes','layout'=>'stacked','text'=>'Al carrito']);
+        $assert(str_contains($html, 'obx-add-to-cart--layout-stacked') && str_contains($html, 'name="quantity"') && str_contains($html, 'name="add-to-cart"') && str_contains($html, 'value="' . $pid . '"') && str_contains($html, 'single_add_to_cart_button') && str_contains($html, 'Al carrito'), 'wc-add-to-cart: formulario con cantidad y disposición apilada.');
+
+        $cc = Elementor::$instance->widgets_manager->get_widget_types('wc-categories')->get_controls();
+        foreach (['columns','number','source','categories','parent','hide_empty','orderby','order','products_class','column_gap','row_gap','align','image_border_border','image_border_radius','image_spacing','title_color','title_typography_typography','count_color','count_typography_typography'] as $key) { $assert(isset($cc[$key]), "wc-categories: falta {$key}."); }
+        $assert(($cc['number']['default'] ?? '') === '4' && ($cc['parent']['default'] ?? '') === '0' && ($cc['orderby']['default'] ?? '') === 'name' && ($cc['order']['default'] ?? '') === 'desc' && array_keys($cc['source']['options'] ?? []) === ['','by_id','by_parent','current_subcategories'], 'wc-categories: valores por defecto de Pro.');
+        $html = $render(['__widget'=>'wc-categories','source'=>'by_parent','parent'=>(string) $pcat['term_id'],'columns'=>3]);
+        $child_name = get_term($pchild['term_id'])->name;
+        $assert(str_contains($html, 'product-category') && str_contains($html, esc_html($child_name)) && str_contains($html, 'obx-products woocommerce obx-product-categories') && str_contains($html, 'woocommerce-loop-category__title'), 'wc-categories: categorías hijas con la plantilla de WooCommerce.');
+        $attributes = \OldBearExpansion\Widgets\Woo_Categories::shortcode_attributes(['source'=>'by_id','categories'=>['7','9'],'hide_empty'=>'yes','number'=>'6','orderby'=>'count','order'=>'asc']);
+        $assert($attributes['ids'] === '7,9' && $attributes['hide_empty'] === '1' && $attributes['limit'] === '6' && $attributes['orderby'] === 'count' && $attributes['order'] === 'asc', 'wc-categories: selección manual, vacías, número y orden.');
+
+        $assert(\OldBearExpansion\Widgets\Woo_Pages::shortcode(['element'=>'product_page','product_id'=>(string) $pid]) === '[product_page id="' . $pid . '"]' && \OldBearExpansion\Widgets\Woo_Pages::shortcode(['element'=>'product_page']) === '' && \OldBearExpansion\Widgets\Woo_Pages::shortcode(['element'=>'woocommerce_cart']) === '[woocommerce_cart]', 'wc-elements: shortcode de cada página de WooCommerce.');
+        $previous_post = $GLOBALS['post'] ?? null; $GLOBALS['post'] = get_post($pid);
+        try { $html = $render(['__widget'=>'wc-elements','element'=>'woocommerce_order_tracking']); } finally { $GLOBALS['post'] = $previous_post; }
+        $assert(str_contains($html, 'woocommerce-form-track-order'), 'wc-elements: imprime la página elegida.');
+
+        $se = Elementor::$instance->widgets_manager->get_widget_types('wc-single-elements');
+        $assert($se && !$se->show_in_panel() && array_keys($se->get_controls()['element']['options'] ?? []) === array_merge([''], array_keys(\OldBearExpansion\Widgets\Woo_Single_Elements::ELEMENTS)), 'wc-single-elements: obsoleto, oculto en el panel y con las funciones de Pro.');
+        $previous_post = $GLOBALS['post'] ?? null; $GLOBALS['post'] = get_post($pid);
+        try { $html = $render(['__widget'=>'wc-single-elements','element'=>'woocommerce_template_single_price']); } finally { $GLOBALS['post'] = $previous_post; }
+        $assert(str_contains($html, 'class="price"') && str_contains($html, '15'), 'wc-single-elements: imprime la función de WooCommerce del producto.');
+
+        $dp = Elementor::$instance->widgets_manager->get_widget_types('wc-products');
+        $dc = $dp->get_controls();
+        foreach (['_skin','classic_columns','posts_per_page','posts_post_type','posts_posts_ids','posts_authors','posts_product_cat_ids','posts_product_tag_ids','posts_product_brand_ids','filter_by','orderby','order','exclude','exclude_ids','avoid_duplicates','column_gap','button_text_color','pagination_spacing','onsale_distance'] as $key) { $assert(isset($dc[$key]), "wc-products: falta {$key}."); }
+        $assert(!$dp->show_in_panel() && ($dc['classic_columns']['default'] ?? '') === '4' && ($dc['posts_per_page']['default'] ?? '') === '4' && ($dc['posts_post_type']['default'] ?? '') === 'product', 'wc-products: obsoleto, oculto y con los valores de Pro.');
+        $html = $render(['__widget'=>'wc-products','posts_post_type'=>'by_id','posts_posts_ids'=>array_map('strval', array_values($shop)),'posts_per_page'=>2,'orderby'=>'price','order'=>'asc','classic_columns'=>'2']);
+        $assert(substr_count($html, 'type-product') === 2 && strpos($html, 'Paridad tienda 1') < strpos($html, 'Paridad tienda 2') && !str_contains($html, 'Paridad tienda 3'), 'wc-products: productos elegidos, número y orden.');
+        $q = \OldBearExpansion\Widgets\Woo_Products_Deprecated::query_settings(['posts_product_cat_ids'=>['5'],'filter_by'=>'sale','exclude'=>['current_post']]);
+        $assert($q['query_post_type'] === 'sale' && $q['query_include'] === ['terms'] && $q['query_include_term_ids'] === ['5'] && $q['query_exclude'] === ['current_post'], 'wc-products: la consulta antigua se traduce a la de Productos.');
+
+        $da = Elementor::$instance->widgets_manager->get_widget_types('wc-archive-products');
+        $old = \OldBearExpansion\Widgets\Woo_Archive_Products::convert('wc-archive-products', ['query_post_type'=>'current_query']);
+        $assert($da && !$da->show_in_panel() && (int) ($old['columns'] ?? 0) === wc_get_default_products_per_row() && (int) ($old['rows'] ?? 0) === wc_get_default_product_rows_per_page(), 'wc-archive-products: obsoleto, oculto y con las columnas y filas de la tienda.');
+
         // 0.10.0 single product widgets: Pro's style keys and defaults, WooCommerce markup, captions, old keys.
         $keys = [
             'woocommerce-product-title'=>['title','link','size','header_size','align','typography_typography','text_stroke_text_stroke_type','text_shadow_text_shadow_type','blend_mode','title_color','title_hover_color','title_hover_color_transition_duration'],

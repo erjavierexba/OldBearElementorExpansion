@@ -39,6 +39,7 @@ abstract class Base extends Widget_Base {
             Woo_Product_Data_Tabs::class, Woo_Product_Additional_Information::class, Woo_Product_Related::class,
             Woo_Product_Upsell::class, Woo_Archive_Description::class, Woo_Archive_Products::class, Woo_Products::class,
             Woo_Cart::class, Woo_Checkout::class, Woo_My_Account::class, Woo_Purchase_Summary::class, Woo_Notices::class,
+            Woo_Add_To_Cart::class, Woo_Categories::class, Woo_Pages::class, Woo_Single_Elements::class, Woo_Products_Deprecated::class,
         ];
     }
 
