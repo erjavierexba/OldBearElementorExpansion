@@ -718,9 +718,36 @@
         });
     }
 
+    /* WooCommerce pages: hover animations on WooCommerce's buttons, again after its AJAX refreshes. */
+    const wooAnimated = new Set();
+    const animateAll = () => wooAnimated.forEach((el) => {
+        if (!el.isConnected) { wooAnimated.delete(el); return; }
+        let map = {};
+        try { map = JSON.parse(el.dataset.obxAnimations || '{}'); } catch (e) { map = {}; }
+        Object.entries(map).forEach(([selector, cls]) => el.querySelectorAll(selector).forEach((node) => node.classList.add(cls)));
+    });
+    const wooAnimations = (el) => { if (!once(el, 'obxAnimated')) { return; } wooAnimated.add(el); animateAll(); };
+    /* Cart: changing a quantity updates the cart without the «Update cart» button. */
+    const wooCartAuto = (el) => {
+        if (!once(el, 'obxAutoCart')) { return; }
+        let timer = 0;
+        const update = () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const button = el.querySelector('button[name="update_cart"]');
+                if (button) { button.disabled = false; button.removeAttribute('aria-disabled'); button.click(); }
+            }, 600);
+        };
+        el.addEventListener('change', (event) => { if (event.target.matches('input.qty')) { update(); } });
+        el.addEventListener('input', (event) => { if (event.target.matches('input.qty')) { update(); } });
+    };
+    if (window.jQuery) {
+        window.jQuery(document.body).on('updated_wc_div updated_cart_totals updated_checkout updated_shipping_method', () => setTimeout(animateAll, 0));
+    }
+
     const handlers = {
         '.obx-countdown': countdown, '.obx-headline': headline, '.obx-toc': toc, '.obx-progress': progress, '.obx-code': code,
-        '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, '.obx-search[data-live]': liveSearch, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters, '[data-obx-menu-cart]': menuCart,
+        '.obx-load-more': loadMore, '.obx-pagination[data-ajax]': ajaxPages, '.obx-search-toggle': searchToggle, '.obx-search[data-live]': liveSearch, 'form[data-obx-form]': form, '.obx-carousel': carousel, '.obx-gallery__filters': galleryFilters, '[data-obx-menu-cart]': menuCart, '[data-obx-animations]': wooAnimations, '.obx-woo-cart--auto-update': wooCartAuto,
     };
     const init = (root) => {
         Object.entries(handlers).forEach(([selector, fn]) => {

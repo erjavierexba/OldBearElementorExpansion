@@ -18,8 +18,3 @@ abstract class Woo_Element extends Element {
     }
     protected function basic_style(string $selector, string $label = 'Contenido'): void { $this->text_style($selector, $label, 'woo', false); }
 }
-
-abstract class Woo_Page extends Woo_Element { public const PRO_CATEGORY='woocommerce-elements'; protected function register_controls():void{$this->basic_style('.woocommerce');} }
-final class Woo_Cart extends Woo_Page { public const PRO='woocommerce-cart'; public function get_title():string{return 'Carrito';} public function get_icon():string{return 'eicon-cart';} protected function render():void{echo do_shortcode('[woocommerce_cart]');} }
-final class Woo_Checkout extends Woo_Page { public const PRO='woocommerce-checkout-page'; public function get_title():string{return 'Finalizar compra';} public function get_icon():string{return 'eicon-checkout';} protected function render():void{echo do_shortcode('[woocommerce_checkout]');} }
-final class Woo_My_Account extends Woo_Page { public const PRO='woocommerce-my-account'; public function get_title():string{return 'Mi cuenta';} public function get_icon():string{return 'eicon-my-account';} protected function render():void{echo do_shortcode('[woocommerce_my_account]');} }

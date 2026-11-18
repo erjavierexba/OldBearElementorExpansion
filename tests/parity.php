@@ -409,6 +409,96 @@ try {
         $assert(($old['items_indicator'] ?? '') === 'none' && ($old['icon'] ?? '') === 'custom' && ($old['menu_icon_svg']['value'] ?? '') === 'fas fa-shopping-basket' && ($old['toggle_button_text_color'] ?? '') === '#555' && ($old['toggle_button_icon_color'] ?? '') === '#555' && !isset($old['cart_icon'], $old['woo_color']), 'woocommerce-menu-cart: los ajustes de versiones anteriores se convierten.');
         $same = ['items_indicator'=>'plain','icon'=>'bag-light'];
         $assert(\OldBearExpansion\Widgets\Woo_Menu_Cart::convert('woocommerce-menu-cart', $same) === $same, 'woocommerce-menu-cart: los ajustes de Pro no se tocan.');
+
+        // 0.10.0 Cart, Checkout, My Account, Purchase Summary and Notices: Pro's keys over WooCommerce's own templates.
+        $keys = [
+            'woocommerce-cart'=>['cart_layout','sticky_right_column','sticky_right_column_offset','update_cart_button_text','update_cart_button_alignment','section_coupon_display','apply_coupon_button_text','apply_coupon_button_alignment','totals_section_title','totals_section_title_alignment','update_shipping_button_text','update_shipping_button_alignment','checkout_button_text','checkout_button_alignment','update_cart_automatically','additional_template_switch','additional_template_select','sections_background_color','section_normal_box_shadow_box_shadow_type','sections_border_type','sections_border_width','sections_border_color','sections_border_radius','sections_padding','sections_margin','sections_title_color','sections_titles_typography_typography','sections_titles_text_shadow_text_shadow_type','sections_title_spacing','sections_descriptions_color','sections_descriptions_spacing','links_normal_color','links_hover_color','sections_radio_buttons_color','forms_rows_gap','forms_field_typography_typography','forms_fields_normal_color','forms_fields_normal_background_background','forms_fields_focus_background_color','forms_fields_focus_border_color','forms_fields_focus_transition_duration','forms_fields_border_border','forms_fields_border_radius','forms_fields_padding','forms_button_typography_typography','forms_buttons_normal_text_color','forms_buttons_normal_background_background','forms_buttons_hover_background_color','forms_buttons_focus_box_shadow_box_shadow_type','forms_buttons_hover_border_color','forms_buttons_hover_animation','forms_buttons_border_type','forms_buttons_border_radius','forms_buttons_padding','order_summary_rows_gap','order_summary_title_color','order_summary_color','order_summary_variations_color','product_link_normal_color','order_summary_items_divider_weight','order_summary_quantity_border_color','order_summary_remove_icon_hover_color','totals_rows_gap','totals_color','totals_divider_weight','checkout_button_typography_typography','checkout_button_normal_background_background','checkout_button_hover_animation','checkout_button_border_border','checkout_button_border_radius','checkout_button_padding','section_cart_show_customize_elements','order_summary_section_background_color','checkout_sections_padding','totals_section_links_hover_color','customize_coupon_section_margin'],
+            'woocommerce-checkout-page'=>['checkout_layout','billing_details_section_title','billing_details_alignment','billing_details_form_fields','additional_information_active','additional_information_form_fields','order_summary_section_title','coupon_section_display','coupon_section_title_text','coupon_section_title_link_text','coupon_button_alignment','terms_conditions_message_text','terms_conditions_link_text','purchase_button_alignment','sections_secondary_title_color','sections_messages_typography_typography','sections_checkboxes_color','forms_columns_gap','forms_label_color','forms_label_spacing','order_summary_totals_divider_weight','purchase_button_hover_animation','purchase_button_border_border','section_checkout_show_customize_elements','returning_customers_hover_links_color','billing_details_checkboxes_typography_typography','additional_information_titles_text_shadow_text_shadow_type','coupon_hover_links_color','order_summary_radio_typography_typography','payment_info_box_title_background_background','payment_hover_color'],
+            'woocommerce-my-account'=>['tabs_layout','tabs_content_spacing','tabs_position','tabs','tabs_alignment','customize_dashboard_check','customize_dashboard_select','tabs_typography_typography','tabs_normal_background_background','tabs_hover_box_shadow_box_shadow_type','tabs_active_color','tabs_active_border_color','tabs_border_type','tabs_spacing','tabs_divider_weight','my_account_sections_background_color','my_account_sections_box_shadow_box_shadow_type','typography_section_titles_color','section_titles_typography_text_shadow_text_shadow_type','general_text_color','login_messages_color','payment_methods_radio_buttons_color','forms_buttons_background_background','forms_buttons_border_border','tables_rows_gap','tables_divider_border_type','tables_button_border_type','tables_button_hover_animation'],
+            'woocommerce-purchase-summary'=>['confirmation_message_active','confirmation_message_text','confirmation_message_alignment','payment_details_number','payment_details_payment','bank_details_text','downloads_alignment','order_summary_text','billing_details_text','shipping_details_alignment','preview_order_type','preview_order_custom','sections_spacing','titles_spacing','payment_details_border_type','bank_details_border_color','account_title_spacing','order_details_rows_gap','order_details_product_links_hover_color','order_details_button_border_type','order_details_button_hover_animation'],
+        ];
+        foreach ($keys as $type => $list) {
+            $c = Elementor::$instance->widgets_manager->get_widget_types($type)->get_controls();
+            foreach ($list as $key) { $assert(isset($c[$key]), "{$type}: falta {$key}."); }
+        }
+        $c = Elementor::$instance->widgets_manager->get_widget_types('woocommerce-checkout-page')->get_controls();
+        $assert(($c['checkout_layout']['default'] ?? '') === 'two-column' && count($c['billing_details_form_fields']['default'] ?? []) === 10 && ($c['billing_details_form_fields']['default'][3]['repeater_state'] ?? '') === 'locale' && ($c['additional_information_form_fields']['default'][0]['field_key'] ?? '') === 'order_comments' && array_keys($c['section_checkout_show_customize_elements']['options']) === array_values(array_filter(['customize_returning_customer','customize_billing_details','customize_additional_info','customize_order_summary','customize_coupon','customize_payment'], static fn($k) => $k !== 'customize_returning_customer' || get_option('woocommerce_enable_checkout_login_reminder', 'no') === 'yes')), 'woocommerce-checkout-page: valores por defecto de Pro.');
+        $c = Elementor::$instance->widgets_manager->get_widget_types('woocommerce-my-account')->get_controls();
+        $assert(($c['tabs_layout']['default'] ?? '') === 'vertical' && array_column($c['tabs']['default'] ?? [], 'field_key') === ['dashboard','orders','downloads','edit-address','edit-account','customer-logout'], 'woocommerce-my-account: valores por defecto de Pro.');
+
+        if (function_exists('wc_load_cart') && (WC()->cart || (wc_load_cart() || true) && WC()->cart)) {
+            WC()->cart->empty_cart();
+            WC()->cart->add_to_cart($pid, 1);
+            $html = $render(['__widget'=>'woocommerce-cart','update_cart_button_text'=>'Recalcular','checkout_button_text'=>'Pagar ya','section_coupon_display'=>'','sticky_right_column'=>'yes','checkout_button_hover_animation'=>'grow']);
+            $assert(str_contains($html, 'obx-woo-cart obx-woo-cart--two-column') && str_contains($html, 'obx-woo-sticky') && str_contains($html, 'woocommerce-cart-form') && str_contains($html, 'Paridad producto'), 'woocommerce-cart: carrito de WooCommerce con la disposición de Pro.');
+            $assert(str_contains($html, 'Recalcular') && str_contains($html, 'Pagar ya') && !str_contains($html, 'name="coupon_code"') && str_contains($html, 'elementor-animation-grow'), 'woocommerce-cart: textos propios, sin cupón y animación del botón.');
+            $assert((\OldBearExpansion\Widgets\Woo_Cart::remembered()['Update cart'] ?? '') === 'Recalcular', 'woocommerce-cart: los textos se guardan para las recargas AJAX de WooCommerce.');
+            $extra = $save('section', 'Paridad bajo el carrito', [$container([$widget('heading', ['title'=>'Envío gratis desde 50 €'])])]);
+            $html = $render(['__widget'=>'woocommerce-cart','cart_layout'=>'one-column','update_cart_automatically'=>'yes','additional_template_switch'=>'active','additional_template_select'=>(string) $extra]);
+            $assert(str_contains($html, 'obx-woo-cart--one-column') && str_contains($html, 'obx-woo-cart--auto-update') && !str_contains($html, 'obx-woo-sticky') && str_contains($html, 'name="coupon_code"') && str_contains($html, 'Envío gratis desde 50 €'), 'woocommerce-cart: una columna, actualización automática, cupón y plantilla adicional.');
+
+            $fields = [['field_key'=>'billing_first_name','field_label'=>'Nombre','label'=>'Nombre de pila','placeholder'=>'Tu nombre','repeater_state'=>''], ['field_key'=>'billing_country','field_label'=>'País','label'=>'Nación','placeholder'=>'Nación','repeater_state'=>'locale']];
+            $html = $render(['__widget'=>'woocommerce-checkout-page','billing_details_section_title'=>'Facturación','order_summary_section_title'=>'Resumen','billing_details_form_fields'=>$fields,'additional_information_active'=>'','coupon_section_title_text'=>'¿Tienes un código?','coupon_section_title_link_text'=>'Escríbelo aquí','purchase_button_hover_animation'=>'pulse']);
+            $assert(str_contains($html, 'obx-woo-checkout obx-woo-checkout--two-column') && str_contains($html, 'obx-woo-checkout__aside') && str_contains($html, 'id="order_review"') && str_contains($html, 'Facturación') && str_contains($html, '>Resumen<'), 'woocommerce-checkout-page: formulario de WooCommerce, columna derecha y títulos propios.');
+            $assert(str_contains($html, 'Nombre de pila') && str_contains($html, 'placeholder="Tu nombre"') && !str_contains($html, 'Nación') && !str_contains($html, 'name="order_comments"'), 'woocommerce-checkout-page: etiquetas de los campos (salvo los del país) y sin notas del pedido.');
+            $assert(str_contains($html, '¿Tienes un código?') && str_contains($html, 'Escríbelo aquí') && str_contains($html, 'elementor-animation-pulse'), 'woocommerce-checkout-page: textos del cupón y animación del botón de compra.');
+            $remembered = \OldBearExpansion\Widgets\Woo_Checkout::remembered();
+            $assert(($remembered['texts']['Your order'] ?? '') === 'Resumen' && ($remembered['fields']['billing']['billing_first_name']['label'] ?? '') === 'Nombre de pila' && !isset($remembered['fields']['billing']['billing_country']) && $remembered['notes'] === false, 'woocommerce-checkout-page: ajustes guardados para la recarga AJAX del pedido.');
+            $undo = \OldBearExpansion\Widgets\Woo_Checkout::apply($remembered);
+            $assert(__('Your order', 'woocommerce') === 'Resumen' && (WC()->checkout()->get_checkout_fields('billing')['billing_first_name']['label'] ?? '') === 'Nombre de pila', 'woocommerce-checkout-page: la recarga AJAX aplica los textos y los campos.');
+            $undo();
+            $assert(__('Your order', 'woocommerce') !== 'Resumen', 'woocommerce-checkout-page: los filtros se retiran después.');
+            WC()->cart->empty_cart();
+        }
+
+        $dash = $save('section', 'Paridad escritorio', [$container([$widget('heading', ['title'=>'Hola de nuevo, cliente'])])]);
+        $tabs = array_map(static fn($k, $n) => ['field_key'=>$k,'field_label'=>$n,'tab_name'=>$n], ['dashboard','orders'], ['Inicio','Mis compras']);
+        $html = $render(['__widget'=>'woocommerce-my-account','tabs'=>$tabs,'customize_dashboard_check'=>'yes','customize_dashboard_select'=>(string) $dash,'tabs_layout'=>'horizontal']);
+        $assert(str_contains($html, 'e-my-account-tabs-horizontal') && str_contains($html, 'woocommerce-MyAccount-navigation') && str_contains($html, 'Mis compras') && str_contains($html, 'Hola de nuevo, cliente'), 'woocommerce-my-account: pestañas renombradas y escritorio con plantilla.');
+        $assert(!has_filter('woocommerce_account_menu_items') || !str_contains((string) wp_json_encode(apply_filters('woocommerce_account_menu_items', ['orders'=>'Orders'], [])), 'Mis compras'), 'woocommerce-my-account: el cambio de nombre no sale del widget.');
+        $account_page = $save('page', 'Paridad cuenta', [$container([$widget('woocommerce-my-account')])]);
+        $user = get_current_user_id(); wp_set_current_user(0);
+        try { $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($account_page); } finally { wp_set_current_user($user); }
+        $assert(str_contains($html, 'woocommerce-form-login'), 'woocommerce-my-account: formulario de acceso sin sesión.');
+
+        $order = wc_create_order(); $order->add_product(wc_get_product($pid), 2); $order->set_billing_email('paridad@example.com'); $order->set_payment_method('bacs'); $order->calculate_totals(); $order->save(); $created[] = $order->get_id();
+        $_GET['order-received'] = (string) $order->get_id(); $_GET['key'] = $order->get_order_key();
+        try {
+            $html = $render(['__widget'=>'woocommerce-purchase-summary','confirmation_message_text'=>'¡Gracias por tu compra!','payment_details_number'=>'Pedido nº:','order_summary_text'=>'Tu pedido']);
+            $assert(str_contains($html, '¡Gracias por tu compra!') && str_contains($html, 'Pedido nº:') && str_contains($html, 'Tu pedido') && str_contains($html, '<strong>' . $order->get_order_number() . '</strong>') && str_contains($html, 'woocommerce-order-overview'), 'woocommerce-purchase-summary: pedido recibido con los textos de Pro.');
+            $_GET['key'] = 'wc_order_falsa';
+            $html = $render(['__widget'=>'woocommerce-purchase-summary']);
+            $assert(!str_contains($html, 'woocommerce-order-overview'), 'woocommerce-purchase-summary: sin la clave del pedido no muestra nada.');
+        } finally { unset($_GET['order-received'], $_GET['key']); }
+
+        $notices_page = $save('page', 'Paridad avisos', [$container([$widget('woocommerce-notices')])]);
+        \OldBearExpansion\Widgets\Woo_Notices::relocate([$notices_page]);
+        $assert(!has_action('woocommerce_before_single_product', 'woocommerce_output_all_notices') && !has_action('woocommerce_before_cart', 'woocommerce_output_all_notices'), 'woocommerce-notices: los avisos se imprimen en el widget, no en su sitio habitual.');
+        add_action('woocommerce_before_single_product', 'woocommerce_output_all_notices', 10); add_action('woocommerce_before_cart', 'woocommerce_output_all_notices', 10);
+        add_action('woocommerce_before_shop_loop', 'woocommerce_output_all_notices', 10); add_action('woocommerce_before_checkout_form', 'woocommerce_output_all_notices', 10); add_action('woocommerce_account_content', 'woocommerce_output_all_notices', 5);
+        add_action('woocommerce_before_customer_login_form', 'woocommerce_output_all_notices', 10); add_action('woocommerce_before_lost_password_form', 'woocommerce_output_all_notices', 10); add_action('woocommerce_before_reset_password_form', 'woocommerce_output_all_notices', 10);
+        wc_add_notice('Aviso de paridad', 'success');
+        $html = $render(['__widget'=>'woocommerce-notices']);
+        $assert(str_contains($html, 'woocommerce-notices-wrapper') && str_contains($html, 'Aviso de paridad'), 'woocommerce-notices: imprime los avisos pendientes.');
+
+        // 0.10.0 Site Settings → WooCommerce: store pages (WooCommerce's options), purchase summary page and notices.
+        $kit = Elementor::$instance->kits_manager->get_active_kit_for_frontend();
+        $kc = $kit->get_controls();
+        foreach (['woocommerce_cart_page_id','woocommerce_checkout_page_id','woocommerce_myaccount_page_id','woocommerce_terms_page_id','woocommerce_purchase_summary_page_id','woocommerce_shop_page_id','woocommerce_notices_elements','error_message_text_color','error_message_text_typography_typography','error_message_icon_color','error_message_normal_links_color','error_notice_box_background_background','error_notice_box_box_shadow_box_shadow_type','error_notice_box_border_border','error_notice_box_border_radius','message_message_text_color','notice_message_hover_links_color','message_buttons_normal_text_color','message_buttons_focus_box_shadow_box_shadow_type','message_buttons_border_type','message_buttons_padding','info_message_text_color','info_notice_box_border_radius','info_buttons_hover_transition_duration','info_buttons_border_radius'] as $key) { $assert(isset($kc[$key]), "Kit WooCommerce: falta {$key}."); }
+        $assert(($kc['woocommerce_cart_page_id']['default'] ?? null) === (string) get_option('woocommerce_cart_page_id') && ($kc['woocommerce_cart_page_id']['tab'] ?? '') === 'settings-woocommerce' && array_keys($kc['woocommerce_notices_elements']['options'] ?? []) === ['wc_error','wc_message','wc_info'], 'Kit WooCommerce: páginas actuales de WooCommerce y avisos de Pro.');
+        $thanks = $created[] = wp_insert_post(['post_type'=>'page','post_status'=>'publish','post_title'=>'Paridad gracias']);
+        $before = [get_option('elementor_woocommerce_purchase_summary_page_id', ''), get_option('woocommerce_terms_page_id', '')];
+        try {
+            (new \OldBearExpansion\Extras\Kit_Woocommerce($kit))->on_save(['settings'=>['woocommerce_purchase_summary_page_id'=>(string) $thanks,'woocommerce_terms_page_id'=>(string) $thanks,'woocommerce_cart_page_id'=>(string) $pid]]);
+            $assert((int) get_option('elementor_woocommerce_purchase_summary_page_id') === $thanks && (int) get_option('woocommerce_terms_page_id') === $thanks && (int) get_option('woocommerce_cart_page_id') !== $pid, 'Kit WooCommerce: guardar el kit cambia las páginas de WooCommerce (solo páginas).');
+            $url = $order->get_checkout_order_received_url();
+            $assert(str_starts_with($url, get_permalink($thanks)) && str_contains($url, 'order-received=' . $order->get_id()) && str_contains($url, 'key=' . $order->get_order_key()), 'Kit WooCommerce: tras el pago, el cliente llega a la página del resumen de la compra.');
+        } finally {
+            update_option('elementor_woocommerce_purchase_summary_page_id', $before[0]); update_option('woocommerce_terms_page_id', $before[1]);
+        }
+
+        $old = \OldBearExpansion\Widgets\Woo_Cart::convert('woocommerce-cart', ['woo_color'=>'#123456','woo_typography_typography'=>'custom']);
+        $assert(($old['order_summary_color'] ?? '') === '#123456' && ($old['order_summary_items_typography_typography'] ?? '') === 'custom' && !isset($old['woo_color']), 'woocommerce-cart: los ajustes de versiones anteriores se convierten.');
     }
 
     if (!empty($pcat)) { wp_delete_term($pchild['term_id'], 'product_cat'); wp_delete_term($pcat['term_id'], 'product_cat'); }

@@ -75,6 +75,24 @@ final class Module {
             self::load_widgets();
             return \OldBearExpansion\Widgets\Woo_Menu_Cart::fragments($fragments);
         });
+        // WooCommerce's AJAX refreshes (cart totals, order review) print the texts of the page's widget again.
+        add_action('wc_ajax_get_cart_totals', static function() {
+            if (Plugin::pro_active()) { return; }
+            self::load_widgets();
+            \OldBearExpansion\Widgets\Woo_Cart::replace_texts(\OldBearExpansion\Widgets\Woo_Cart::remembered());
+        }, 1);
+        add_action('woocommerce_checkout_update_order_review', static function() {
+            if (Plugin::pro_active()) { return; }
+            self::load_widgets();
+            $data = \OldBearExpansion\Widgets\Woo_Checkout::remembered();
+            if ($data) { \OldBearExpansion\Widgets\Woo_Checkout::apply($data); }
+        });
+        // A WooCommerce Notices widget on the page or its templates prints the notices instead of WooCommerce.
+        add_action('wp', static function() {
+            if (Plugin::pro_active() || !class_exists('WooCommerce') || is_admin() || wp_doing_ajax()) { return; }
+            $documents = array_filter([is_singular() ? get_queried_object_id() : 0, Locations::template_id('header'), Locations::template_id('footer'), Locations::template_id(Locations::main_location())]);
+            if ($documents) { self::load_widgets(); \OldBearExpansion\Widgets\Woo_Notices::relocate($documents); }
+        }, 20);
         add_action('init', [self::class, 'assets'], 5);
         add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); });
         add_action('elementor/editor/after_enqueue_scripts', static function() {
@@ -134,6 +152,7 @@ final class Module {
         require_once DIR . '/includes/widgets/woocommerce-products.php';
         require_once DIR . '/includes/widgets/woocommerce-single.php';
         require_once DIR . '/includes/widgets/woocommerce-cart.php';
+        require_once DIR . '/includes/widgets/woocommerce-pages.php';
     }
 
     public static function documents($manager): void {

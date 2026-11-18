@@ -39,6 +39,16 @@ final class Plugin {
         Extras\Extras::boot();
         require_once DIR . '/includes/extras/class-site-settings.php';
         Extras\Site_Settings::boot();
+        // Site Settings → WooCommerce (store pages, purchase summary page and notices), with Pro's keys.
+        add_action('elementor/kit/register_tabs', static function($kit) {
+            if (!class_exists('WooCommerce')) { return; }
+            require_once DIR . '/includes/extras/class-kit-woocommerce.php';
+            $kit->register_tab(Extras\Kit_Woocommerce::TAB_ID, Extras\Kit_Woocommerce::class);
+        });
+        add_filter('woocommerce_get_checkout_order_received_url', static function($url, $order) {
+            require_once DIR . '/includes/extras/class-kit-woocommerce.php';
+            return Extras\Kit_Woocommerce::order_received_url($url, $order);
+        }, 10, 2);
         require_once DIR . '/includes/popups/class-popups.php';
         Popups\Popups::boot();
         require_once DIR . '/includes/forms/class-handler.php';

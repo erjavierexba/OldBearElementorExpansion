@@ -657,3 +657,39 @@ html.obx-pt-loading .obx-preloader{opacity:0;animation:obx-preloader-in .2s var(
 .obx-menu-cart__footer-buttons .button.checkout{background:#d9534f;color:#fff}
 .obx-menu-cart:not(.obx-menu-cart--view-cart) .obx-menu-cart__footer-buttons .button:not(.checkout),.obx-menu-cart:not(.obx-menu-cart--checkout) .obx-menu-cart__footer-buttons .button.checkout{display:none}
 .obx-menu-cart .woocommerce-mini-cart__empty-message{margin:0;text-align:center}
+
+/* WooCommerce cart, checkout, my account and purchase summary pages. */
+.obx-woo-cart--two-column .woocommerce{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);column-gap:30px;align-items:start}
+.obx-woo-cart--two-column .woocommerce>*{grid-column:1 / -1}
+.obx-woo-cart--two-column .woocommerce>.woocommerce-cart-form{grid-column:1}
+.obx-woo-cart--two-column .woocommerce>.cart-collaterals{grid-column:2}
+.obx-woo-cart .cart-collaterals .cart_totals,.obx-woo-cart .cart-collaterals .cross-sells{float:none;width:100%}
+.obx-woo-cart--auto-update button[name="update_cart"]{display:none}
+.obx-woo-sticky.obx-woo-cart--two-column .cart-collaterals,.obx-woo-sticky.obx-woo-checkout--two-column .obx-woo-checkout__aside{position:sticky;top:var(--obx-sticky-offset,0)}
+.obx-woo-checkout--two-column form.checkout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;align-items:start}
+.obx-woo-checkout--two-column form.checkout>*{grid-column:1 / -1}
+.obx-woo-checkout--two-column form.checkout>#customer_details{grid-column:1}
+.obx-woo-checkout--two-column form.checkout>.obx-woo-checkout__aside{grid-column:2}
+.obx-woo-checkout--two-column #customer_details .col-1,.obx-woo-checkout--two-column #customer_details .col-2{float:none;width:100%}
+.obx-woo-checkout .woocommerce-checkout-review-order-table{border-collapse:separate}
+.obx-woo-checkout .form-row-first,.obx-woo-checkout .form-row-last,.obx-woo-account .form-row-first,.obx-woo-account .form-row-last{width:calc(50% - var(--obx-forms-columns-gap,6%) / 2)}
+.obx-woo-account .woocommerce{--obx-account-gap:30px}
+.obx-woo-account .woocommerce-MyAccount-navigation ul{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.obx-woo-account .woocommerce-MyAccount-navigation li{margin:0}
+.obx-woo-account .woocommerce-MyAccount-navigation li a{display:flex;padding:.6em 1em;border:0 solid transparent;text-decoration:none;transition:color .2s,background-color .2s,border-color .2s,box-shadow .2s}
+.e-my-account-tabs-vertical .obx-woo-account .woocommerce:has(>.woocommerce-MyAccount-navigation){display:flex;align-items:flex-start;gap:var(--obx-account-gap)}
+.e-my-account-tabs-vertical .obx-woo-account .woocommerce-MyAccount-navigation{float:none;flex:0 0 25%;width:25%}
+.e-my-account-tabs-vertical .obx-woo-account .woocommerce-MyAccount-navigation li:not(:last-child){border-bottom:var(--obx-account-divider-weight,0) solid var(--obx-account-divider-color,transparent)}
+.e-my-account-tabs-horizontal .obx-woo-account .woocommerce-MyAccount-navigation{float:none;width:100%;margin-bottom:var(--obx-account-gap)}
+.e-my-account-tabs-horizontal .obx-woo-account .woocommerce-MyAccount-navigation ul{flex-direction:row;flex-wrap:wrap}
+.e-my-account-tabs-horizontal .obx-woo-account .woocommerce-MyAccount-navigation li{flex-grow:var(--obx-account-tab-grow,0)}
+.e-my-account-tabs-horizontal .obx-woo-account .woocommerce-MyAccount-navigation li a{justify-content:center}
+.e-my-account-tabs-horizontal .obx-woo-account .woocommerce-MyAccount-navigation li:not(:last-child){border-inline-end:var(--obx-account-divider-weight,0) solid var(--obx-account-divider-color,transparent)}
+.obx-woo-account .woocommerce-MyAccount-content{float:none;flex:1;width:auto;min-width:0}
+.obx-woo-summary .woocommerce-order{display:flex;flex-direction:column;gap:var(--obx-summary-gap,30px)}
+.obx-woo-summary .woocommerce-order>*{margin:0}
+.obx-woo-summary ul.woocommerce-order-overview,.obx-woo-summary .woocommerce-bacs-bank-details ul{display:flex;flex-wrap:wrap}
+.obx-woo-summary ul.woocommerce-order-overview li,.obx-woo-summary .woocommerce-bacs-bank-details ul li{float:none}
+.obx-woo-summary ul.woocommerce-order-overview li strong,.obx-woo-summary .woocommerce-bacs-bank-details ul li strong{margin-top:var(--obx-summary-label-gap,0)}
+.obx-woo-summary--no-message .woocommerce-thankyou-order-received{display:none}
+@media (max-width:767px){.obx-woo-cart--two-column .woocommerce,.obx-woo-checkout--two-column form.checkout{display:block}.e-my-account-tabs-vertical .obx-woo-account .woocommerce:has(>.woocommerce-MyAccount-navigation){flex-direction:column}.e-my-account-tabs-vertical .obx-woo-account .woocommerce-MyAccount-navigation{width:100%;flex-basis:auto}}
