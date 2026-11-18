@@ -129,9 +129,15 @@ final class Table_Of_Contents extends Element {
         $this->start_controls_section('table_of_contents', ['label'=>'Tabla de contenidos']);
         $this->add_control('title', ['label'=>'Título','type'=>Controls_Manager::TEXT,'default'=>'Contenido','label_block'=>true,'dynamic'=>['active'=>true]]);
         $this->add_control('html_tag', ['label'=>'Etiqueta HTML','type'=>Controls_Manager::SELECT,'default'=>'h4','options'=>['h2'=>'H2','h3'=>'H3','h4'=>'H4','h5'=>'H5','h6'=>'H6','div'=>'div']]);
+        $this->start_controls_tabs('include_exclude_tags');
+        $this->start_controls_tab('tab_include', ['label'=>'Incluir']);
         $this->add_control('headings_by_tags', ['label'=>'Encabezados incluidos','type'=>Controls_Manager::SELECT2,'multiple'=>true,'default'=>['h2','h3','h4','h5','h6'],'options'=>['h1'=>'H1','h2'=>'H2','h3'=>'H3','h4'=>'H4','h5'=>'H5','h6'=>'H6'],'label_block'=>true,'separator'=>'before']);
         $this->add_control('container', ['label'=>'Buscar dentro de','type'=>Controls_Manager::TEXT,'label_block'=>true,'description'=>'Selector CSS. Vacío: toda la página.']);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_exclude', ['label'=>'Excluir']);
         $this->add_control('exclude_headings_by_selector', ['label'=>'Excluir','type'=>Controls_Manager::TEXT,'label_block'=>true,'description'=>'Selector CSS de los encabezados que no deben aparecer.']);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_control('marker_view', ['label'=>'Marcador','type'=>Controls_Manager::SELECT,'default'=>'numbers','options'=>['numbers'=>'Números','bullets'=>'Viñetas'],'separator'=>'before']);
         $this->add_control('icon', ['label'=>'Icono','type'=>Controls_Manager::ICONS,'default'=>['value'=>'fas fa-circle','library'=>'fa-solid'],'skin'=>'inline','label_block'=>false,'condition'=>['marker_view'=>'bullets']]);
         $this->add_control('no_headings_message', ['label'=>'Mensaje sin encabezados','type'=>Controls_Manager::TEXT,'default'=>'No hay encabezados en esta página.','label_block'=>true,'separator'=>'before']);
@@ -174,11 +180,17 @@ final class Table_Of_Contents extends Element {
         $this->slider('max_height', 'Altura máxima', '.obx-toc__body', 'max-height: {{SIZE}}{{UNIT}}; overflow-y: auto;', ['size_units'=>['px','em','rem','vh']], true);
         $this->typography('list_typography', '.obx-toc__list a');
         $this->slider('list_indent', 'Sangría', '.obx-toc__list', '--obx-toc-indent: {{SIZE}}{{UNIT}};', ['default'=>['unit'=>'em'],'size_units'=>['px','em','rem']], true);
-        foreach (['normal'=>['', ''],'hover'=>[':hover', ' al pasar el ratón'],'active'=>['.is-active', ' de la sección actual']] as $state => [$pseudo, $label]) {
-            $this->color('item_text_color_' . $state, 'Color' . $label, '.obx-toc__list a' . $pseudo, 'color');
-            $this->add_control('item_text_underline_' . $state, ['label'=>'Subrayado' . $label,'type'=>Controls_Manager::SWITCHER,'default'=>$state === 'hover' ? 'yes' : '','selectors'=>self::css('.obx-toc__list a' . $pseudo, 'text-decoration: underline;')]);
+        $this->start_controls_tabs('item_text_style');
+        foreach (['normal'=>['', 'Normal'],'hover'=>[':hover', 'Al pasar el ratón'],'active'=>['.is-active', 'Activo']] as $state => [$pseudo, $label]) {
+            $this->start_controls_tab('item_text_tab_' . $state, ['label'=>$label]);
+            $this->color('item_text_color_' . $state, 'Color', '.obx-toc__list a' . $pseudo, 'color');
+            $this->add_control('item_text_underline_' . $state, ['label'=>'Subrayado','type'=>Controls_Manager::SWITCHER,'default'=>$state === 'hover' ? 'yes' : '','selectors'=>self::css('.obx-toc__list a' . $pseudo, 'text-decoration: underline;')]);
+            if ($state === 'hover') {
+                $this->slider('item_text_hover_transition_duration', 'Duración de la transición', '.obx-toc__list a', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]);
+            }
+            $this->end_controls_tab();
         }
-        $this->slider('item_text_hover_transition_duration', 'Duración de la transición', '.obx-toc__list a', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]);
+        $this->end_controls_tabs();
         $this->add_control('heading_marker', ['label'=>'Marcador','type'=>Controls_Manager::HEADING,'separator'=>'before']);
         $this->color('marker_color', 'Color', '.obx-toc__list', '--obx-toc-marker');
         $this->slider('marker_size', 'Tamaño', '.obx-toc__list', '--obx-toc-marker-size: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem']], true);
@@ -355,17 +367,23 @@ final class Login extends Element {
         $this->end_controls_section();
 
         $this->start_controls_section('section_button_style', ['label'=>'Botón','tab'=>Controls_Manager::TAB_STYLE]);
+        $this->start_controls_tabs('tabs_button_style');
+        $this->start_controls_tab('tab_button_normal', ['label'=>'Normal']);
         $this->typography('button_typography', '.obx-login__button');
         $this->color('button_text_color', 'Color del texto', '.obx-login__button');
         $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'button_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-login__button']);
         $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'button_border','selector'=>'{{WRAPPER}} .obx-login__button','separator'=>'before']);
         $this->dimensions('button_border_radius', 'Radio del borde', '.obx-login__button', 'border-radius', [], false);
         $this->dimensions('button_text_padding', 'Relleno', '.obx-login__button', 'padding', [], false);
-        $this->color('button_hover_color', 'Color al pasar el ratón', '.obx-login__button:hover', 'color', ['separator'=>'before']);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_button_hover', ['label'=>'Al pasar el ratón']);
+        $this->color('button_hover_color', 'Color del texto', '.obx-login__button:hover', 'color');
         $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'button_background_hover','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-login__button:hover']);
         $this->color('button_hover_border_color', 'Borde al pasar el ratón', '.obx-login__button:hover', 'border-color', ['condition'=>['button_border_border!'=>'']]);
         $this->slider('button_hover_transition_duration', 'Duración de la transición', '.obx-login__button', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]);
         $this->add_control('button_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::HOVER_ANIMATION]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->end_controls_section();
 
         $this->start_controls_section('section_style_message', ['label'=>'Mensaje con sesión iniciada','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['show_logged_in_message'=>'yes']]);
@@ -418,7 +436,8 @@ final class Login extends Element {
 final class Code_Highlight extends Element {
     public const PRO = 'code-highlight';
     protected const V03 = ['copy'=>'copy_to_clipboard'];
-    private const LANGUAGES = ['markup'=>'HTML/XML','css'=>'CSS','scss'=>'SCSS','javascript'=>'JavaScript','jsx'=>'JSX','typescript'=>'TypeScript','php'=>'PHP','python'=>'Python','bash'=>'Bash','sql'=>'SQL','json'=>'JSON','yaml'=>'YAML','java'=>'Java','kotlin'=>'Kotlin','swift'=>'Swift','c'=>'C','cpp'=>'C++','csharp'=>'C#','go'=>'Go','rust'=>'Rust','ruby'=>'Ruby','perl'=>'Perl','powershell'=>'PowerShell','markdown'=>'Markdown','git'=>'Git','text'=>'Texto'];
+    /** Pro's keys, including its literal «visual-basic,»; then ours. */
+    private const LANGUAGES = ['markup'=>'Markup','html'=>'HTML','css'=>'CSS','sass'=>'Sass (Sass)','scss'=>'Sass (Scss)','less'=>'Less','javascript'=>'JavaScript','typescript'=>'TypeScript','jsx'=>'React JSX','tsx'=>'React TSX','php'=>'PHP','ruby'=>'Ruby','json'=>'JSON','http'=>'HTTP','xml'=>'XML','svg'=>'SVG','rust'=>'Rust','csharp'=>'C#','dart'=>'Dart','git'=>'Git','java'=>'Java','sql'=>'SQL','go'=>'Go','kotlin'=>'Kotlin + Kotlin Script','julia'=>'Julia','python'=>'Python','swift'=>'Swift','bash'=>'Bash','scala'=>'Scala','haskell'=>'Haskell','perl'=>'Perl','objectivec'=>'Objective-C','visual-basic,'=>'Visual Basic + VBA','r'=>'R','c'=>'C','cpp'=>'C++','aspnet'=>'ASP.NET (C#)','yaml'=>'YAML','powershell'=>'PowerShell','markdown'=>'Markdown','text'=>'Texto'];
     public const THEMES = ['default'=>'Claro','dark'=>'Oscuro','okaidia'=>'Okaidia','solarizedlight'=>'Solarizado claro','tomorrow'=>'Noche','twilight'=>'Crepúsculo'];
     public function get_title(): string { return 'Resaltado de código'; }
     public function get_icon(): string { return 'eicon-code-highlight'; }

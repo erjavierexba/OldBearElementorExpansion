@@ -141,35 +141,49 @@ final class Blockquote extends Element {
         $this->start_controls_section('section_button_style', ['label'=>'Botón','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['tweet_button'=>'yes']]);
         $this->slider('button_size', 'Tamaño', '.obx-quote__tweet', 'font-size: calc({{SIZE}}{{UNIT}} * 10);', ['size_units'=>['px'],'range'=>['px'=>['min'=>0.5,'max'=>2,'step'=>0.1]]], true);
         $this->slider('button_border_radius', 'Radio del borde', '.obx-quote__tweet', 'border-radius: {{SIZE}}{{UNIT}};', [], true);
+        $this->start_controls_tabs('tabs_button_style');
+        $this->start_controls_tab('tab_button_normal', ['label'=>'Normal']);
         $this->color('button_background_color', 'Fondo', '.obx-quote__tweet', '--obx-tweet-bg', ['condition'=>['tweet_button_skin!'=>'link']]);
         $this->color('button_text_color', 'Color del texto', '.obx-quote__tweet', 'color');
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_button_hover', ['label'=>'Al pasar el ratón']);
         $this->color('button_background_color_hover', 'Fondo al pasar el ratón', '.obx-quote__tweet:hover', '--obx-tweet-bg', ['condition'=>['tweet_button_skin!'=>'link']]);
         $this->color('button_text_color_hover', 'Color al pasar el ratón', '.obx-quote__tweet:hover', 'color');
         $this->slider('button_transition_duration', 'Duración de la transición', '.obx-quote__tweet', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->typography('button_typography', '.obx-quote__tweet', ['condition'=>['tweet_button_view!'=>'icon']]);
         $this->end_controls_section();
 
         $this->start_controls_section('section_border_style', ['label'=>'Borde','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['blockquote_skin'=>'border']]);
-        foreach (['' => '', '_hover' => ' al pasar el ratón'] as $suffix => $label) {
+        $this->start_controls_tabs('tabs_border_style');
+        foreach (['' => ['normal', 'Normal'], '_hover' => ['hover', 'Al pasar el ratón']] as $suffix => [$tab, $label]) {
+            $this->start_controls_tab('tab_border_' . $tab, ['label'=>$label]);
             $sel = '.obx-quote' . ($suffix ? ':hover' : '');
-            $this->color('border_color' . $suffix, 'Color' . $label, $sel, 'border-color');
-            $this->slider('border_width' . $suffix, 'Grosor' . $label, $sel, 'border-inline-start-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>20]]], true);
-            $this->slider('border_gap' . $suffix, 'Separación' . $label, $sel, 'padding-inline-start: {{SIZE}}{{UNIT}};', [], true);
+            $this->color('border_color' . $suffix, 'Color', $sel, 'border-color');
+            $this->slider('border_width' . $suffix, 'Grosor', $sel, 'border-inline-start-width: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>20]]], true);
+            $this->slider('border_gap' . $suffix, 'Separación', $sel, 'padding-inline-start: {{SIZE}}{{UNIT}};', [], true);
+            if ($suffix) { $this->slider('border_transition_duration', 'Duración de la transición', '.obx-quote', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]); }
+            $this->end_controls_tab();
         }
-        $this->slider('border_transition_duration', 'Duración de la transición', '.obx-quote', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]);
+        $this->end_controls_tabs();
         $this->slider('border_vertical_padding', 'Relleno vertical', '.obx-quote', 'padding-block: {{SIZE}}{{UNIT}};', [], true);
         $this->end_controls_section();
 
-        $this->start_controls_section('section_box_style', ['label'=>'Caja','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['blockquote_skin'=>'boxed']]);
+        $this->start_controls_section('section_box_style', ['label'=>'Caja','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['blockquote_skin!'=>'border']]);
         $this->slider('box_padding', 'Relleno', '.obx-quote', 'padding: {{SIZE}}{{UNIT}};', [], true);
-        foreach (['' => '', '_hover' => ' al pasar el ratón'] as $suffix => $label) {
+        $this->start_controls_tabs('tabs_box_style');
+        foreach (['' => ['normal', 'Normal'], '_hover' => ['hover', 'Al pasar el ratón']] as $suffix => [$tab, $label]) {
+            $this->start_controls_tab('tab_box_' . $tab, ['label'=>$label]);
             $sel = '.obx-quote' . ($suffix ? ':hover' : '');
-            $this->color('box_background_color' . $suffix, 'Fondo' . $label, $sel, 'background-color');
+            $this->color('box_background_color' . $suffix, 'Fondo', $sel, 'background-color');
             $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'box_border' . $suffix,'selector'=>'{{WRAPPER}} ' . $sel]);
-            $this->slider('box_border_radius' . $suffix, 'Radio del borde' . $label, $sel, 'border-radius: {{SIZE}}{{UNIT}};', [], true);
+            $this->slider('box_border_radius' . $suffix, 'Radio del borde', $sel, 'border-radius: {{SIZE}}{{UNIT}};', [], true);
             $this->add_group_control(Group_Control_Box_Shadow::get_type(), ['name'=>'box_box_shadow' . $suffix,'selector'=>'{{WRAPPER}} ' . $sel]);
+            if ($suffix) { $this->slider('box_transition_duration', 'Duración de la transición', '.obx-quote', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]); }
+            $this->end_controls_tab();
         }
-        $this->slider('box_transition_duration', 'Duración de la transición', '.obx-quote', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]);
+        $this->end_controls_tabs();
         $this->end_controls_section();
 
         $this->start_controls_section('section_quote_style', ['label'=>'Comillas','tab'=>Controls_Manager::TAB_STYLE,'condition'=>['blockquote_skin'=>'quotation']]);
@@ -460,13 +474,19 @@ final class Flip_Box extends Element {
                 $this->add_control('heading_button', ['label'=>'Botón','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>['button_text!'=>'']]);
                 $this->add_control('button_size', ['label'=>'Tamaño','type'=>Controls_Manager::SELECT,'default'=>'sm','options'=>self::sizes(),'condition'=>['button_text!'=>'']]);
                 $this->typography('button_typography', '.obx-flip__button', ['condition'=>['button_text!'=>'']]);
+                $this->start_controls_tabs('button_tabs', ['condition'=>['button_text!'=>'']]);
+                $this->start_controls_tab('normal_button_tab', ['label'=>'Normal','condition'=>['button_text!'=>'']]);
                 $this->color('button_text_color', 'Color del texto', '.obx-flip__button', 'color', ['condition'=>['button_text!'=>'']]);
                 $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'button_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-flip__button','condition'=>['button_text!'=>'']]);
                 $this->color('button_border_color', 'Color del borde', '.obx-flip__button', 'border-color', ['condition'=>['button_text!'=>'']]);
+                $this->end_controls_tab();
+                $this->start_controls_tab('hover_button_tab', ['label'=>'Al pasar el ratón','condition'=>['button_text!'=>'']]);
                 $this->color('button_hover_text_color', 'Color al pasar el ratón', '.obx-flip__button:hover', 'color', ['condition'=>['button_text!'=>'']]);
                 $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'button_hover_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-flip__button:hover','condition'=>['button_text!'=>'']]);
                 $this->color('button_hover_border_color', 'Borde al pasar el ratón', '.obx-flip__button:hover', 'border-color', ['condition'=>['button_text!'=>'']]);
-                $this->slider('button_hover_transition_duration', 'Duración de la transición', '.obx-flip__button', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]]]);
+                $this->slider('button_hover_transition_duration', 'Duración de la transición', '.obx-flip__button', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['ms','s'],'default'=>['unit'=>'ms'],'range'=>['ms'=>['max'=>3000]],'condition'=>['button_text!'=>'']]);
+                $this->end_controls_tab();
+                $this->end_controls_tabs();
                 $this->slider('button_border_width', 'Grosor del borde', '.obx-flip__button', 'border-width: {{SIZE}}{{UNIT}}; border-style: solid;', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>20]],'condition'=>['button_text!'=>'']]);
                 $this->slider('button_border_radius', 'Radio del borde', '.obx-flip__button', 'border-radius: {{SIZE}}{{UNIT}};', ['range'=>['px'=>['max'=>100]],'condition'=>['button_text!'=>'']]);
             }
@@ -623,16 +643,22 @@ final class Price_Table extends Element {
         $this->dimensions('footer_padding', 'Relleno', '.obx-price-table__footer', 'padding', ['condition'=>['button_text!'=>'']]);
         $this->add_control('heading_footer_button', ['label'=>'Botón','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>['button_text!'=>'']]);
         $this->add_control('button_size', ['label'=>'Tamaño','type'=>Controls_Manager::SELECT,'default'=>'md','options'=>self::sizes(),'condition'=>['button_text!'=>'']]);
+        $this->start_controls_tabs('tabs_button_style', ['condition'=>['button_text!'=>'']]);
+        $this->start_controls_tab('tab_button_normal', ['label'=>'Normal','condition'=>['button_text!'=>'']]);
         $this->color('button_text_color', 'Color del texto', '.obx-price-table__button', 'color', ['condition'=>['button_text!'=>'']]);
         $this->typography('button_typography', '.obx-price-table__button', ['condition'=>['button_text!'=>'']]);
         $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'button_background','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-price-table__button','condition'=>['button_text!'=>'']]);
         $this->add_group_control(Group_Control_Border::get_type(), ['name'=>'button_border','selector'=>'{{WRAPPER}} .obx-price-table__button','condition'=>['button_text!'=>'']]);
         $this->dimensions('button_border_radius', 'Radio del borde', '.obx-price-table__button', 'border-radius', ['condition'=>['button_text!'=>'']], false);
         $this->dimensions('button_text_padding', 'Relleno', '.obx-price-table__button', 'padding', ['condition'=>['button_text!'=>'']], false);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_button_hover', ['label'=>'Al pasar el ratón','condition'=>['button_text!'=>'']]);
         $this->color('button_hover_color', 'Color al pasar el ratón', '.obx-price-table__button:hover', 'color', ['condition'=>['button_text!'=>'']]);
         $this->add_group_control(Group_Control_Background::get_type(), ['name'=>'button_background_hover','types'=>['classic','gradient'],'exclude'=>['image'],'selector'=>'{{WRAPPER}} .obx-price-table__button:hover','condition'=>['button_text!'=>'']]);
         $this->color('button_hover_border_color', 'Borde al pasar el ratón', '.obx-price-table__button:hover', 'border-color', ['condition'=>['button_text!'=>'']]);
         $this->add_control('button_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::HOVER_ANIMATION,'condition'=>['button_text!'=>'']]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_control('heading_additional_info', ['label'=>'Información adicional','type'=>Controls_Manager::HEADING,'separator'=>'before','condition'=>['button_text!'=>'','footer_additional_info!'=>'']]);
         $this->color('additional_info_color', 'Color', '.obx-price-table__note', 'color', ['condition'=>['button_text!'=>'','footer_additional_info!'=>'']]);
         $this->typography('additional_info_typography', '.obx-price-table__note', ['condition'=>['button_text!'=>'','footer_additional_info!'=>'']]);
@@ -960,10 +986,16 @@ final class Share_Buttons extends Element {
         $this->slider('button_height', 'Altura del botón', '.obx-share__button', 'height: {{SIZE}}{{UNIT}};', ['default'=>['unit'=>'em'],'size_units'=>['em','px','rem'],'range'=>['em'=>['min'=>1,'max'=>7,'step'=>0.1]]], true);
         $this->slider('border_size', 'Grosor del borde', '.obx-share__button', 'border-width: {{SIZE}}{{UNIT}};', ['default'=>['size'=>2],'size_units'=>['px','em'],'range'=>['px'=>['max'=>20]],'condition'=>['skin'=>['framed','boxed']]], true);
         $this->add_control('color_source', ['label'=>'Color','type'=>Controls_Manager::SELECT,'default'=>'official','options'=>['official'=>'El de cada red','custom'=>'Personalizado'],'prefix_class'=>'obx-share-buttons--color-','separator'=>'before']);
+        $this->start_controls_tabs('tabs_button_style', ['condition'=>['color_source'=>'custom']]);
+        $this->start_controls_tab('tab_button_normal', ['label'=>'Normal','condition'=>['color_source'=>'custom']]);
         $this->color('primary_color', 'Color principal', '.obx-share__button', '--obx-share-primary', ['condition'=>['color_source'=>'custom']]);
         $this->color('secondary_color', 'Color secundario', '.obx-share__button', '--obx-share-secondary', ['condition'=>['color_source'=>'custom','skin!'=>'framed']]);
-        $this->color('primary_color_hover', 'Color principal al pasar el ratón', '.obx-share__button:hover', '--obx-share-primary', ['condition'=>['color_source'=>'custom']]);
-        $this->color('secondary_color_hover', 'Color secundario al pasar el ratón', '.obx-share__button:hover', '--obx-share-secondary', ['condition'=>['color_source'=>'custom']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_button_hover', ['label'=>'Al pasar el ratón','condition'=>['color_source'=>'custom']]);
+        $this->color('primary_color_hover', 'Color principal', '.obx-share__button:hover', '--obx-share-primary', ['condition'=>['color_source'=>'custom']]);
+        $this->color('secondary_color_hover', 'Color secundario', '.obx-share__button:hover', '--obx-share-secondary', ['condition'=>['color_source'=>'custom']]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->typography('typography', '.obx-share__title', ['separator'=>'before','exclude'=>['line_height']]);
         $this->dimensions('text_padding', 'Relleno del texto', '.obx-share__text', 'padding', ['condition'=>['view'=>'text']], false);
         $this->end_controls_section();

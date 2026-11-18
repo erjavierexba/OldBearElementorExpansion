@@ -20,8 +20,10 @@ if (!defined('ABSPATH')) { exit; }
  * title widgets do: header_size, link, align, title_color, typography…
  */
 trait Heading_Controls {
-    protected function heading_controls(string $default_tag, string $link_note = ''): void {
+    protected function heading_controls(string $default_tag, string $link_note = '', string $dynamic_tag = ''): void {
         $this->start_controls_section('section_title', ['label'=>'Título']);
+        // Pro keeps Heading's «title» with a dynamic tag as default; a static text or another tag replaces it.
+        $this->add_control('title', ['label'=>'Título','type'=>Controls_Manager::TEXTAREA,'rows'=>2,'default'=>'Añade aquí tu texto de cabecera','dynamic'=>['active'=>true] + ($dynamic_tag !== '' ? ['default'=>Elementor::$instance->dynamic_tags->tag_data_to_tag_text(null, $dynamic_tag)] : [])]);
         $this->add_control('link', ['label'=>'Enlace','type'=>Controls_Manager::URL,'dynamic'=>['active'=>true],'default'=>['url'=>''],'description'=>$link_note]);
         $this->add_control('size', ['label'=>'Tamaño','type'=>Controls_Manager::SELECT,'default'=>'default','options'=>['default'=>'Predeterminado','small'=>'Pequeño','medium'=>'Mediano','large'=>'Grande','xl'=>'XL','xxl'=>'XXL'],'condition'=>['size!'=>'default']]);
         $this->add_control('header_size', ['label'=>'Etiqueta HTML','type'=>Controls_Manager::SELECT,'default'=>$default_tag,'options'=>['h1'=>'H1','h2'=>'H2','h3'=>'H3','h4'=>'H4','h5'=>'H5','h6'=>'H6','div'=>'div','span'=>'span','p'=>'p']]);
@@ -30,8 +32,15 @@ trait Heading_Controls {
 
         $this->start_controls_section('section_title_style', ['label'=>'Título','tab'=>Controls_Manager::TAB_STYLE]);
         $this->add_responsive_control('align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::logical_align(true),'selectors'=>['{{WRAPPER}}'=>'text-align: {{VALUE}};']]);
+        $this->start_controls_tabs('title_colors');
+        $this->start_controls_tab('title_colors_normal', ['label'=>'Normal']);
         $this->add_control('title_color', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .elementor-heading-title'=>'color: {{VALUE}};','{{WRAPPER}} .elementor-heading-title a'=>'color: inherit;']]);
-        $this->add_control('title_hover_color', ['label'=>'Color al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .elementor-heading-title:hover, {{WRAPPER}} .elementor-heading-title a:hover'=>'color: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('title_colors_hover', ['label'=>'Al pasar el ratón']);
+        $this->add_control('title_hover_color', ['label'=>'Color del enlace','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .elementor-heading-title:hover, {{WRAPPER}} .elementor-heading-title a:hover'=>'color: {{VALUE}};']]);
+        $this->add_control('title_hover_color_transition_duration', ['label'=>'Duración de la transición','type'=>Controls_Manager::SLIDER,'size_units'=>['s','ms','custom'],'default'=>['unit'=>'s'],'range'=>['s'=>['min'=>0,'max'=>3,'step'=>0.1],'ms'=>['min'=>0,'max'=>3000,'step'=>100]],'selectors'=>['{{WRAPPER}} .elementor-heading-title, {{WRAPPER}} .elementor-heading-title a'=>'transition: color {{SIZE}}{{UNIT}};']]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'typography','selector'=>'{{WRAPPER}} .elementor-heading-title']);
         $this->add_group_control(Group_Control_Text_Stroke::get_type(), ['name'=>'text_stroke','selector'=>'{{WRAPPER}} .elementor-heading-title']);
         $this->add_group_control(Group_Control_Text_Shadow::get_type(), ['name'=>'text_shadow','selector'=>'{{WRAPPER}} .elementor-heading-title']);
@@ -50,7 +59,7 @@ trait Heading_Controls {
     protected function render_heading(string $text, string $class, string $fallback_url = ''): void {
         $s = $this->get_settings_for_display();
         $size = in_array($s['size'] ?? 'default', ['default','small','medium','large','xl','xxl'], true) ? $s['size'] : 'default';
-        $html = esc_html($text);
+        $html = $this->title_override() ?? esc_html($text);
         if (!empty($s['link']['url'])) {
             $this->add_link_attributes('url', $s['link']);
             $html = '<a ' . $this->get_render_attribute_string('url') . '>' . $html . '</a>';
@@ -58,6 +67,20 @@ trait Heading_Controls {
             $html = '<a href="' . esc_url($fallback_url) . '">' . $html . '</a>';
         }
         printf('<%1$s class="elementor-heading-title elementor-size-%2$s %3$s">%4$s</%1$s>', $this->heading_tag(), esc_attr($size), esc_attr($class), $html);
+    }
+
+    /** Text that replaces the widget's own title: a static «title», or a dynamic tag other than the default one. */
+    protected function title_override(): ?string {
+        $data = (array) ($this->get_data('settings') ?: []);
+        $dynamic = (string) ($data['__dynamic__']['title'] ?? '');
+        if ($dynamic !== '') {
+            $default = (string) ($this->get_controls('title')['dynamic']['default'] ?? '');
+            $name = static fn(string $tag): string => preg_match('~name="([^"]+)"~', $tag, $m) ? $m[1] : '';
+            if ($default !== '' && $name($dynamic) === $name($default)) { return null; }
+            return wp_kses_post((string) $this->get_settings_for_display('title'));
+        }
+        $text = trim((string) ($data['title'] ?? ''));
+        return $text !== '' ? wp_kses_post($text) : null;
     }
 
     /** Settings saved by v0.3 under our own names. */
@@ -76,7 +99,7 @@ final class Post_Title extends Base {
     public function get_title(): string { return 'Título de la entrada'; }
     public function get_icon(): string { return 'eicon-post-title'; }
     public function get_keywords(): array { return ['title','titulo','post','entrada','heading']; }
-    protected function register_controls(): void { $this->heading_controls('h1'); }
+    protected function register_controls(): void { $this->heading_controls('h1', '', 'post-title'); }
     protected function extra_title_controls(): void {
         $this->add_control('link_to_post', ['label'=>'Enlazar a la entrada','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'','condition'=>['link[url]'=>'']]);
     }
@@ -100,7 +123,7 @@ final class Archive_Title extends Base {
     public function get_title(): string { return 'Título del archivo'; }
     public function get_icon(): string { return 'eicon-archive-title'; }
     public function get_keywords(): array { return ['archive','archivo','titulo','categoria','heading']; }
-    protected function register_controls(): void { $this->heading_controls('h1'); }
+    protected function register_controls(): void { $this->heading_controls('h1', '', 'archive-title'); }
     protected function extra_title_controls(): void {
         $this->add_control('description', ['label'=>'Mostrar descripción','type'=>Controls_Manager::SWITCHER,'return_value'=>'yes','default'=>'']);
     }
@@ -121,7 +144,7 @@ final class Page_Title extends Base {
     public function get_title(): string { return 'Título de la página'; }
     public function get_icon(): string { return 'eicon-archive-title'; }
     public function get_keywords(): array { return ['title','titulo','page','pagina','heading']; }
-    protected function register_controls(): void { $this->heading_controls('h1'); }
+    protected function register_controls(): void { $this->heading_controls('h1', '', 'page-title'); }
     protected function render(): void {
         if (Context::template() || is_singular()) {
             $post = Context::post();
@@ -145,7 +168,7 @@ final class Site_Title extends Base {
     public function get_icon(): string { return 'eicon-site-title'; }
     public function get_keywords(): array { return ['site','sitio','titulo','nombre','tagline','lema']; }
     protected function register_controls(): void {
-        $this->heading_controls('h2', 'Vacío: la portada.');
+        $this->heading_controls('h2', 'Vacío: la portada.', 'site-title');
         $this->text_style('.obx-site-tagline', 'Descripción corta', 'tagline', false);
     }
     protected function extra_title_controls(): void {
@@ -399,9 +422,16 @@ final class Post_Excerpt extends Base {
         $this->start_controls_section('section_style', ['label'=>'Estilo','tab'=>Controls_Manager::TAB_STYLE]);
         $this->add_responsive_control('align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>self::logical_align(true),'selectors'=>['{{WRAPPER}}'=>'text-align: {{VALUE}};']]);
         $this->add_responsive_control('paragraph_spacing', ['label'=>'Separación entre párrafos','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','vh','custom'],'selectors'=>['{{WRAPPER}} p:not(:last-child)'=>'margin-bottom: {{SIZE}}{{UNIT}};']]);
+        $this->start_controls_tabs('link_colors');
+        $this->start_controls_tab('link_colors_normal', ['label'=>'Normal']);
         $this->add_control('title_color', ['label'=>'Color del texto','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}}'=>'color: {{VALUE}};']]);
         $this->add_control('link_color', ['label'=>'Color de los enlaces','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} a'=>'color: {{VALUE}};']]);
-        $this->add_control('link_hover_color', ['label'=>'Color de los enlaces al pasar el ratón','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} a:hover'=>'color: {{VALUE}};']]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('link_colors_hover', ['label'=>'Al pasar el ratón']);
+        $this->add_control('link_hover_color', ['label'=>'Color de los enlaces','type'=>Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} a:hover'=>'color: {{VALUE}};']]);
+        $this->add_control('link_hover_color_transition_duration', ['label'=>'Duración de la transición','type'=>Controls_Manager::SLIDER,'size_units'=>['s','ms','custom'],'default'=>['unit'=>'s'],'range'=>['s'=>['min'=>0,'max'=>3,'step'=>0.1],'ms'=>['min'=>0,'max'=>3000,'step'=>100]],'selectors'=>['{{WRAPPER}} a'=>'transition: color {{SIZE}}{{UNIT}};']]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->add_group_control(Group_Control_Typography::get_type(), ['name'=>'typography','selector'=>'{{WRAPPER}}']);
         $this->add_group_control(Group_Control_Text_Shadow::get_type(), ['name'=>'text_shadow','selector'=>'{{WRAPPER}}']);
         $this->end_controls_section();

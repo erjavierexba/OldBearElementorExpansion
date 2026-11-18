@@ -402,7 +402,7 @@ final class Taxonomy_Filter extends Element {
         $active = ['selected_element!'=>''];
         $this->start_controls_section('section_taxonomy_filter', ['label'=>'Filtro']);
         $this->add_control('selected_element', ['label'=>'Rejilla de bucle','type'=>Controls_Manager::TEXT,'default'=>'','placeholder'=>'ID del elemento (p. ej. 3f2a9c1)','description'=>'ID del widget «Rejilla de bucle» de esta página (clic derecho → Copiar ID, o en Avanzado).','label_block'=>true]);
-        $this->add_control('taxonomy', ['label'=>'Taxonomía','type'=>Controls_Manager::SELECT,'options'=>$taxonomies,'default'=>'category','condition'=>$active]);
+        $this->add_control('taxonomy', ['label'=>'Taxonomía','type'=>Controls_Manager::SELECT,'options'=>[''=>'Elige una taxonomía'] + $taxonomies,'default'=>'category','condition'=>$active]);
         $this->add_responsive_control('direction', ['label'=>'Dirección','type'=>Controls_Manager::SELECT,'default'=>'horizontal','options'=>['horizontal'=>'Horizontal','vertical'=>'Vertical'],'prefix_class'=>'obx-tfilter%s--dir-','condition'=>$active]);
         $stretch = self::logical_align() + ['stretch'=>['title'=>'Estirar','icon'=>'eicon-h-align-stretch']];
         $this->add_responsive_control('item_alignment_horizontal', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>$stretch,'selectors_dictionary'=>['start'=>'flex-start','end'=>'flex-end','center'=>'center','stretch'=>'stretch'],'selectors'=>self::css('.obx-tfilter', 'justify-content: {{VALUE}}; --obx-tfilter-grow: {{VALUE}};'),'condition'=>$active + ['direction'=>'horizontal']]);
@@ -426,7 +426,7 @@ final class Taxonomy_Filter extends Element {
         $this->start_controls_section('section_design_layout', ['label'=>'Filtro','tab'=>Controls_Manager::TAB_STYLE]);
         $this->slider('taxonomy_filter_items_space_between', 'Separación', '.obx-tfilter', 'gap: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]], true);
         $this->add_group_control(\Elementor\Group_Control_Typography::get_type(), ['name'=>'taxonomy_filter_typography','selector'=>'{{WRAPPER}} .obx-tfilter__item']);
-        $this->start_controls_tabs('taxonomy_filter_tabs');
+        $this->start_controls_tabs('taxonomy_filter_tabs_section');
         foreach (['normal'=>['Normal', '.obx-tfilter__item'], 'hover'=>['Al pasar el ratón', '.obx-tfilter__item:hover'], 'active'=>['Activo', '.obx-tfilter__item[aria-pressed="true"]']] as $state => [$label, $selector]) {
             $this->start_controls_tab('taxonomy_filter_tab_' . $state, ['label'=>$label]);
             $this->color('taxonomy_filter_' . $state . '_text_color', 'Color del texto', $selector);

@@ -362,6 +362,29 @@ try {
     // 0.11.0 Call to Action: Pro's colour, button and background-effect tabs.
     $cc = Elementor::$instance->widgets_manager->get_widget_types('call-to-action')->get_controls();
     foreach (['color_tabs','button_tabs','bg_effects_tabs','animation_class'] as $key) { $assert(isset($cc[$key]), "call-to-action: falta {$key}."); }
+    // 0.11.0 Normal/hover tabs, transitions and option lists of the remaining widgets.
+    $tabs = ['author-box'=>['tabs_button_style','button_hover_transition_duration','avatar_size'],'blockquote'=>['tabs_button_style','tabs_border_style','tabs_box_style'],'login'=>['tabs_button_style'],'price-table'=>['tabs_button_style'],'flip-box'=>['button_tabs'],'share-buttons'=>['tabs_button_style'],'table-of-contents'=>['include_exclude_tags','item_text_style'],'taxonomy-filter'=>['taxonomy_filter_tabs_section'],'theme-post-excerpt'=>['link_colors','link_hover_color_transition_duration'],'post-comments'=>['skin_temp']];
+    foreach (['theme-post-title','theme-page-title','theme-archive-title','theme-site-title'] as $type) { $tabs[$type] = ['title','title_colors','title_hover_color_transition_duration']; }
+    foreach ($tabs as $type => $keys) {
+        $controls = Elementor::$instance->widgets_manager->get_widget_types($type)->get_controls();
+        foreach ($keys as $key) { $assert(isset($controls[$key]), "{$type}: falta {$key}."); }
+    }
+    $ab = Elementor::$instance->widgets_manager->get_widget_types('author-box')->get_controls();
+    $assert(($ab['avatar_size']['default'] ?? 0) === 300 && isset($ab['button_background_hover_color']) && !isset($ab['button_hover_background_color']), 'author-box: resolución de la foto y fondo al pasar el ratón con las claves de Pro.');
+    $old = \OldBearExpansion\Widgets\Author_Box::convert('author-box', ['button_hover_background_color'=>'#123456','avatar_size'=>96]);
+    $assert(($old['button_background_hover_color'] ?? '') === '#123456' && ($old['avatar_size'] ?? null) === 96 && !isset($old['image_size']), 'author-box: el fondo antiguo se convierte y avatar_size de Pro se conserva.');
+    $old = \OldBearExpansion\Widgets\Author_Box::convert('author-box', ['avatar_size'=>['unit'=>'px','size'=>80]]);
+    $assert(($old['image_size']['size'] ?? 0) === 80 && !isset($old['avatar_size']), 'author-box: el avatar_size de la v0.3 pasa a image_size.');
+    $ch = Elementor::$instance->widgets_manager->get_widget_types('code-highlight')->get_controls();
+    $assert(isset($ch['language']['options']['visual-basic,'], $ch['language']['options']['tsx'], $ch['language']['options']['aspnet']), 'code-highlight: los lenguajes de Pro, con sus claves.');
+    $pi = Elementor::$instance->widgets_manager->get_widget_types('post-info')->get_controls();
+    $assert(array_keys($pi['icon_align']['options'] ?? []) === ['left','center','right'], 'post-info: alineación izquierda/centro/derecha como Pro.');
+    $pt = Elementor::$instance->widgets_manager->get_widget_types('theme-post-title')->get_controls();
+    $assert(str_contains((string) ($pt['title']['dynamic']['default'] ?? ''), 'name="post-title"'), 'theme-post-title: el título usa por defecto la etiqueta dinámica, como Pro.');
+    $html = $render(['__widget'=>'theme-site-title','title'=>'Texto fijo de prueba']);
+    $assert(str_contains($html, 'Texto fijo de prueba'), 'theme-site-title: un texto fijo en «title» sustituye al nombre del sitio.');
+    $html = $render(['__widget'=>'theme-site-title']);
+    $assert(str_contains($html, esc_html(get_bloginfo('name'))), 'theme-site-title: sin texto propio muestra el nombre del sitio.');
     $assert(($cc['animation_class']['default'] ?? '') === 'animated-content' && isset($cc['button_hover_text_color'], $cc['overlay_color_hover'], $cc['effect_duration']), 'call-to-action: pestañas de Pro sin perder claves.');
     $sub = wp_insert_term('obx-sub ' . $uid(), 'category', ['parent'=>$t1['term_id']]); $terms[] = $sub['term_id'];
     $kids = \OldBearExpansion\Widgets\Query::terms(['post_taxonomy_child_of'=>(string) $t1['term_id'],'post_taxonomy_hierarchical'=>'yes'], 'post_taxonomy_', 'category', 10);

@@ -20,18 +20,25 @@ final class Author_Box extends Element {
     protected function is_dynamic_content(): bool { return true; }
     public function get_script_depends(): array { return []; }
 
-    public static function wants_upgrade(string $name, array $settings): bool { return $name === self::PRO && (isset($settings['show_bio']) || isset($settings['name_tag']) || isset($settings['button']) || isset($settings['avatar_size'])); }
+    // v0.3 «avatar_size» was a slider (now image_size); Pro's avatar_size is the number of pixels requested.
+    public static function wants_upgrade(string $name, array $settings): bool { return $name === self::PRO && (isset($settings['show_bio']) || isset($settings['name_tag']) || isset($settings['button']) || is_array($settings['avatar_size'] ?? null) || isset($settings['button_hover_background_color'])); }
     protected static function upgrade_settings(array $s): array {
+        $s = self::rename($s, ['button_hover_background_color'=>'button_background_hover_color']);
+        $pixels = isset($s['avatar_size']) && !is_array($s['avatar_size']) ? $s['avatar_size'] : null;
+        if ($pixels !== null) { unset($s['avatar_size']); }
         if (isset($s['layout'])) { $s['layout'] = ['top'=>'above','left'=>'left','right'=>'right'][$s['layout']] ?? 'left'; }
         if (isset($s['link_to'])) { $s['link_to'] = ['posts'=>'posts_archive','website'=>'website','none'=>''][$s['link_to']] ?? ''; }
-        $s['show_link'] = ($s['button'] ?? '') !== '' ? 'yes' : '';
-        return parent::upgrade_settings($s);
+        if (array_key_exists('button', $s)) { $s['show_link'] = $s['button'] !== '' ? 'yes' : ''; }
+        $s = parent::upgrade_settings($s);
+        if ($pixels !== null) { $s['avatar_size'] = $pixels; }
+        return $s;
     }
 
     protected function register_controls(): void {
         $this->start_controls_section('section_author_info', ['label'=>'Autor']);
         $this->add_control('source', ['label'=>'Origen','type'=>Controls_Manager::SELECT,'default'=>'current','options'=>['current'=>'Autor actual','custom'=>'Personalizado']]);
         $this->add_control('show_avatar', ['label'=>'Foto de perfil','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['source'=>'current'],'separator'=>'before']);
+        $this->add_control('avatar_size', ['label'=>'Resolución de la foto (px)','type'=>Controls_Manager::NUMBER,'default'=>300,'min'=>16,'max'=>512,'condition'=>['source'=>'current','show_avatar'=>'yes'],'description'=>'Tamaño que se pide a Gravatar; el tamaño visible se ajusta en Estilo → Foto.']);
         $this->add_control('author_avatar', ['label'=>'Foto de perfil','type'=>Controls_Manager::MEDIA,'default'=>['url'=>Utils::get_placeholder_image_src()],'condition'=>['source'=>'custom'],'separator'=>'before']);
         $this->add_control('show_name', ['label'=>'Nombre visible','type'=>Controls_Manager::SWITCHER,'default'=>'yes','condition'=>['source'=>'current'],'separator'=>'before']);
         $this->add_control('author_name', ['label'=>'Nombre','type'=>Controls_Manager::TEXT,'default'=>'Nombre del autor','condition'=>['source'=>'custom'],'separator'=>'before']);
@@ -69,17 +76,25 @@ final class Author_Box extends Element {
         $this->slider('bio_gap', 'Separación', '.obx-author__bio', 'margin-bottom: {{SIZE}}{{UNIT}};', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>100]]], true);
         $this->end_controls_section();
 
+        $button = ['link_text!'=>''];
         $this->start_controls_section('section_style_button', ['label'=>'Botón','tab'=>Controls_Manager::TAB_STYLE]);
-        $this->color('button_text_color', 'Color del texto', '.obx-author__button');
-        $this->color('button_background_color', 'Fondo', '.obx-author__button', 'background-color');
-        $this->color('button_hover_color', 'Color al pasar el ratón', '.obx-author__button:hover', 'color');
-        $this->color('button_hover_background_color', 'Fondo al pasar el ratón', '.obx-author__button:hover', 'background-color');
-        $this->color('button_hover_border_color', 'Borde al pasar el ratón', '.obx-author__button:hover', 'border-color');
-        $this->typography('button_typography', '.obx-author__button', ['separator'=>'before']);
+        $this->start_controls_tabs('tabs_button_style', ['condition'=>$button]);
+        $this->start_controls_tab('tab_button_normal', ['label'=>'Normal','condition'=>$button]);
+        $this->color('button_text_color', 'Color del texto', '.obx-author__button', 'color', ['condition'=>$button]);
+        $this->color('button_background_color', 'Fondo', '.obx-author__button', 'background-color', ['condition'=>$button]);
+        $this->typography('button_typography', '.obx-author__button', ['condition'=>$button]);
+        $this->end_controls_tab();
+        $this->start_controls_tab('tab_button_hover', ['label'=>'Al pasar el ratón','condition'=>$button]);
+        $this->color('button_hover_color', 'Color del texto', '.obx-author__button:hover', 'color', ['condition'=>$button]);
+        $this->color('button_background_hover_color', 'Fondo', '.obx-author__button:hover', 'background-color', ['condition'=>$button]);
+        $this->color('button_hover_border_color', 'Color del borde', '.obx-author__button:hover', 'border-color', ['condition'=>$button]);
+        $this->slider('button_hover_transition_duration', 'Duración de la transición', '.obx-author__button', 'transition-duration: {{SIZE}}{{UNIT}};', ['size_units'=>['s','ms','custom'],'default'=>['unit'=>'ms'],'range'=>['s'=>['min'=>0,'max'=>3,'step'=>0.1],'ms'=>['min'=>0,'max'=>3000,'step'=>100]],'condition'=>$button]);
+        $this->add_control('button_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::HOVER_ANIMATION,'condition'=>$button]);
+        $this->end_controls_tab();
+        $this->end_controls_tabs();
         $this->slider('button_border_width', 'Grosor del borde', '.obx-author__button', 'border-width: {{SIZE}}{{UNIT}}; border-style: solid;', ['size_units'=>['px','em','rem'],'range'=>['px'=>['max'=>20]]]);
         $this->slider('button_border_radius', 'Radio del borde', '.obx-author__button', 'border-radius: {{SIZE}}{{UNIT}};', ['range'=>['px'=>['max'=>100]]]);
         $this->dimensions('button_text_padding', 'Relleno', '.obx-author__button', 'padding');
-        $this->add_control('button_hover_animation', ['label'=>'Animación','type'=>Controls_Manager::HOVER_ANIMATION]);
         $this->end_controls_section();
     }
 
@@ -99,7 +114,7 @@ final class Author_Box extends Element {
             if (!$author || !get_userdata($author)) { $this->placeholder('No hay autor que mostrar.'); return; }
             $name = ($s['show_name'] ?? 'yes') === 'yes' ? (string) get_the_author_meta('display_name', $author) : '';
             $bio = ($s['show_biography'] ?? 'yes') === 'yes' ? (string) get_the_author_meta('description', $author) : '';
-            $avatar = ($s['show_avatar'] ?? 'yes') === 'yes' ? (string) get_avatar($author, 300, '', get_the_author_meta('display_name', $author), ['loading'=>'lazy']) : '';
+            $avatar = ($s['show_avatar'] ?? 'yes') === 'yes' ? (string) get_avatar($author, max(16, absint($s['avatar_size'] ?? 300)), '', get_the_author_meta('display_name', $author), ['loading'=>'lazy']) : '';
             $link = (string) ($s['link_to'] ?? '');
             $url = $link === 'posts_archive' ? get_author_posts_url($author) : ($link === 'website' ? (string) get_the_author_meta('url', $author) : '');
             $button_url = get_author_posts_url($author);
@@ -256,7 +271,9 @@ final class Post_Comments extends Base {
     public function get_keywords(): array { return ['comments','comentarios','respuestas']; }
     protected function register_controls(): void {
         $this->start_controls_section('section_content', ['label'=>'Comentarios']);
-        $this->add_control('_skin', ['label'=>'Apariencia','type'=>Controls_Manager::SELECT,'default'=>'theme_comments','options'=>['theme_comments'=>'Tema'],'description'=>'Usa la plantilla de comentarios del tema y los ajustes de Ajustes → Comentarios.']);
+        // As in Pro: the skin is stored in a hidden «_skin» and «skin_temp» only shows it.
+        $this->add_control('_skin', ['type'=>Controls_Manager::HIDDEN,'default'=>'theme_comments']);
+        $this->add_control('skin_temp', ['label'=>'Apariencia','type'=>Controls_Manager::SELECT,'default'=>'','options'=>[''=>'Comentarios del tema'],'description'=>'Usa la plantilla de comentarios del tema y los ajustes de Ajustes → Comentarios.']);
         $this->add_control('source_type', ['label'=>'Origen','type'=>Controls_Manager::SELECT,'default'=>'current_post','options'=>['current_post'=>'Entrada actual','custom'=>'Otra entrada']]);
         $this->add_control('source_custom', ['label'=>'ID de la entrada','type'=>Controls_Manager::NUMBER,'min'=>1,'condition'=>['source_type'=>'custom']]);
         $this->end_controls_section();

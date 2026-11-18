@@ -204,7 +204,9 @@
     const KEYWORDS = 'abstract and as async await break case catch class const continue def default del do echo elif else enum except export extends false final finally fn for foreach from func function go if impl implements import in instanceof interface is let match mod namespace new nil none not null or package pass private protected pub public raise readonly return select self static struct super switch this throw true try type typeof use var void while with yield'.split(' ');
     const KEYWORD_SET = new Set(KEYWORDS.concat(KEYWORDS.map((k) => k.toUpperCase())));
     /** Small generic tokenizer: comments, strings, numbers, keywords and markup tags. */
+    const MARKUP = ['markup', 'html', 'xml', 'svg', 'aspnet'];
     const tokens = (code, language) => {
+        language = MARKUP.includes(language) ? 'markup' : language;
         const rules = language === 'markup'
             ? [['comment', /<!--[\s\S]*?-->/y], ['tag', /<\/?[a-zA-Z][^\s>/]*/y], ['string', /"[^"]*"|'[^']*'/y], ['tag', /\/?>/y]]
             : [['comment', /\/\*[\s\S]*?\*\/|\/\/[^\n]*|#(?!\{)[^\n]*|--[^\n]*/y], ['string', /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`/y], ['number', /\b\d+(?:\.\d+)?\b/y], ['word', /[A-Za-z_$][\w$]*/y]];
@@ -213,7 +215,7 @@
         while (i < code.length) {
             let matched = false;
             for (const [type, re] of rules) {
-                if (type === 'comment' && language !== 'markup' && code[i] === '#' && !['python', 'bash', 'yaml', 'ruby', 'php'].includes(language)) { continue; }
+                if (type === 'comment' && language !== 'markup' && code[i] === '#' && !['python', 'bash', 'yaml', 'ruby', 'php', 'r', 'julia', 'perl', 'powershell'].includes(language)) { continue; }
                 if (type === 'comment' && code.startsWith('--', i) && language !== 'sql') { continue; }
                 re.lastIndex = i;
                 const m = re.exec(code);

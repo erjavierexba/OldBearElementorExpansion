@@ -585,7 +585,7 @@ final class Post_Info extends Base {
 
         $this->start_controls_section('section_icon_list', ['label'=>'Lista','tab'=>Controls_Manager::TAB_STYLE]);
         $this->add_responsive_control('space_between', ['label'=>'Separación','type'=>Controls_Manager::SLIDER,'size_units'=>['px','em','rem','custom'],'range'=>['px'=>['max'=>50]],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'gap: {{SIZE}}{{UNIT}};']]);
-        $this->add_responsive_control('icon_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>['start'=>['title'=>'Inicio','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'end'=>['title'=>'Final','icon'=>'eicon-h-align-right']],'selectors_dictionary'=>['left'=>'flex-start','start'=>'flex-start','right'=>'flex-end','end'=>'flex-end','center'=>'center'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'justify-content: {{VALUE}};']]);
+        $this->add_responsive_control('icon_align', ['label'=>'Alineación','type'=>Controls_Manager::CHOOSE,'options'=>['left'=>['title'=>'Izquierda','icon'=>'eicon-h-align-left'],'center'=>['title'=>'Centro','icon'=>'eicon-h-align-center'],'right'=>['title'=>'Derecha','icon'=>'eicon-h-align-right']],'selectors_dictionary'=>['left'=>'flex-start','start'=>'flex-start','right'=>'flex-end','end'=>'flex-end','center'=>'center'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'justify-content: {{VALUE}};']]);
         $this->add_control('divider', ['label'=>'Separador','type'=>Controls_Manager::SWITCHER,'label_off'=>'No','label_on'=>'Sí','selectors'=>['{{WRAPPER}} .obx-post-info > li:not(:last-child)::after'=>'content: ""']]);
         $this->add_control('divider_style', ['label'=>'Estilo','type'=>Controls_Manager::SELECT,'default'=>'solid','options'=>['solid'=>'Sólido','double'=>'Doble','dotted'=>'Puntos','dashed'=>'Guiones'],'condition'=>['divider'=>'yes'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'--obx-divider-style: {{VALUE}};']]);
         $this->add_control('divider_weight', ['label'=>'Grosor','type'=>Controls_Manager::SLIDER,'default'=>['size'=>1],'range'=>['px'=>['min'=>1,'max'=>20]],'condition'=>['divider'=>'yes'],'selectors'=>['{{WRAPPER}} .obx-post-info'=>'--obx-divider-weight: {{SIZE}}{{UNIT}};']]);
@@ -620,7 +620,7 @@ final class Post_Info extends Base {
         unset($s['taxonomy'], $s['link']);
         $s['icon_list'] = $items;
         $s['divider'] = 'yes';
-        if (isset($s['text_align'])) { $s['icon_align'] = ['left'=>'start','right'=>'end','center'=>'center'][$s['text_align']] ?? 'start'; unset($s['text_align']); }
+        if (isset($s['text_align'])) { $s['icon_align'] = in_array($s['text_align'], ['left','center','right'], true) ? $s['text_align'] : 'left'; unset($s['text_align']); }
         unset($s['text_hover'], $s['separator']);
         return self::rename_prefix($s, 'text_typography_', 'icon_typography_');
     }
