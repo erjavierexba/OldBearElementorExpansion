@@ -66,7 +66,7 @@ final class Module {
         add_action('elementor/elements/categories_registered', [self::class, 'categories']);
         add_action('elementor/widgets/register', [self::class, 'widgets']);
         // Live results of the Search widget; the widget files load only when the route is registered.
-        add_action('rest_api_init', static function() { self::load_widgets(); \OldBearExpansion\Widgets\Search::routes(); });
+        add_action('rest_api_init', static function() { self::load_widgets(); \OldBearExpansion\Widgets\Search::routes(); \OldBearExpansion\Widgets\Video_Playlist::routes(); });
         // Shop archives paginate with the «columns × rows» of the Archive Products widget that prints them.
         add_action('pre_get_posts', static function($query) {
             if (Plugin::pro_active() || !class_exists('WooCommerce') || !$query instanceof \WP_Query || !$query->is_main_query() || is_admin()) { return; }
@@ -99,9 +99,13 @@ final class Module {
         }, 20);
         add_action('init', [self::class, 'assets'], 5);
         if (!Plugin::pro_active()) { add_filter('wp_check_filetype_and_ext', [self::class, 'json_file_type'], 10, 3); }
-        add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); wp_add_inline_style('obx-frontend', self::menu_breakpoints_css()); });
+        add_action('wp_enqueue_scripts', static function() { wp_enqueue_style('obx-frontend'); wp_add_inline_style('obx-frontend', self::menu_breakpoints_css() . self::playlist_breakpoint_css()); });
         add_action('elementor/editor/after_enqueue_scripts', static function() {
-            if (!Plugin::pro_active()) { wp_enqueue_script('obx-editor-nested', Plugin::url('assets/js/editor-nested.js'), ['jquery'], VERSION, true); }
+            if (!Plugin::pro_active()) {
+                wp_enqueue_script('obx-editor-nested', Plugin::url('assets/js/editor-nested.js'), ['jquery'], VERSION, true);
+                wp_enqueue_script('obx-editor-video-playlist', Plugin::url('assets/js/editor-video-playlist.js'), [], VERSION, true);
+                wp_add_inline_script('obx-editor-video-playlist', 'window.obxVideoPlaylist = ' . wp_json_encode(['rest'=>esc_url_raw(rest_url('obx/v1' . \OldBearExpansion\Widgets\Video_Playlist::ROUTE)),'nonce'=>wp_create_nonce('wp_rest')]) . ';', 'before');
+            }
         });
         if (!Plugin::pro_active() && defined('ELEMENTOR_VERSION')) {
             // Elementor lists Pro widgets as locked promotions; drop the ones we provide.
@@ -156,6 +160,7 @@ final class Module {
         require_once DIR . '/includes/widgets/lottie-widget.php';
         require_once DIR . '/includes/widgets/portfolio-widget.php';
         require_once DIR . '/includes/widgets/swiper-widgets.php';
+        require_once DIR . '/includes/widgets/video-playlist-widget.php';
         // Elementor includes its widget files itself (no require_once): ours extending them wait for them.
         if (class_exists('\\Elementor\\Widget_Image', false) && !class_exists('\\OldBearExpansion\\Widgets\\Hotspot', false)) { require DIR . '/includes/widgets/image-widgets.php'; }
         require_once DIR . '/includes/widgets/loop-widgets.php';
@@ -215,6 +220,33 @@ final class Module {
         return $css;
     }
 
+    /** Video playlist: below the mobile breakpoint the list goes under the player and can be folded. */
+    public static function playlist_breakpoint_css(): string {
+        if (!class_exists('\\Elementor\\Plugin') || !isset(\Elementor\Plugin::$instance->breakpoints)) { return ''; }
+        $mobile = \Elementor\Plugin::$instance->breakpoints->get_breakpoints('mobile');
+        $max = $mobile ? (int) $mobile->get_value() : 767;
+        $w = '.elementor-widget-video-playlist';
+        $inner = '.e-tabs-inner-tabs';
+        $border = '#d5d8dc';
+        return '@media (max-width:' . $max . 'px){'
+            . "$w .e-tabs-main-area,$w.elementor-layout-end .e-tabs-main-area{flex-direction:column-reverse;height:auto}"
+            // Without a set height the player keeps a 16:9 frame; with one it takes 38% of it.
+            . "$w .e-tabs-main-area .e-tabs-content-wrapper{border:none;height:38%;aspect-ratio:16/9}"
+            . "$w .e-tabs-wrapper{height:62%;width:auto}"
+            . "$w .e-tabs-items-wrapper .e-tabs-items{max-height:248px}"
+            . "$w .e-tabs-items-wrapper .e-tabs-items .e-tab-title{border:none}"
+            . "$w .e-tabs-header{min-height:48px}"
+            . "$w .e-tabs-header .e-tabs-toggle-videos-display-button{display:inline-flex}"
+            . "$w .e-tabs-header .e-tabs-videos-count{margin:0 6px;padding:14px 0 0}"
+            . "$w .e-tab-content{border:none;padding:0}"
+            . "$inner>.e-tab-content:first-child{padding-top:24px}"
+            . "$inner .e-inner-tabs-wrapper{display:none}"
+            . "$inner .e-inner-tabs-content-wrapper{border:1px solid $border;border-bottom:0}"
+            . "$inner .e-inner-tabs-content-wrapper .e-tab-mobile-title{display:block;height:38px;line-height:38px;padding:0 10px;border-bottom:1px solid $border;font-size:16px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}"
+            . "$inner .e-inner-tabs-content-wrapper .e-inner-tab-content{padding:20px;border-bottom:1px solid $border}"
+            . '}';
+    }
+
     public static function assets(): void {
         wp_register_style('obx-frontend', Plugin::url('assets/css/frontend.css'), [], VERSION);
         wp_register_script('obx-nav-menu', Plugin::url('assets/js/nav-menu.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
@@ -225,6 +257,7 @@ final class Module {
         // lottie-web 5.12.2 (MIT, Airbnb) plays the Lottie widget's animations.
         wp_register_script('obx-lottie-web', Plugin::url('assets/vendor/lottie/lottie.min.js'), [], '5.12.2', ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-carousels', Plugin::url('assets/js/carousels.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
+        wp_register_script('obx-video-playlist', Plugin::url('assets/js/video-playlist.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-portfolio', Plugin::url('assets/js/portfolio.js'), [], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_register_script('obx-lottie', Plugin::url('assets/js/lottie.js'), ['obx-lottie-web'], VERSION, ['strategy'=>'defer','in_footer'=>true]);
         wp_add_inline_script('obx-lottie', 'window.obxLottie = ' . wp_json_encode(['defaultAnimationUrl'=>Plugin::url('assets/lottie/default.json')]) . ';', 'before');
