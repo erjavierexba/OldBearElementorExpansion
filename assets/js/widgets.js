@@ -590,6 +590,7 @@
         const pages = () => Math.max(1, Math.ceil((slides().length - perView()) / perStep()) + 1);
         const rtl = getComputedStyle(el).direction === 'rtl';
         const pagination = el.querySelector(':scope > .obx-carousel__pagination');
+        if (options.fade) { el.classList.add('obx-carousel--fade'); el.style.setProperty('--obx-slides', '1'); }
         let page = 0;
         const go = (target, smooth = true) => {
             const total = pages();
@@ -597,15 +598,19 @@
             const list = slides();
             const slide = list[Math.min(list.length - 1, target * perStep())];
             if (!slide) { return; }
+            page = target;
+            if (options.fade) { paint(); return; }
             const first = list[0];
             const left = rtl ? (slide.offsetLeft + slide.offsetWidth) - (first.offsetLeft + first.offsetWidth) : slide.offsetLeft - first.offsetLeft;
             track.scrollTo({ left, behavior: smooth && options.speed !== 0 ? 'smooth' : 'auto' });
-            page = target;
             paint();
         };
         // Arrows and dots are role="button" elements (not <button>, so theme button styles stay away): Enter and Space press them.
         const pressable = (node) => node.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); node.click(); } });
         const paint = () => {
+            // Visible slides are marked .is-active (fade transition, content animation, Ken Burns).
+            const from = Math.min(page * perStep(), Math.max(0, slides().length - perView()));
+            slides().forEach((slide, i) => slide.classList.toggle('is-active', i >= from && i < from + perView()));
             if (!pagination) { return; }
             const total = pages();
             if (pagination.classList.contains('obx-carousel__pagination--bullets')) {

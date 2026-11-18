@@ -154,9 +154,10 @@ trait Carousel {
 
     protected function carousel_controls_html(array $s, string $arrows_key, string $prev = '', string $next = ''): string {
         $html = '';
+        $chevron = static fn(string $d) => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' . $d . '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
         if (($s[$arrows_key] ?? 'yes') === 'yes') {
-            $html .= '<div class="obx-carousel__arrow obx-carousel__arrow--prev" role="button" tabindex="0" aria-label="Diapositiva anterior">' . ($prev ?: '<span aria-hidden="true">‹</span>') . '</div>';
-            $html .= '<div class="obx-carousel__arrow obx-carousel__arrow--next" role="button" tabindex="0" aria-label="Diapositiva siguiente">' . ($next ?: '<span aria-hidden="true">›</span>') . '</div>';
+            $html .= '<div class="obx-carousel__arrow obx-carousel__arrow--prev" role="button" tabindex="0" aria-label="Diapositiva anterior">' . ($prev ?: $chevron('M15 4 7 12l8 8')) . '</div>';
+            $html .= '<div class="obx-carousel__arrow obx-carousel__arrow--next" role="button" tabindex="0" aria-label="Diapositiva siguiente">' . ($next ?: $chevron('m9 4 8 8-8 8')) . '</div>';
         }
         $type = (string) ($s['pagination'] ?? 'bullets');
         if (in_array($type, ['bullets','fraction','progressbar'], true)) { $html .= '<div class="obx-carousel__pagination obx-carousel__pagination--' . $type . '"></div>'; }

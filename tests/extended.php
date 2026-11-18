@@ -74,7 +74,7 @@ try{
     $assert(substr_count($html,'class="e-loop-item ')>=5,'El filtro debe conservar los resultados del término elegido.');
 
     $media=$save('page','Prueba medios',[$container([
-        $widget('slides',['slides'=>[['_id'=>'a1','heading'=>'Diapositiva segura','description'=>'Descripción','button_text'=>'Entrar','link'=>['url'=>'https://example.org/']]],'show_arrows'=>'','pagination'=>'']),
+        $widget('slides',['slides'=>[['_id'=>'a1','heading'=>'Diapositiva segura','description'=>'Descripción','button_text'=>'Entrar','link'=>['url'=>'https://example.org/']]],'navigation'=>'none']),
         $widget('media-carousel',['slides'=>[['_id'=>'m1','image'=>['url'=>'https://example.org/image.jpg'],'video_url'=>['url'=>'https://example.org/video.mp4']]],'show_arrows'=>'','pagination'=>''])
     ])]);
     $html=(string)Elementor::$instance->frontend->get_builder_content_for_display($media);
