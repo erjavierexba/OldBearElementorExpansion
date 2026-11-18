@@ -328,6 +328,62 @@ try {
         $previous_post = $GLOBALS['post'] ?? null; $GLOBALS['post'] = get_post($pid);
         try { $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($single_product); } finally { $GLOBALS['post'] = $previous_post; }
         $assert(substr_count($html, 'type-product') === 3 && str_contains($html, 'obx-products--no-heading') && strpos($html, 'Paridad tienda 3') < strpos($html, 'Paridad tienda 1') && str_contains($html, 'upsells'), 'woocommerce-product-upsell: ventas dirigidas del producto, ordenadas, sin encabezado.');
+
+        // 0.10.0 single product widgets: Pro's style keys and defaults, WooCommerce markup, captions, old keys.
+        $keys = [
+            'woocommerce-product-title'=>['title','link','size','header_size','align','typography_typography','text_stroke_text_stroke_type','text_shadow_text_shadow_type','blend_mode','title_color','title_hover_color','title_hover_color_transition_duration'],
+            'woocommerce-product-price'=>['text_align','price_color','typography_typography','sale_price_color','sale_price_typography_typography','price_block','sale_price_spacing'],
+            'woocommerce-product-rating'=>['star_color','empty_star_color','link_color','text_typography_typography','star_size','space_between','alignment'],
+            'woocommerce-product-stock'=>['text_color','text_typography_typography'],
+            'woocommerce-product-meta'=>['view','space_between','divider','divider_style','divider_weight','divider_width','divider_height','divider_color','text_typography_typography','text_color','link_typography_typography','link_color','category_caption_single','category_caption_plural','tag_caption_single','tag_caption_plural','sku_caption','sku_missing_caption'],
+            'woocommerce-product-short-description'=>['text_align','text_color','text_typography_typography'],
+            'woocommerce-product-content'=>['align','text_color','typography_typography'],
+            'woocommerce-product-additional-information'=>['show_heading','heading_color','heading_typography_typography','content_color','content_typography_typography'],
+            'woocommerce-product-data-tabs'=>['tab_text_color','tab_bg_color','tabs_border_color','active_tab_text_color','active_tab_bg_color','active_tabs_border_color','tab_typography_typography','tab_border_radius','text_color','content_typography_typography','heading_color','content_heading_typography_typography','panel_border_width','panel_border_radius','panel_box_shadow_box_shadow_type'],
+            'woocommerce-product-images'=>['sale_flash','image_border_border','image_border_radius','spacing','thumbs_border_border','thumbs_border_radius','spacing_thumbs'],
+            'woocommerce-breadcrumb'=>['text_color','link_color','text_typography_typography','alignment'],
+            'woocommerce-archive-description'=>['text_align','text_color','text_typography_typography'],
+            'woocommerce-product-add-to-cart'=>['layout','alignment','button_typography_typography','button_border_border','button_border_radius','button_padding','button_text_color','button_bg_color','button_border_color','button_text_color_hover','button_bg_color_hover','button_border_color_hover','button_transition','view_cart_color','view_cart_typography_typography','view_cart_spacing','show_quantity','spacing','quantity_typography_typography','quantity_border_border','quantity_border_radius','quantity_padding','quantity_text_color','quantity_bg_color','quantity_border_color','quantity_text_color_focus','quantity_bg_color_focus','quantity_border_color_focus','quantity_transition','variations_width','variations_spacing','variations_space_between','variations_label_color_focus','variations_label_typography_typography','variations_select_color','variations_select_bg_color','variations_select_border_color','variations_select_typography_typography','variations_select_border_radius'],
+        ];
+        foreach ($keys as $type => $list) {
+            $c = Elementor::$instance->widgets_manager->get_widget_types($type)->get_controls();
+            foreach ($list as $key) { $assert(isset($c[$key]), "{$type}: falta {$key}."); }
+            $assert(!array_filter(array_keys($c), static fn($k) => str_starts_with((string) $k, 'woo_')), "{$type}: sin las claves propias de versiones anteriores.");
+        }
+        $c = Elementor::$instance->widgets_manager->get_widget_types('woocommerce-product-meta')->get_controls();
+        $assert(($c['view']['default'] ?? '') === 'inline' && ($c['divider_style']['default'] ?? '') === 'solid' && ($c['divider_weight']['default']['size'] ?? 0) === 1 && ($c['divider_color']['default'] ?? '') === '#ddd', 'woocommerce-product-meta: valores por defecto de Pro.');
+        $c = Elementor::$instance->widgets_manager->get_widget_types('woocommerce-product-add-to-cart')->get_controls();
+        $assert(($c['show_quantity']['default'] ?? '') === 'yes' && ($c['button_transition']['default']['size'] ?? 0) == 0.2 && ($c['layout']['default'] ?? 'x') === '' && array_keys($c['layout']['options']) === ['','stacked','auto'], 'woocommerce-product-add-to-cart: valores por defecto de Pro.');
+        $c = Elementor::$instance->widgets_manager->get_widget_types('woocommerce-product-title')->get_controls();
+        $assert(($c['header_size']['default'] ?? '') === 'h1' && isset($c['header_size']['options']['span']) && ($c['size']['default'] ?? '') === 'default', 'woocommerce-product-title: valores por defecto de Pro.');
+
+        $main_product->set_sku('OBX-SKU-1'); $main_product->set_short_description('Descripción corta de paridad'); $main_product->set_weight('2'); $main_product->save();
+        $single = $save('product', 'Paridad ficha de producto', [$container([
+            $widget('woocommerce-product-title', ['header_size'=>'h2','size'=>'large','link'=>['url'=>'https://example.com/ficha']]),
+            $widget('woocommerce-product-price', ['price_block'=>'yes']),
+            $widget('woocommerce-product-meta', ['view'=>'stacked','sku_caption'=>'Referencia','category_caption_single'=>'Familia','show_tag'=>'']),
+            $widget('woocommerce-product-short-description'),
+            $widget('woocommerce-product-additional-information', ['show_heading'=>'']),
+            $widget('woocommerce-product-add-to-cart', ['show_quantity'=>'','layout'=>'stacked']),
+            $widget('woocommerce-product-stock'),
+            $widget('woocommerce-product-data-tabs'),
+        ])], ['preview_type'=>'single/product','preview_id'=>(string) $pid]);
+        $previous_post = $GLOBALS['post'] ?? null; $GLOBALS['post'] = get_post($pid);
+        try { $html = (string) Elementor::$instance->frontend->get_builder_content_for_display($single); } finally { $GLOBALS['post'] = $previous_post; }
+        $assert(str_contains($html, '<h2 class="product_title entry-title elementor-heading-title elementor-size-large"><a href="https://example.com/ficha"') && str_contains($html, 'Paridad producto</a></h2>'), 'woocommerce-product-title: nombre del producto con etiqueta, tamaño y enlace.');
+        $assert(str_contains($html, 'elementor-product-price-block-yes') && str_contains($html, '<p class="price"><del'), 'woocommerce-product-price: precio de oferta, uno debajo del otro.');
+        $assert(str_contains($html, 'elementor-woo-meta--view-stacked') && str_contains($html, '<span class="detail-label">Referencia</span> <span class="detail-content"><span class="sku">OBX-SKU-1</span>') && str_contains($html, '<span class="detail-label">Familia</span>') && !str_contains($html, 'tagged_as'), 'woocommerce-product-meta: vista, textos propios y metadatos ocultos.');
+        $assert(str_contains($html, 'woocommerce-product-details__short-description') && str_contains($html, 'Descripción corta de paridad'), 'woocommerce-product-short-description: descripción corta.');
+        $assert(str_contains($html, 'woocommerce-product-attributes') && !preg_match('#<div class="elementor-widget-container">\s*<h2>#', $html), 'woocommerce-product-additional-information: atributos sin encabezado.');
+        $assert(str_contains($html, 'elementor-add-to-cart--layout-stacked') && str_contains($html, 'elementor-add-to-cart elementor-product-simple') && str_contains($html, 'single_add_to_cart_button') && preg_match('#type="hidden"\s+id="quantity_#', $html), 'woocommerce-product-add-to-cart: botón de WooCommerce sin selector de cantidad.');
+        $assert(str_contains($html, 'woocommerce-tabs') && str_contains($html, 'tab-title-additional_information'), 'woocommerce-product-data-tabs: pestañas de WooCommerce.');
+
+        $old = \OldBearExpansion\Widgets\Woo_Product_Add_To_Cart::convert('woocommerce-product-add-to-cart', ['woo_button_color'=>'#111','woo_button_hover_bg'=>'#222','woo_button_padding_mobile'=>['top'=>'4'],'woo_button_typography_typography'=>'custom','show_quantity'=>'yes']);
+        $assert(($old['button_text_color'] ?? '') === '#111' && ($old['button_bg_color_hover'] ?? '') === '#222' && ($old['button_padding_mobile']['top'] ?? '') === '4' && ($old['button_typography_typography'] ?? '') === 'custom' && !array_filter(array_keys($old), static fn($k) => str_starts_with((string) $k, 'woo_')), 'woocommerce-product-add-to-cart: los ajustes de versiones anteriores se convierten.');
+        $old = \OldBearExpansion\Widgets\Woo_Product_Additional_Information::convert('woocommerce-product-additional-information', ['title'=>'', 'woo_color'=>'#333']);
+        $assert(($old['show_heading'] ?? 'x') === '' && ($old['content_color'] ?? '') === '#333' && !isset($old['title']), 'woocommerce-product-additional-information: «Mostrar título» pasa a show_heading.');
+        $old = \OldBearExpansion\Widgets\Woo_Product_Title::convert('woocommerce-product-title', ['woo_color'=>'#444','woo_typography_font_size'=>['size'=>30]]);
+        $assert(($old['title_color'] ?? '') === '#444' && ($old['typography_font_size']['size'] ?? 0) === 30, 'woocommerce-product-title: color y tipografía anteriores se conservan.');
     }
 
     if (!empty($pcat)) { wp_delete_term($pchild['term_id'], 'product_cat'); wp_delete_term($pcat['term_id'], 'product_cat'); }

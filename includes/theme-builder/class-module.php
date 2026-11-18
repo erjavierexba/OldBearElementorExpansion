@@ -126,6 +126,7 @@ final class Module {
         require_once DIR . '/includes/widgets/loop-widgets.php';
         require_once DIR . '/includes/widgets/woocommerce-widgets.php';
         require_once DIR . '/includes/widgets/woocommerce-products.php';
+        require_once DIR . '/includes/widgets/woocommerce-single.php';
     }
 
     public static function documents($manager): void {
